@@ -12,7 +12,8 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select } from "@/components/ui/select";
 import { ToggleChip } from "@/components/ui/chip";
-import { MockMapView, type MapMarker } from "@/components/map/MapView";
+import { MapPanel } from "@/components/map/MapPanel";
+import type { MapMarker } from "@/components/map/MapView";
 import { RecommendationCard } from "@/components/recommendations/RecommendationCard";
 import { useEligibilityStore } from "@/features/eligibility/eligibility.store";
 import { usePreferencesStore, buildSurvey, isBudgetComplete } from "@/features/recommendation/preferences.store";
@@ -258,7 +259,7 @@ function RecommendationsInner() {
             ))}
           </div>
           <div className={cn("lg:sticky lg:top-20 lg:h-[calc(100dvh-7rem)]", view === "list" && "hidden lg:block")}>
-            <MockMapView markers={markers} selectedId={activeId} onSelect={setActiveId} />
+            <MapPanel markers={markers} selectedId={activeId} onSelect={setActiveId} />
           </div>
         </div>
       )}

@@ -21,7 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { ScoreBreakdown } from "@/components/housing/ScoreBreakdown";
-import { MockMapView } from "@/components/map/MapView";
+import { MapPanel } from "@/components/map/MapPanel";
 import { housingById } from "@/mocks/housing";
 import { reviewsByHousing } from "@/mocks/reviews";
 import { useUserStore } from "@/features/user/user.store";
@@ -257,7 +257,7 @@ export default function HousingDetailPage() {
         {/* 사이드: 지도 + 주변시설 + 공고 */}
         <aside className="space-y-4">
           <div className="h-64">
-            <MockMapView markers={[{ id: unit.id, coord: unit.coord, label: unit.name }]} selectedId={unit.id} onSelect={() => {}} />
+            <MapPanel markers={[{ id: unit.id, coord: unit.coord, label: unit.name }]} selectedId={unit.id} onSelect={() => {}} />
           </div>
           <Card>
             <CardBody>
