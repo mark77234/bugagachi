@@ -258,7 +258,7 @@ function RecommendationsInner() {
               />
             ))}
           </div>
-          <div className={cn("lg:sticky lg:top-20 lg:h-[calc(100dvh-7rem)]", view === "list" && "hidden lg:block")}>
+          <div className={cn("h-[68vh] lg:sticky lg:top-20 lg:h-[calc(100dvh-7rem)]", view === "list" && "hidden lg:block")}>
             <MapPanel markers={markers} selectedId={activeId} onSelect={setActiveId} />
           </div>
         </div>

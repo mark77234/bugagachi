@@ -256,7 +256,7 @@ export default function HousingDetailPage() {
 
         {/* 사이드: 지도 + 주변시설 + 공고 */}
         <aside className="space-y-4">
-          <div className="h-64">
+          <div className="h-72 sm:h-80">
             <MapPanel markers={[{ id: unit.id, coord: unit.coord, label: unit.name }]} selectedId={unit.id} onSelect={() => {}} />
           </div>
           <Card>
