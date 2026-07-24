@@ -19,8 +19,13 @@ export default function CommunityWritePage() {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [attempted, setAttempted] = useState(false);
 
   const canSubmit = board !== null && title.trim() !== "" && body.trim() !== "";
+  const submit = () => {
+    setAttempted(true);
+    if (canSubmit) setSubmitted(true);
+  };
 
   if (submitted) {
     return (
@@ -49,7 +54,15 @@ export default function CommunityWritePage() {
       </InformationBanner>
 
       <Card>
-        <CardBody className="space-y-5">
+        <CardBody>
+          <form
+            className="space-y-5"
+            onSubmit={(event) => {
+              event.preventDefault();
+              submit();
+            }}
+            noValidate
+          >
           <fieldset>
             <legend className="mb-3 font-semibold">게시판</legend>
             <RadioCards<BoardType>
@@ -59,6 +72,7 @@ export default function CommunityWritePage() {
               onChange={setBoard}
               options={(Object.keys(BOARD_LABEL) as BoardType[]).map((b) => ({ value: b, label: BOARD_LABEL[b] }))}
             />
+            {attempted && board === null && <p className="mt-2 text-sm font-medium text-error" role="alert">게시판을 선택해 주세요.</p>}
           </fieldset>
 
           <label className="block">
@@ -73,30 +87,51 @@ export default function CommunityWritePage() {
             </Select>
           </label>
 
-          <label className="block">
-            <span className="mb-1 block font-semibold">제목</span>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="제목을 입력하세요" />
+          <label className="block" htmlFor="post-title">
+            <span className="mb-1 flex items-center justify-between font-semibold">
+              제목
+              <span className="text-sm font-normal tabular-nums text-muted">{title.length}/80</span>
+            </span>
+            <Input
+              id="post-title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="제목을 입력하세요"
+              maxLength={80}
+              aria-invalid={attempted && title.trim() === ""}
+              aria-describedby={attempted && title.trim() === "" ? "post-title-error" : undefined}
+            />
+            {attempted && title.trim() === "" && <span id="post-title-error" className="mt-1 block text-sm font-medium text-error" role="alert">제목을 입력해 주세요.</span>}
           </label>
 
-          <label className="block">
-            <span className="mb-1 block font-semibold">내용</span>
+          <label className="block" htmlFor="post-body">
+            <span className="mb-1 flex items-center justify-between font-semibold">
+              내용
+              <span className="text-sm font-normal tabular-nums text-muted">{body.length}/2000</span>
+            </span>
             <textarea
+              id="post-body"
               value={body}
               onChange={(e) => setBody(e.target.value)}
               rows={8}
+              maxLength={2000}
               placeholder="내용을 입력하세요"
               className="w-full rounded-[var(--radius-input)] border border-border bg-surface p-4 text-base focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-ring)]"
+              aria-invalid={attempted && body.trim() === ""}
+              aria-describedby={attempted && body.trim() === "" ? "post-body-error" : undefined}
             />
+            {attempted && body.trim() === "" && <span id="post-body-error" className="mt-1 block text-sm font-medium text-error" role="alert">내용을 입력해 주세요.</span>}
           </label>
 
           <div className="flex justify-end gap-2">
             <Link href="/community" className={cn(buttonVariants({ variant: "outline", size: "lg" }))}>
               취소
             </Link>
-            <Button size="lg" disabled={!canSubmit} onClick={() => setSubmitted(true)}>
+            <Button type="submit" size="lg">
               등록 (데모)
             </Button>
           </div>
+          </form>
         </CardBody>
       </Card>
     </PageContainer>

@@ -1,6 +1,7 @@
 "use client";
 
 import { MapPin } from "lucide-react";
+import { useEffect } from "react";
 import type { LatLng } from "@/lib/coordinates";
 import { cn } from "@/lib/utils";
 
@@ -12,14 +13,30 @@ export interface MapMarker {
   label: string;
   caption?: string;
 }
+
+export interface MapViewportBounds {
+  north: number;
+  south: number;
+  east: number;
+  west: number;
+}
+
 export interface MapViewProps {
   markers: MapMarker[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  ariaLabel?: string;
+  onViewportChange?: (bounds: MapViewportBounds) => void;
 }
 
 // 부산 대략 경계 (WGS84)
 const BOUNDS = { latMax: 35.32, latMin: 35.04, lngMin: 128.86, lngMax: 129.27 };
+export const BUSAN_MOCK_VIEWPORT: MapViewportBounds = {
+  north: BOUNDS.latMax,
+  south: BOUNDS.latMin,
+  east: BOUNDS.lngMax,
+  west: BOUNDS.lngMin,
+};
 
 function project(coord: LatLng) {
   const x = ((coord.lng - BOUNDS.lngMin) / (BOUNDS.lngMax - BOUNDS.lngMin)) * 100;
@@ -28,7 +45,17 @@ function project(coord: LatLng) {
 }
 
 /** Kakao API Key 부재 시 사용하는 mock 지도. */
-export function MockMapView({ markers, selectedId, onSelect }: MapViewProps) {
+export function MockMapView({
+  markers,
+  selectedId,
+  onSelect,
+  ariaLabel = "주택 위치 지도 (모의)",
+  onViewportChange,
+}: MapViewProps) {
+  useEffect(() => {
+    onViewportChange?.(BUSAN_MOCK_VIEWPORT);
+  }, [onViewportChange]);
+
   return (
     <div
       className="relative h-full min-h-[320px] w-full overflow-hidden rounded-[var(--radius-card)] border border-border"
@@ -39,7 +66,7 @@ export function MockMapView({ markers, selectedId, onSelect }: MapViewProps) {
         backgroundSize: "36px 36px",
       }}
       role="group"
-      aria-label="추천 주택 지도 (모의)"
+      aria-label={ariaLabel}
     >
       <span className="absolute left-3 top-3 rounded-full bg-surface/90 px-2.5 py-1 text-xs font-medium text-muted">
         지도 미리보기 (모의) · 카카오 지도 연동 예정

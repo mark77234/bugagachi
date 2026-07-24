@@ -105,7 +105,8 @@ export default function MyPage() {
           className="md:col-span-2"
           action={
             <Link href="/eligibility" className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
-              <Pencil className="h-4 w-4" /> 수정
+              {savedResults && savedResults.length > 0 ? <Pencil className="h-4 w-4" /> : <ClipboardCheck className="h-4 w-4" />}
+              {savedResults && savedResults.length > 0 ? "수정" : "자격 확인 시작"}
             </Link>
           }
         >
@@ -133,7 +134,12 @@ export default function MyPage() {
         <Tile
           title="추천 설정"
           icon={<UserCircle2 className="h-5 w-5" />}
-          action={<Link href="/preferences" className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}><Pencil className="h-4 w-4" /> 수정</Link>}
+          action={
+            <Link href={savedResults?.length ? "/preferences" : "/eligibility"} className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
+              {isBudgetComplete(pref) ? <Pencil className="h-4 w-4" /> : <ClipboardCheck className="h-4 w-4" />}
+              {isBudgetComplete(pref) ? "수정" : "취향 설정 시작"}
+            </Link>
+          }
         >
           {isBudgetComplete(pref) ? (
             <ul className="space-y-1.5 text-sm text-muted">
@@ -200,7 +206,7 @@ export default function MyPage() {
         </Tile>
 
         {/* 계정/데이터 */}
-        <Tile title="계정 · 데이터" icon={<LogOut className="h-5 w-5" />} className="md:col-span-2 lg:col-span-3">
+        <Tile title="내 데이터 관리" icon={<LogOut className="h-5 w-5" />} className="md:col-span-2 lg:col-span-3">
           <div className="flex flex-wrap gap-2">
             <Link href="/eligibility" className={cn(buttonVariants({ variant: "outline", size: "md" }))}>
               <Pencil className="h-4 w-4" /> 1단계 다시 하기
@@ -208,9 +214,9 @@ export default function MyPage() {
             <Link href="/preferences" className={cn(buttonVariants({ variant: "outline", size: "md" }))}>
               <Pencil className="h-4 w-4" /> 2단계 다시 하기
             </Link>
-            <Button variant="outline" size="md" onClick={() => alert("데모 모드: 로그아웃할 계정이 없어요.")}>
-              <LogOut className="h-4 w-4" /> 로그아웃
-            </Button>
+          </div>
+          <div className="mt-5 border-t border-border pt-5">
+            <p className="mb-3 text-sm text-muted">아래 작업은 이 브라우저에 저장된 진단·추천·관심 주택 정보를 모두 지웁니다.</p>
             <Button variant="danger" size="md" onClick={() => setDeleteOpen(true)}>
               <Trash2 className="h-4 w-4" /> 내 데이터 삭제
             </Button>

@@ -4,9 +4,9 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Filter, Map as MapIcon, List, SlidersHorizontal } from "lucide-react";
+import { Filter, Map as MapIcon, List, MessageCircleQuestion, SlidersHorizontal } from "lucide-react";
 import { PageContainer } from "@/components/common/PageContainer";
-import { SectionHeader } from "@/components/common/SectionHeader";
+import { PageIntro } from "@/components/common/PageIntro";
 import { Disclaimer, InformationBanner } from "@/components/common/banners";
 import { EmptyState, LoadingState } from "@/components/common/states";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -106,6 +106,11 @@ function RecommendationsInner() {
     const u = housingById(rec.unitId)!;
     return { id: u.id, coord: u.coord, label: u.name, caption: `월 ${formatManwon(bestCondition(u).monthlyRent)}` };
   });
+  const resetFilters = () => {
+    setTypeF(new Set());
+    setStatusF(new Set());
+    setGunguF(new Set());
+  };
 
   if (!eligHydrated || !prefHydrated) {
     return (
@@ -148,14 +153,26 @@ function RecommendationsInner() {
 
   return (
     <PageContainer size="wide" className="py-8">
-      <SectionHeader
-        as="h1"
-        eyebrow={recommendMode ? "맞춤 추천" : "전체 모집공고"}
-        title={recommendMode ? "추천 주택" : "부산 공공임대 공고"}
+      <PageIntro
+        eyebrow={recommendMode ? "맞춤 추천" : "데모 주택 목록"}
+        title={recommendMode ? "추천 주택" : "부산 공공임대 데모 주택"}
         description={
           recommendMode
             ? "자격을 통과한 주택을 예산·지역·생활 취향으로 정렬했어요. 점수 대신 근거로 설명해요."
-            : "자격 확인과 취향 설문을 완료하면 나에게 맞는 순서로 추천해 드려요."
+            : "현재 보유한 시연용 데이터 12곳을 보여드려요. 자격 확인과 취향 설문을 완료하면 나에게 맞는 순서로 추천해 드려요."
+        }
+        compact
+        actions={
+          <>
+            <Link href="/chat?topic=recommendation" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+              <MessageCircleQuestion className="h-4 w-4" aria-hidden />
+              추천 방식 물어보기
+            </Link>
+            <Link href="/map" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+              <MapIcon className="h-4 w-4" aria-hidden />
+              전체 지도 보기
+            </Link>
+          </>
         }
       />
 
@@ -167,6 +184,10 @@ function RecommendationsInner() {
           과 2단계 취향 설문을 완료하면 예산·생활권에 맞춰 순서를 매겨드려요.
         </InformationBanner>
       )}
+
+      <InformationBanner tone="warning" className="mb-6" title="주택·모집 정보는 데모 데이터예요">
+        실시간 모집공고가 아니므로 실제 신청 전에는 공식 기관의 최신 공고를 확인하세요.
+      </InformationBanner>
 
       {recommendMode && (
         <div className="mb-4 flex flex-wrap items-center gap-2 rounded-[var(--radius-input)] bg-surface-muted/70 p-3 text-sm">
@@ -230,7 +251,7 @@ function RecommendationsInner() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.2 }}
-            className="mb-5 space-y-4 rounded-[var(--radius-card)] border border-border bg-surface p-4">
+            className="mb-5 space-y-4 rounded-[var(--radius-card)] border border-border bg-surface p-4 shadow-[var(--shadow-sm)]">
           <FilterRow label="임대 유형">
             {availableTypes.map((t) => (
               <ToggleChip key={t} label={ELIGIBILITY_TYPE_LABEL[t]} selected={typeF.has(t)} onToggle={() => toggle(typeF, t, setTypeF)} />
@@ -252,9 +273,17 @@ function RecommendationsInner() {
 
       {/* 본문: 리스트 + 지도 */}
       {filtered.length === 0 ? (
-        <EmptyState title="조건에 맞는 주택이 없어요" description="필터를 조정해 보세요." />
+        <EmptyState
+          title="조건에 맞는 주택이 없어요"
+          description="적용한 필터를 초기화하면 전체 결과를 다시 볼 수 있어요."
+          action={
+            <Button variant="primary" size="md" onClick={resetFilters}>
+              필터 초기화
+            </Button>
+          }
+        />
       ) : (
-        <div className="grid gap-6 lg:grid-cols-[1fr_minmax(420px,55%)]">
+        <div className="grid gap-6 lg:grid-cols-[minmax(340px,2fr)_minmax(520px,3fr)]">
           <div className={cn("space-y-3", view === "map" && "hidden lg:block")}>
             {filtered.map((rec) => (
               <RecommendationCard

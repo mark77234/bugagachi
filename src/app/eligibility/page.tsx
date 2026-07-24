@@ -8,6 +8,7 @@ import { Disclaimer } from "@/components/common/banners";
 import { Stepper } from "@/components/onboarding/Stepper";
 import { QuestionCard } from "@/components/onboarding/QuestionCard";
 import { SummarySidebar } from "@/components/onboarding/SummarySidebar";
+import { FlowShell } from "@/components/onboarding/FlowShell";
 import { ConfirmationDialog } from "@/components/common/ConfirmationDialog";
 import { StepA, StepB, StepC, StepD } from "@/components/eligibility/CommonSteps";
 import { DetailForm } from "@/components/eligibility/DetailForm";
@@ -41,6 +42,7 @@ export default function EligibilityPage() {
   const [gateOpen, setGateOpen] = useState(false);
   const [exitReason, setExitReason] = useState("");
   const headingRef = useRef<HTMLDivElement>(null);
+  const questionHeadingRef = useRef<HTMLHeadingElement>(null);
 
   // 복구: 이미 공통 입력이 완료돼 있으면 결과 화면부터 시작
   const startedRef = useRef(false);
@@ -59,7 +61,8 @@ export default function EligibilityPage() {
 
   // 단계 변경 시 제목으로 포커스 이동(스크린리더 안내)
   useEffect(() => {
-    headingRef.current?.focus();
+    if (phase === "common") questionHeadingRef.current?.focus();
+    else headingRef.current?.focus();
   }, [step, phase]);
 
   if (!hydrated) {
@@ -107,84 +110,72 @@ export default function EligibilityPage() {
   const showTwoCol = phase === "common";
 
   return (
-    <PageContainer size={showTwoCol ? "wide" : "narrow"} className="py-8">
-      <div className="mb-2">
-        <p className="text-sm font-semibold text-primary">1단계 자격 확인</p>
-      </div>
-      <div className="mb-6">
-        {phase === "common" ? (
+    <FlowShell
+      eyebrow="1단계 · 신청 가능성 확인"
+      title="공공임대 자격 확인"
+      description="복잡한 기준을 쉬운 질문으로 확인해요. 입력 내용은 이 브라우저에만 저장됩니다."
+      narrow={!showTwoCol}
+      progress={
+        phase === "common" ? (
           <Stepper steps={STEPS} currentKey={step} completedKeys={completedKeys} />
         ) : (
-          <p className="text-sm text-muted">
+          <p className="rounded-[var(--radius-input)] bg-primary-subtle px-4 py-3 text-sm font-medium text-primary">
             {phase === "detail" ? "세부 자격 확인 중" : phase === "summary" ? "자격 확인 완료" : "공통 자격 확인 완료"}
           </p>
-        )}
-      </div>
-
+        )
+      }
+      aside={showTwoCol ? <SummarySidebar className="hidden lg:block" /> : undefined}
+      footer={<Disclaimer className="mt-8" />}
+    >
       <div ref={headingRef} tabIndex={-1} className="outline-none">
-        <div className={showTwoCol ? "grid gap-6 lg:grid-cols-[1fr_320px]" : ""}>
-          <div className="min-w-0">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={phase + step}
-                initial={{ opacity: 0, x: 16 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -12 }}
-                transition={{ duration: 0.22 }}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={phase + step}
+            initial={{ opacity: 0, x: 12 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -8 }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+          >
+            {phase === "common" && (
+              <QuestionCard
+                title={stepTitle(step)}
+                headingRef={questionHeadingRef}
+                description={stepDesc(step)}
+                onPrev={step === "A" ? undefined : handleStepPrev}
+                onNext={handleStepNext}
+                nextDisabled={!stepValid}
+                isLast={step === "D"}
               >
-                {phase === "common" && (
-                  <QuestionCard
-                    title={stepTitle(step)}
-                    description={stepDesc(step)}
-                    onPrev={step === "A" ? undefined : handleStepPrev}
-                    onNext={handleStepNext}
-                    nextDisabled={!stepValid}
-                    isLast={step === "D"}
-                    remainingHint="남은 시간 약 2분"
-                  >
-                    {step === "A" && <StepA />}
-                    {step === "B" && <StepB />}
-                    {step === "C" && <StepC />}
-                    {step === "D" && <StepD />}
-                  </QuestionCard>
-                )}
+                {step === "A" && <StepA />}
+                {step === "B" && <StepB />}
+                {step === "C" && <StepC />}
+                {step === "D" && <StepD />}
+              </QuestionCard>
+            )}
 
-                {phase === "result1" &&
-                  (candidates.length === 0 ? (
-                    <ExitScreen reason="공통 자격(무주택·소득·자산·지역) 조건을 충족하는 유형이 없어요." onEdit={goEditCommon} />
-                  ) : (
-                    <Stage1Result
-                      results={s1Results}
-                      onEdit={goEditCommon}
-                      onContinue={() => setPhase("detail")}
-                    />
-                  ))}
+            {phase === "result1" &&
+              (candidates.length === 0 ? (
+                <ExitScreen reason="공통 자격(무주택·소득·자산·지역) 조건을 충족하는 유형이 없어요." onEdit={goEditCommon} />
+              ) : (
+                <Stage1Result results={s1Results} onEdit={goEditCommon} onContinue={() => setPhase("detail")} />
+              ))}
 
-                {phase === "detail" && (
-                  <DetailForm
-                    candidates={candidates}
-                    onBack={() => setPhase("result1")}
-                    onComplete={() => {
-                      store.saveResults(finalResults);
-                      setPhase("summary");
-                    }}
-                  />
-                )}
+            {phase === "detail" && (
+              <DetailForm
+                candidates={candidates}
+                onBack={() => setPhase("result1")}
+                onComplete={() => {
+                  store.saveResults(finalResults);
+                  setPhase("summary");
+                }}
+              />
+            )}
 
-                {phase === "summary" && <FinalSummary results={finalResults} onEdit={goEditCommon} />}
-
-                {phase === "exit" && (
-                  <ExitScreen reason={exitReason} onEdit={goEditCommon} />
-                )}
-              </motion.div>
-            </AnimatePresence>
-          </div>
-
-          {showTwoCol && <SummarySidebar className="hidden lg:block" />}
-        </div>
+            {phase === "summary" && <FinalSummary results={finalResults} onEdit={goEditCommon} />}
+            {phase === "exit" && <ExitScreen reason={exitReason} onEdit={goEditCommon} />}
+          </motion.div>
+        </AnimatePresence>
       </div>
-
-      <Disclaimer className="mt-8" />
 
       <ConfirmationDialog
         open={gateOpen}
@@ -198,7 +189,7 @@ export default function EligibilityPage() {
         confirmLabel="결과 확인"
         cancelLabel="답변 수정"
       />
-    </PageContainer>
+    </FlowShell>
   );
 }
 

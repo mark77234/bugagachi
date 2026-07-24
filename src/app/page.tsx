@@ -1,156 +1,192 @@
 import Link from "next/link";
 import {
+  ArrowDown,
   ArrowRight,
-  ClipboardCheck,
-  MapPin,
-  ListChecks,
-  FileCheck2,
-  Wallet,
-  Train,
   Building2,
-  GraduationCap,
-  Store,
-  Trees,
-  Clock,
+  ClipboardCheck,
+  FileCheck2,
+  ListChecks,
+  MapPin,
   ShieldCheck,
-  Sparkles,
-  Filter,
-  MessageSquareText,
+  Database,
+  SlidersHorizontal,
 } from "lucide-react";
 import { PageContainer } from "@/components/common/PageContainer";
 import { SectionHeader } from "@/components/common/SectionHeader";
 import { InformationBanner, PrivacyNotice } from "@/components/common/banners";
-import { Card, CardBody } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardBody } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { FadeIn } from "@/components/common/motion";
 import { Reveal } from "@/components/common/Reveal";
+import { ServiceEntryCard } from "@/components/landing/ServiceEntryCard";
+import {
+  ChatIllustration,
+  MapIllustration,
+  RecommendationIllustration,
+} from "@/components/landing/ServiceIllustrations";
 import { cn } from "@/lib/utils";
 import { ELIGIBILITY_TYPE_LABEL } from "@/features/eligibility/eligibility.types";
 import { BASE_YEAR_BY_TYPE } from "@/config/eligibility-config.2025";
 
 const PROCESS = [
-  { icon: ClipboardCheck, title: "자격 확인", desc: "무주택·소득·자산 등 기본 자격을 먼저 진단해요." },
-  { icon: MapPin, title: "생활 조건 입력", desc: "예산·희망 지역·생활 취향을 입력해요." },
-  { icon: ListChecks, title: "추천 결과 확인", desc: "자격을 통과한 주택을 순서대로 추천해요." },
-  { icon: FileCheck2, title: "공식 공고 확인", desc: "실제 신청 가능 여부는 모집공고에서 확정해요." },
+  { icon: ClipboardCheck, title: "자격 확인", desc: "기본 신청 조건을 확인해요." },
+  { icon: MapPin, title: "생활 취향 입력", desc: "예산과 희망 생활권을 골라요." },
+  { icon: ListChecks, title: "맞춤 추천 확인", desc: "추천 주택과 이유를 살펴봐요." },
+  { icon: FileCheck2, title: "공식 공고 확인", desc: "신청 전 최종 조건을 확인해요." },
 ];
-
-const CRITERIA = [
-  { icon: Wallet, title: "예산", desc: "보증금·월 임대료 (하드필터)" },
-  { icon: Train, title: "출퇴근·통학", desc: "자주 가는 장소까지 거리 (0.30)" },
-  { icon: Building2, title: "생활 인프라", desc: "병원·마트·공원·지하철 등 (0.25)" },
-  { icon: GraduationCap, title: "돌봄·교육", desc: "어린이집·학교 (0.20)" },
-  { icon: Store, title: "취향 시설", desc: "카페·편의점 등 밀도 (0.15)" },
-  { icon: Trees, title: "동네 분위기", desc: "조용함 ~ 번화함 (0.10)" },
-];
-
-const DIFFERENTIATORS = [
-  { icon: ShieldCheck, title: "자격을 먼저 분석해요", desc: "무주택·소득·자산을 진단해 신청 가능한 유형부터 가려내요." },
-  { icon: Filter, title: "맞는 주택만 선별해요", desc: "자격을 통과한 주택만 후보로 남겨 헛걸음을 줄여요." },
-  { icon: MapPin, title: "취향·입지를 함께 반영해요", desc: "예산·출퇴근·병원·학교·동네 분위기까지 반영해 순위를 매겨요." },
-  { icon: MessageSquareText, title: "추천 이유를 설명해요", desc: "점수만 보여주지 않고 '왜 맞는지'를 쉬운 말로 알려줘요." },
-  { icon: ListChecks, title: "신청 준비까지 이어줘요", desc: "주택별 준비 서류·확인 사항을 체크리스트로 정리해요." },
-  { icon: Sparkles, title: "복잡한 공고를 쉽게", desc: "행정 용어를 풀어 설명하고 확인할 조건을 짚어줘요." },
-] as const;
 
 const TYPES = Object.entries(ELIGIBILITY_TYPE_LABEL) as [keyof typeof ELIGIBILITY_TYPE_LABEL, string][];
 
 export default function LandingPage() {
   return (
     <div className="pb-8">
-      {/* Hero */}
-      <section className="bg-primary-subtle/50">
-        <PageContainer className="py-14 sm:py-20">
-          <FadeIn>
-            <Badge tone="primary" className="mb-4">
-              부산 공공임대 · 자격 확인부터 추천까지
-            </Badge>
-            <h1 className="max-w-3xl text-3xl font-extrabold leading-tight sm:text-[2.6rem]">
-              부산에서 나에게 맞는
-              <br />
-              공공임대주택 찾기
-            </h1>
-            <p className="mt-4 max-w-xl text-lg text-muted">
-              목록만 보여주지 않아요. <b className="text-fg">자격을 먼저 분석</b>하고, 예산·생활 취향까지 반영해
-              <b className="text-fg"> 나에게 맞는 집만</b> 추천해요.
-            </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link href="/eligibility" className={cn(buttonVariants({ variant: "primary", size: "lg" }))}>
-                내 자격 확인하고 추천받기 <ArrowRight className="h-5 w-5" />
-              </Link>
-              <Link href="/recommendations" className={cn(buttonVariants({ variant: "outline", size: "lg" }))}>
-                모집공고 먼저 둘러보기
-              </Link>
-            </div>
-            <ul className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted">
-              <li className="flex items-center gap-1.5">
-                <Clock className="h-4 w-4 text-primary" aria-hidden /> 약 3분 소요
-              </li>
-              <li className="flex items-center gap-1.5">
-                <ShieldCheck className="h-4 w-4 text-primary" aria-hidden /> 로그인 없이 무료
-              </li>
-              <li className="flex items-center gap-1.5">
-                <FileCheck2 className="h-4 w-4 text-primary" aria-hidden /> 2026년 공고·소득·자산 기준
-              </li>
-            </ul>
-          </FadeIn>
+      <section className="border-b border-primary/10 bg-primary-subtle/55">
+        <PageContainer size="wide" className="py-14 sm:py-20 lg:py-24">
+          <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,1fr)_400px]">
+            <FadeIn y={12}>
+              <Badge tone="primary" className="mb-5">
+                부산 공공임대 · 자격 확인부터 추천까지
+              </Badge>
+              <h1 className="max-w-4xl text-balance text-3xl font-extrabold leading-tight sm:text-[2.75rem] lg:text-5xl">
+                부산에서 나에게 맞는{" "}
+                <span className="block">
+                  <span className="whitespace-nowrap">공공임대주택을</span> 찾아보세요
+                </span>
+              </h1>
+              <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted sm:text-lg">
+                복잡한 자격 조건은 쉽게 확인하고, 예산과 생활 방식에 맞는 주택까지 한 번에 추천받을 수 있어요.
+              </p>
+              <div className="mt-8">
+                <Link href="/eligibility" className={cn(buttonVariants({ variant: "primary", size: "lg" }), "w-full sm:w-auto")}>
+                  내 조건으로 추천받기 <ArrowRight className="h-5 w-5" aria-hidden />
+                </Link>
+              </div>
+              <ul className="mt-6 flex flex-col gap-2 text-sm text-muted sm:flex-row sm:flex-wrap sm:gap-x-6">
+                <li className="flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+                  로그인 없이 시작
+                </li>
+                <li className="flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+                  입력 정보는 이 브라우저에만 저장
+                </li>
+              </ul>
+            </FadeIn>
+
+            <FadeIn delay={0.06} y={10} className="hidden lg:block">
+              <div className="rounded-[var(--radius-cardlg)] border border-primary/15 bg-surface/85 p-6 shadow-[var(--shadow-card)]">
+                <p className="text-sm font-bold text-primary">추천은 이렇게 만들어져요</p>
+                <ul className="mt-4 grid grid-cols-3 gap-2 text-center text-sm">
+                  <li className="rounded-[var(--radius-input)] bg-primary-subtle p-3">
+                    <ClipboardCheck className="mx-auto h-5 w-5 text-primary" aria-hidden />
+                    <span className="mt-2 block font-semibold text-navy">자격 조건</span>
+                  </li>
+                  <li className="rounded-[var(--radius-input)] bg-primary-subtle p-3">
+                    <MapPin className="mx-auto h-5 w-5 text-primary" aria-hidden />
+                    <span className="mt-2 block font-semibold text-navy">예산·지역</span>
+                  </li>
+                  <li className="rounded-[var(--radius-input)] bg-primary-subtle p-3">
+                    <SlidersHorizontal className="mx-auto h-5 w-5 text-primary" aria-hidden />
+                    <span className="mt-2 block font-semibold text-navy">생활 취향</span>
+                  </li>
+                </ul>
+                <ArrowDown className="mx-auto my-3 h-5 w-5 text-primary" aria-hidden />
+                <div className="flex items-center gap-3 rounded-[var(--radius-card)] bg-primary p-4 text-white">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/15">
+                    <Building2 className="h-5 w-5" aria-hidden />
+                  </span>
+                  <span>
+                    <span className="block font-bold">추천 이유가 있는 주택</span>
+                    <span className="mt-0.5 block text-sm text-white/75">조건별 적합도를 쉬운 말로 확인해요</span>
+                  </span>
+                </div>
+              </div>
+            </FadeIn>
+          </div>
         </PageContainer>
       </section>
 
-      {/* 차별점 — 그냥 목록이 아니에요 */}
-      <PageContainer className="py-14">
-        <SectionHeader
-          eyebrow="무엇이 다른가요"
-          title="공공임대 '목록'이 아니라 '추천'이에요"
-          description="조건에 맞든 안 맞든 나열하는 검색과 달리, 부가가치는 이렇게 도와줘요."
-        />
-        <Reveal className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {DIFFERENTIATORS.map((d) => (
-            <Card key={d.title}>
-              <CardBody className="flex items-start gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-primary-subtle text-primary">
-                  <d.icon className="h-5 w-5" aria-hidden />
-                </span>
-                <span>
-                  <span className="block font-semibold text-navy">{d.title}</span>
-                  <span className="mt-0.5 block text-sm text-muted">{d.desc}</span>
-                </span>
-              </CardBody>
-            </Card>
-          ))}
-        </Reveal>
+      <PageContainer size="wide" className="py-12 sm:py-16">
+        <div className="mb-7">
+          <p className="text-sm font-semibold text-primary">어디서부터 시작할까요?</p>
+          <h2 className="mt-2 text-2xl font-extrabold sm:text-3xl">필요한 도움을 바로 선택하세요</h2>
+          <p className="mt-2 max-w-2xl text-muted">추천을 먼저 받거나, 궁금한 정보를 묻거나, 부산 전체 주택을 둘러볼 수 있어요.</p>
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-12 lg:grid-rows-2">
+          <ServiceEntryCard
+            href="/eligibility"
+            eyebrow="자격과 생활 취향을 함께"
+            title="나에게 맞는 집 추천받기"
+            description="간단한 질문에 답하면 신청 가능성이 있는 유형을 확인하고, 예산과 생활 취향에 맞는 주택을 추천해요."
+            actionLabel="자격 확인부터 시작해 맞춤 주택 추천받기"
+            tone="primary"
+            size="primary"
+            illustration={<RecommendationIllustration />}
+            highlights={["자격 확인", "취향 입력", "추천 이유"]}
+            className="lg:col-span-7 lg:row-span-2"
+          />
+          <ServiceEntryCard
+            href="/chat"
+            eyebrow="복잡한 공공임대 정보를 쉽게"
+            title="궁금한 점, AI에게 물어보기"
+            description="임대 유형, 자격 조건, 준비 서류와 신청 절차를 쉬운 말로 안내받아보세요."
+            actionLabel="AI 안내 데모 시작하기"
+            tone="warm"
+            badge="데모"
+            illustration={<ChatIllustration />}
+            delay={0.04}
+            className="lg:col-span-5"
+          />
+          <ServiceEntryCard
+            href="/map"
+            eyebrow="부산 공공임대주택을 한눈에"
+            title="지도에서 전체 주택 둘러보기"
+            description="현재 보유한 데모 주택 12곳을 지역, 임대 유형, 모집 상태로 살펴보세요."
+            actionLabel="부산 공공임대 전체 지도 열기"
+            tone="map"
+            illustration={<MapIllustration />}
+            delay={0.08}
+            className="lg:col-span-5"
+          />
+        </div>
+
+        <aside className="mt-5 grid gap-2 rounded-[var(--radius-card)] border border-border bg-surface p-3 text-sm text-muted shadow-[var(--shadow-sm)] sm:grid-cols-3" aria-label="서비스 신뢰 안내">
+          <p className="flex items-center gap-2 px-2 py-1">
+            <Database className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+            현재 데모 주택 12곳
+          </p>
+          <p className="flex items-center gap-2 px-2 py-1">
+            <ShieldCheck className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+            입력 정보는 내 브라우저에만 저장
+          </p>
+          <p className="flex items-center gap-2 px-2 py-1">
+            <FileCheck2 className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+            신청 전 공식 공고 확인 필수
+          </p>
+        </aside>
       </PageContainer>
 
-      {/* 이용 과정 */}
-      <PageContainer className="py-14">
-        <SectionHeader eyebrow="이용 과정" title="4단계로 끝나요" />
-        <Reveal className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {PROCESS.map((p, i) => (
-            <Card key={p.title}>
-              <CardBody>
-                <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-[12px] bg-primary-subtle text-primary">
-                  <p.icon className="h-5 w-5" aria-hidden />
-                </div>
-                <p className="text-sm font-semibold text-primary">STEP {i + 1}</p>
-                <p className="mt-1 text-lg font-bold text-navy">{p.title}</p>
-                <p className="mt-1 text-sm text-muted">{p.desc}</p>
-              </CardBody>
-            </Card>
-          ))}
-        </Reveal>
-      </PageContainer>
-
-      {/* 지원 유형 */}
-      <section className="bg-surface-muted/60 py-14">
-        <PageContainer>
-          <SectionHeader eyebrow="지원 임대 유형" title="5가지 유형을 함께 판정해요" />
-          <Reveal className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {TYPES.map(([code, label]) => (
-              <Card key={code}>
-                <CardBody className="flex items-center justify-between">
-                  <span className="font-semibold text-navy">{label}</span>
-                  {BASE_YEAR_BY_TYPE[code] === 2025 && <Badge tone="warning">2025년 기준</Badge>}
+      <section className="bg-surface-muted/60 py-12 sm:py-16">
+        <PageContainer size="wide">
+          <SectionHeader
+            eyebrow="맞춤 추천 이용 과정"
+            title="자격 확인부터 신청 준비까지 이어져요"
+            description="추천 결과는 참고용이며, 실제 신청 전에는 반드시 공식 모집공고를 확인해야 해요."
+          />
+          <Reveal className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" y={12}>
+            {PROCESS.map((step, index) => (
+              <Card key={step.title}>
+                <CardBody className="h-full">
+                  <div className="mb-4 flex items-center justify-between">
+                    <span className="flex h-11 w-11 items-center justify-center rounded-[12px] bg-primary-subtle text-primary">
+                      <step.icon className="h-5 w-5" aria-hidden />
+                    </span>
+                    <span className="text-sm font-bold text-primary">0{index + 1}</span>
+                  </div>
+                  <h3 className="text-lg font-bold">{step.title}</h3>
+                  <p className="mt-1 text-sm text-muted">{step.desc}</p>
                 </CardBody>
               </Card>
             ))}
@@ -158,42 +194,35 @@ export default function LandingPage() {
         </PageContainer>
       </section>
 
-      {/* 추천 기준 */}
-      <PageContainer className="py-14">
+      <PageContainer size="wide" className="py-12 sm:py-16">
         <SectionHeader
-          eyebrow="추천 기준"
-          title="이런 조건으로 추천해요"
-          description="예산·지역은 하드필터, 나머지는 가중치 점수로 반영돼요."
+          eyebrow="지원 임대 유형"
+          title="5가지 공공임대 유형을 함께 확인해요"
+          description="현재 데모의 자격 기준과 주택 정보는 실제 신청 자격을 확정하지 않아요."
         />
-        <Reveal className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {CRITERIA.map((c) => (
-            <Card key={c.title}>
-              <CardBody className="flex items-start gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-primary-subtle text-primary">
-                  <c.icon className="h-5 w-5" aria-hidden />
-                </span>
-                <span>
-                  <span className="block font-semibold text-navy">{c.title}</span>
-                  <span className="mt-0.5 block text-sm text-muted">{c.desc}</span>
-                </span>
-              </CardBody>
-            </Card>
+        <Reveal className="flex flex-wrap gap-2" y={10}>
+          {TYPES.map(([code, label]) => (
+            <span
+              key={code}
+              className="inline-flex min-h-11 items-center gap-2 rounded-full border border-border bg-surface px-4 font-semibold text-navy"
+            >
+              {label}
+              {BASE_YEAR_BY_TYPE[code] === 2025 && <Badge tone="warning">2025년 기준</Badge>}
+            </span>
           ))}
         </Reveal>
       </PageContainer>
 
-      {/* 신뢰 안내 */}
-      <PageContainer className="pb-16">
+      <PageContainer size="wide" className="pb-16">
         <SectionHeader eyebrow="꼭 확인하세요" title="추천과 법적 자격 확정은 달라요" />
-        <Reveal className="grid gap-4">
-          <InformationBanner tone="warning" title="추천 결과 ≠ 신청 자격 확정">
-            이 서비스의 판정·추천은 참고용이에요. 최종 신청 가능 여부는 각 유형의 공식 모집공고와 제출 서류로 확정됩니다.
+        <Reveal className="grid gap-4 lg:grid-cols-2" y={10}>
+          <InformationBanner tone="warning" title="추천 결과는 참고용이에요">
+            최종 신청 가능 여부는 각 유형의 공식 모집공고와 제출 서류로 확인해야 합니다.
           </InformationBanner>
-          <InformationBanner tone="primary" title="사용 데이터 안내">
-            자격 기준은 2026년 소득·자산 기준을 사용해요. 재개발임대는 2026 공고 미발표로 2025년 공고 기준을 안내합니다.
-            시설·거리·상권 데이터는 현재 mock이며 실제 공공데이터 연동 예정이에요.
+          <InformationBanner tone="primary" title="현재는 데모 데이터 12곳을 사용해요">
+            주택·모집 정보와 생활 인프라는 시연용 데이터이며, 실시간 공고가 아닙니다.
           </InformationBanner>
-          <PrivacyNotice />
+          <PrivacyNotice className="lg:col-span-2" />
         </Reveal>
       </PageContainer>
     </div>

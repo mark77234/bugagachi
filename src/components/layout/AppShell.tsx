@@ -1,15 +1,26 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { useEffect, useRef } from "react";
 import { AppHeader } from "./AppHeader";
 import { MobileNavigation } from "./MobileNavigation";
+import { cn } from "@/lib/utils";
 
 /** 설문 flow 경로에서는 하단 내비 대신 각 페이지의 고정 이전/다음 바를 사용한다. */
 const FLOW_PREFIXES = ["/eligibility", "/preferences"];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const mainRef = useRef<HTMLElement>(null);
+  const previousPathname = useRef(pathname);
   const isFlow = FLOW_PREFIXES.some((p) => pathname.startsWith(p));
+
+  useEffect(() => {
+    if (previousPathname.current !== pathname) {
+      previousPathname.current = pathname;
+      requestAnimationFrame(() => mainRef.current?.focus({ preventScroll: false }));
+    }
+  }, [pathname]);
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -20,7 +31,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         본문 바로가기
       </a>
       <AppHeader />
-      <main id="main" className={isFlow ? "flex-1 pb-28" : "flex-1 pb-20 md:pb-10"}>
+      <main
+        ref={mainRef}
+        id="main"
+        tabIndex={-1}
+        className={cn("focus:outline-none", isFlow ? "flex-1 pb-28" : "flex-1 pb-20 md:pb-10")}
+      >
         {children}
       </main>
       {!isFlow && <MobileNavigation />}

@@ -5,7 +5,7 @@ import { motion } from "motion/react";
 import { Bookmark, ChevronRight, MapPin } from "lucide-react";
 import { Card, CardBody } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ELIGIBILITY_TYPE_LABEL } from "@/features/eligibility/eligibility.types";
 import { bestCondition, type HousingUnit } from "@/mocks/housing";
@@ -36,10 +36,10 @@ export function RecommendationCard({
   const best = bestCondition(unit);
   const st = STATUS[unit.recruitStatus];
   const match = matchLevel(rec);
-  const topReasons = rec.reasons.filter((r) => r.axis !== "eligibility").slice(0, 3);
+  const topReasons = rec.reasons.filter((r) => r.axis !== "eligibility").slice(0, 1);
 
   return (
-    <motion.div whileHover={{ y: -2 }} transition={{ duration: 0.15 }}>
+    <motion.article layout whileHover={{ y: -2 }} transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}>
       <Card
         className={cn("transition-colors", active ? "border-primary ring-1 ring-primary/30" : "hover:border-primary/40")}
         onMouseEnter={onActivate}
@@ -53,7 +53,7 @@ export function RecommendationCard({
               <Badge tone="neutral">{ELIGIBILITY_TYPE_LABEL[unit.type]}</Badge>
               <Badge tone={st.tone}>{st.label}</Badge>
             </div>
-            <h3 className="truncate text-lg font-bold text-navy">{unit.name}</h3>
+            <h2 className="text-pretty text-lg font-bold text-navy">{unit.name}</h2>
             <p className="mt-0.5 flex items-center gap-1 text-sm text-muted">
               <MapPin className="h-4 w-4 shrink-0" aria-hidden /> {unit.gungu} · 전용 {unit.exclusiveAreas[0]}㎡~
             </p>
@@ -102,14 +102,15 @@ export function RecommendationCard({
         )}
 
         <div className="flex justify-end">
-          <Link href={`/housing/${unit.id}`}>
-            <Button variant="outline" size="sm">
-              상세 보기 <ChevronRight className="h-4 w-4" />
-            </Button>
+          <Link
+            href={`/housing/${unit.id}`}
+            className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+          >
+            상세 보기 <ChevronRight className="h-4 w-4" />
           </Link>
         </div>
         </CardBody>
       </Card>
-    </motion.div>
+    </motion.article>
   );
 }

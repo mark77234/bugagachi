@@ -9,7 +9,9 @@ import {
   Building2,
   CalendarDays,
   ExternalLink,
+  MessageCircleQuestion,
   MapPin,
+  MapPinned,
   Share2,
   Star,
 } from "lucide-react";
@@ -22,7 +24,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { ScoreBreakdown } from "@/components/housing/ScoreBreakdown";
 import { MapPanel } from "@/components/map/MapPanel";
-import { housingById } from "@/mocks/housing";
+import { bestCondition, housingById } from "@/mocks/housing";
 import { reviewsByHousing } from "@/mocks/reviews";
 import { useUserStore } from "@/features/user/user.store";
 import { useEligibilityStore } from "@/features/eligibility/eligibility.store";
@@ -91,6 +93,7 @@ export default function HousingDetailPage() {
   }
 
   const st = STATUS[unit.recruitStatus];
+  const representative = bestCondition(unit);
   const match = rec ? matchLevel(rec) : null;
   const reviews = reviewsByHousing(unit.id);
   const myElig = eligHydrated ? (savedResults ?? []).find((r) => r.type === unit.type) : undefined;
@@ -111,8 +114,9 @@ export default function HousingDetailPage() {
         <ArrowLeft className="h-4 w-4" /> 추천 목록으로
       </Link>
 
-      {/* 헤더 */}
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      {/* 주택 요약 */}
+      <header className="rounded-[var(--radius-cardlg)] border border-primary/15 bg-primary-subtle/55 p-5 shadow-[var(--shadow-sm)] sm:p-7">
+      <div className="flex flex-wrap items-start justify-between gap-5">
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-1.5">
             <Badge tone="neutral">{ELIGIBILITY_TYPE_LABEL[unit.type]}</Badge>
@@ -124,8 +128,36 @@ export default function HousingDetailPage() {
           <p className="mt-1 flex items-center gap-1 text-muted">
             <MapPin className="h-4 w-4" aria-hidden /> {unit.address}
           </p>
+          <p className="mt-4 text-sm text-muted">
+            대표 조건
+            <span className="ml-2 font-bold tabular-nums text-navy">
+              보증금 {formatManwon(representative.deposit)} · 월 {formatManwon(representative.monthlyRent)}
+            </span>
+          </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <a
+            href={unit.officialUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(buttonVariants({ variant: "primary", size: "md" }))}
+          >
+            공식 공고 확인 <ExternalLink className="h-4 w-4" aria-hidden />
+          </a>
+          <Link
+            href={`/chat?housingId=${unit.id}`}
+            className={cn(buttonVariants({ variant: "outline", size: "md" }))}
+          >
+            <MessageCircleQuestion className="h-4 w-4" aria-hidden />
+            AI에게 물어보기
+          </Link>
+          <Link
+            href={`/map?selected=${unit.id}`}
+            className={cn(buttonVariants({ variant: "outline", size: "md" }))}
+          >
+            <MapPinned className="h-4 w-4" aria-hidden />
+            전체 지도에서 보기
+          </Link>
           <Button variant="outline" size="md" onClick={share}>
             <Share2 className="h-4 w-4" /> {copied ? "링크 복사됨" : "공유"}
           </Button>
@@ -134,6 +166,7 @@ export default function HousingDetailPage() {
           </Button>
         </div>
       </div>
+      </header>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_360px]">
         <div className="min-w-0">
@@ -251,41 +284,21 @@ export default function HousingDetailPage() {
             </Card>
           </Section>
 
-          {/* 6) 리뷰 */}
-          <Section title={`사용자 리뷰 (${reviews.length})`}>
-            <div className="space-y-3">
-              {reviews.length === 0 && <p className="text-sm text-muted">아직 리뷰가 없어요.</p>}
-              {reviews.map((rv) => (
-                <Card key={rv.id}>
-                  <CardBody className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="flex items-center gap-1 text-sm font-medium">
-                        <Star className="h-4 w-4 fill-warning text-warning" aria-hidden /> {rv.rating.toFixed(1)}
-                        <span className="ml-2 text-muted">{rv.author}</span>
-                      </span>
-                      <span className="text-xs text-muted">{rv.createdAt}</span>
-                    </div>
-                    <p className="text-sm text-fg">{rv.body}</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {rv.tags.map((t) => (
-                        <Badge key={t} tone="neutral">#{t}</Badge>
-                      ))}
-                    </div>
-                  </CardBody>
-                </Card>
-              ))}
-            </div>
-          </Section>
         </div>
 
         {/* 사이드: 지도 + 주변시설 + 공고 */}
-        <aside className="space-y-4">
+        <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
           <div className="h-72 sm:h-80">
-            <MapPanel markers={[{ id: unit.id, coord: unit.coord, label: unit.name }]} selectedId={unit.id} onSelect={() => {}} />
+            <MapPanel
+              markers={[{ id: unit.id, coord: unit.coord, label: unit.name }]}
+              selectedId={unit.id}
+              onSelect={() => {}}
+              ariaLabel={`${unit.name} 위치 지도`}
+            />
           </div>
           <Card>
             <CardBody>
-              <h3 className="mb-3 text-sm font-bold text-navy">주변시설 (예상 거리)</h3>
+              <h2 className="mb-3 text-sm font-bold text-navy">주변시설 · 예상 정보</h2>
               <ul className="space-y-2 text-sm">
                 {NEARBY.map((n) => (
                   <li key={n.cat} className="flex items-center justify-between">
@@ -306,6 +319,34 @@ export default function HousingDetailPage() {
           </a>
         </aside>
       </div>
+
+      <Section title={`데모 후기 (${reviews.length})`}>
+        <InformationBanner tone="warning" className="mb-3">
+          아래 후기는 화면 시연을 위한 mock 정보이며 실제 입주민 후기가 아니에요.
+        </InformationBanner>
+        <div className="grid gap-3 md:grid-cols-2">
+          {reviews.length === 0 && <p className="text-sm text-muted">등록된 데모 후기가 없어요.</p>}
+          {reviews.map((rv) => (
+            <Card key={rv.id}>
+              <CardBody className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1 text-sm font-medium">
+                    <Star className="h-4 w-4 fill-warning text-warning" aria-hidden /> {rv.rating.toFixed(1)}
+                    <span className="ml-2 text-muted">{rv.author}</span>
+                  </span>
+                  <span className="text-xs text-muted">{rv.createdAt}</span>
+                </div>
+                <p className="text-sm text-fg">{rv.body}</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {rv.tags.map((t) => (
+                    <Badge key={t} tone="neutral">#{t}</Badge>
+                  ))}
+                </div>
+              </CardBody>
+            </Card>
+          ))}
+        </div>
+      </Section>
 
       <Disclaimer className="mt-10" />
     </PageContainer>

@@ -5,15 +5,22 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Home, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 
 const NAV = [
-  { href: "/recommendations", label: "주택 추천" },
-  { href: "/recommendations?status=open", label: "모집공고" },
+  { href: "/eligibility", label: "맞춤 추천" },
+  { href: "/chat", label: "AI 안내" },
+  { href: "/map", label: "전체 지도" },
   { href: "/community", label: "커뮤니티" },
-  { href: "/mypage", label: "저장한 주택" },
-  { href: "/mypage", label: "마이페이지" },
 ];
+
+function isActivePath(pathname: string, href: string) {
+  if (href === "/eligibility") {
+    return ["/eligibility", "/preferences", "/recommendations", "/housing"].some(
+      (path) => pathname === path || pathname.startsWith(`${path}/`),
+    );
+  }
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 function Logo() {
   return (
@@ -36,15 +43,18 @@ export function AppHeader() {
         <Logo />
 
         <nav className="hidden items-center gap-1 md:flex" aria-label="주요 메뉴">
-          {NAV.slice(0, 3).map((n) => {
-            const active = pathname === n.href.split("?")[0];
+          {NAV.map((n) => {
+            const active = isActivePath(pathname, n.href);
             return (
               <Link
                 key={n.label}
                 href={n.href}
+                aria-current={active ? "page" : undefined}
                 className={cn(
-                  "rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-surface-muted",
-                  active ? "text-primary" : "text-fg",
+                  "relative rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-surface-muted",
+                  active
+                    ? "bg-primary-subtle/60 font-bold text-primary after:absolute after:inset-x-3 after:-bottom-[13px] after:h-0.5 after:rounded-full after:bg-primary"
+                    : "text-fg",
                 )}
               >
                 {n.label}
@@ -54,12 +64,16 @@ export function AppHeader() {
         </nav>
 
         <div className="hidden items-center gap-2 md:flex">
-          <Link href="/mypage" className="rounded-md px-3 py-2 text-sm font-medium text-fg hover:bg-surface-muted">
+          <Link
+            href="/mypage"
+            aria-current={isActivePath(pathname, "/mypage") ? "page" : undefined}
+            className={cn(
+              "rounded-md px-3 py-2 text-sm font-medium hover:bg-surface-muted",
+              isActivePath(pathname, "/mypage") ? "bg-primary-subtle/60 font-bold text-primary" : "text-fg",
+            )}
+          >
             마이페이지
           </Link>
-          <Button variant="outline" size="sm" aria-label="로그인 (준비 중)">
-            로그인
-          </Button>
         </div>
 
         <button
@@ -76,17 +90,24 @@ export function AppHeader() {
       {open && (
         <nav className="border-t border-border bg-surface md:hidden" aria-label="모바일 메뉴">
           <ul className="px-4 py-2">
-            {NAV.map((n) => (
-              <li key={n.label}>
-                <Link
-                  href={n.href}
-                  onClick={() => setOpen(false)}
-                  className="block rounded-md px-3 py-3 text-base font-medium text-fg hover:bg-surface-muted"
-                >
-                  {n.label}
-                </Link>
-              </li>
-            ))}
+            {[...NAV, { href: "/mypage", label: "마이페이지" }].map((n) => {
+              const active = isActivePath(pathname, n.href);
+              return (
+                <li key={n.label}>
+                  <Link
+                    href={n.href}
+                    onClick={() => setOpen(false)}
+                    aria-current={active ? "page" : undefined}
+                    className={cn(
+                      "block rounded-md px-3 py-3 text-base font-medium hover:bg-surface-muted",
+                      active ? "bg-primary-subtle text-primary" : "text-fg",
+                    )}
+                  >
+                    {n.label}
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         </nav>
       )}

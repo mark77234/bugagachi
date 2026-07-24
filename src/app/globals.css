@@ -8,6 +8,7 @@
   --color-bg: #f6f8f7;
   --color-surface: #ffffff;
   --color-surface-muted: #eef2f1;
+  --color-surface-elevated: #ffffff;
 
   --color-primary: #0f766e;
   --color-primary-hover: #0e6b64;
@@ -17,6 +18,7 @@
   --color-fg: #0f172a;
   --color-muted: #5b6b73;
   --color-border: #dce3e1;
+  --color-border-strong: #c5d0cd;
 
   --color-success: #15803d;
   --color-success-subtle: #e7f4ec;
@@ -34,6 +36,12 @@
 
   --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
   --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-card-hover: 0 12px 28px rgba(15, 23, 42, 0.1), 0 2px 6px rgba(15, 23, 42, 0.05);
+  --shadow-sheet: 0 -10px 32px rgba(15, 23, 42, 0.14);
+
+  --duration-fast: 160ms;
+  --duration-standard: 220ms;
+  --ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
 
   --font-sans: "Pretendard", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
     "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif;
@@ -50,6 +58,7 @@
     font-size: 16px;
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
+    overflow-wrap: break-word;
   }
   h1,
   h2,
@@ -72,6 +81,9 @@
   summary {
     cursor: pointer;
   }
+  a {
+    touch-action: manipulation;
+  }
   button:disabled {
     cursor: not-allowed;
   }
@@ -82,6 +94,35 @@
   }
   input[type="number"] {
     -moz-appearance: textfield;
+  }
+}
+
+@layer utilities {
+  .safe-bottom {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
+
+  .text-pretty {
+    text-wrap: pretty;
+  }
+
+  .interactive-card {
+    transition:
+      border-color var(--duration-fast) var(--ease-standard),
+      box-shadow var(--duration-standard) var(--ease-standard),
+      transform var(--duration-fast) var(--ease-standard);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .interactive-card:hover {
+      border-color: color-mix(in srgb, var(--color-primary) 35%, var(--color-border));
+      box-shadow: var(--shadow-card-hover);
+      transform: translateY(-2px);
+    }
+  }
+
+  .interactive-card:active {
+    transform: translateY(1px) scale(0.99);
   }
 }
 

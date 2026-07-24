@@ -29,7 +29,7 @@ export function SummarySidebar({ className }: { className?: string }) {
   const car = s.carBand ? CAR_OPTIONS.find((o) => o.value === s.carBand)?.label ?? "—" : "—";
 
   return (
-    <aside className={cn("rounded-[var(--radius-card)] border border-border bg-surface p-5", className)} aria-label="입력 요약">
+    <aside className={cn("rounded-[var(--radius-card)] border border-border bg-surface p-5 shadow-[var(--shadow-sm)] lg:sticky lg:top-24", className)} aria-label="입력 요약">
       <h3 className="mb-2 text-sm font-bold text-navy">입력 요약</h3>
       <dl className="divide-y divide-border/70">
         <Row label="본인 주택" value={yn(s.ownSelfHouse, "있음", "없음(무주택)")} />

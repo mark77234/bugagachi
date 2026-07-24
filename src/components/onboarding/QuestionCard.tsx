@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 /** 질문 카드: 제목 + 보조설명 + 입력영역 + 하단 이전/다음. 모바일은 하단 고정 바. */
 export function QuestionCard({
   title,
+  headingRef,
   helpId,
   description,
   children,
@@ -20,6 +21,7 @@ export function QuestionCard({
   remainingHint,
 }: {
   title: string;
+  headingRef?: React.Ref<HTMLHeadingElement>;
   helpId?: string;
   description?: string;
   children: React.ReactNode;
@@ -35,7 +37,7 @@ export function QuestionCard({
   return (
     <Card className="overflow-visible">
       <CardBody className="sm:p-8">
-        <h2 tabIndex={-1} className="text-xl font-bold outline-none sm:text-2xl">
+        <h2 ref={headingRef} tabIndex={-1} className="text-xl font-bold outline-none sm:text-2xl">
           {title}
         </h2>
         {description && (
@@ -72,7 +74,7 @@ export function QuestionCard({
       </CardBody>
 
       {/* 모바일 고정 하단 바 */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/95 p-3 backdrop-blur sm:hidden">
+      <div className="safe-bottom fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/95 px-3 pt-3 backdrop-blur sm:hidden">
         <div className="mx-auto flex max-w-lg gap-2">
           {onPrev && (
             <Button variant="outline" size="lg" onClick={onPrev} className="flex-1">

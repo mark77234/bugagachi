@@ -49,22 +49,27 @@ export default function CommunityPage() {
       </InformationBanner>
 
       {/* 필터/검색 */}
-      <div className="mb-5 space-y-3">
+      <div className="mb-5 space-y-3 rounded-[var(--radius-card)] border border-border bg-surface p-4 shadow-[var(--shadow-sm)]">
         <div className="flex flex-wrap gap-2">
           {BOARDS.map((b) => (
             <ToggleChip key={b.value} label={b.label} selected={board === b.value} onToggle={() => setBoard(b.value)} />
           ))}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <label className="relative flex-1 min-w-[220px]">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden />
-            <Input className="pl-9" placeholder="제목·내용 검색" value={q} onChange={(e) => setQ(e.target.value)} aria-label="게시글 검색" />
+          <label className="flex min-w-[220px] flex-1 flex-col gap-1.5 text-sm font-semibold text-fg">
+            게시글 검색
+            <span className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden />
+              <Input type="search" className="w-full pl-9" placeholder="제목·내용 검색" value={q} onChange={(e) => setQ(e.target.value)} />
+            </span>
           </label>
-          <label className="sr-only" htmlFor="c-sort">정렬</label>
-          <Select id="c-sort" value={sort} onChange={(e) => setSort(e.target.value as "recent" | "popular")}>
-            <option value="recent">최신순</option>
-            <option value="popular">인기순</option>
-          </Select>
+          <label className="flex flex-col gap-1.5 text-sm font-semibold text-fg">
+            정렬
+            <Select id="c-sort" value={sort} onChange={(e) => setSort(e.target.value as "recent" | "popular")}>
+              <option value="recent">최신순</option>
+              <option value="popular">인기순</option>
+            </Select>
+          </label>
         </div>
       </div>
 
@@ -74,8 +79,9 @@ export default function CommunityPage() {
         <ul className="space-y-3">
           {posts.map((p) => (
             <li key={p.id}>
-              <Card className="transition-colors hover:border-primary/40">
-                <CardBody className="space-y-2">
+              <article>
+                <Card className="interactive-card">
+                  <CardBody className="space-y-2">
                   <div className="flex flex-wrap items-center gap-1.5">
                     <Badge tone="primary">{BOARD_LABEL[p.board]}</Badge>
                     {p.region && <Badge tone="neutral">{p.region}</Badge>}
@@ -95,8 +101,9 @@ export default function CommunityPage() {
                       <MessageSquare className="h-4 w-4" aria-hidden /> {p.comments}
                     </span>
                   </div>
-                </CardBody>
-              </Card>
+                  </CardBody>
+                </Card>
+              </article>
             </li>
           ))}
         </ul>

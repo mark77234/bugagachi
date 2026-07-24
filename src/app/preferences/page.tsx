@@ -12,6 +12,7 @@ import { Card, CardBody } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { QuestionCard } from "@/components/onboarding/QuestionCard";
+import { FlowShell } from "@/components/onboarding/FlowShell";
 import {
   BudgetStep,
   RegionStep,
@@ -32,14 +33,14 @@ import type { ScoreAxis } from "@/features/recommendation/recommendation.types";
 type StepKey = "intro" | "budget" | "region" | "frequent" | "infra" | "education" | "store" | "neighborhood";
 const ORDER: StepKey[] = ["intro", "budget", "region", "frequent", "infra", "education", "store", "neighborhood"];
 
-const META: Record<Exclude<StepKey, "intro">, { title: string; desc: string; axis?: ScoreAxis; weight?: string }> = {
+const META: Record<Exclude<StepKey, "intro">, { title: string; desc: string; axis?: ScoreAxis; emphasis?: string }> = {
   budget: { title: "예산을 알려주세요", desc: "보증금과 월 임대료 상한을 정하면 예산 밖 주택을 제외해요." },
   region: { title: "희망 지역을 골라주세요", desc: "선택한 구·군의 주택만 후보로 남겨요." },
-  frequent: { title: "자주 가는 장소가 있나요?", desc: "직장·학교 등 자주 가야 하는 곳을 추가하세요.", axis: "frequent", weight: "0.30" },
-  infra: { title: "꼭 필요한 기반시설은?", desc: "선택한 시설이 가까운 주택을 높게 평가해요.", axis: "infra", weight: "0.25" },
-  education: { title: "돌봄·교육이 필요하세요?", desc: "필요할 때만 시설 접근성을 반영해요.", axis: "education", weight: "0.20" },
-  store: { title: "어떤 가게가 많으면 좋아요?", desc: "선택 업종의 주변 밀도를 평가해요.", axis: "store", weight: "0.15" },
-  neighborhood: { title: "선호하는 동네 분위기는?", desc: "상권과의 거리로 분위기를 판단해요.", axis: "neighborhood", weight: "0.10" },
+  frequent: { title: "자주 가는 장소가 있나요?", desc: "직장·학교 등 자주 가야 하는 곳을 추가하세요.", axis: "frequent", emphasis: "추천에 크게 반영" },
+  infra: { title: "꼭 필요한 기반시설은?", desc: "선택한 시설이 가까운 주택을 높게 평가해요.", axis: "infra", emphasis: "추천에 크게 반영" },
+  education: { title: "돌봄·교육이 필요하세요?", desc: "필요할 때만 시설 접근성을 반영해요.", axis: "education", emphasis: "추천에 반영" },
+  store: { title: "어떤 가게가 많으면 좋아요?", desc: "선택 업종의 주변 밀도를 평가해요.", axis: "store", emphasis: "보조적으로 반영" },
+  neighborhood: { title: "선호하는 동네 분위기는?", desc: "상권과의 거리로 분위기를 판단해요.", axis: "neighborhood", emphasis: "보조적으로 반영" },
 };
 
 export default function PreferencesPage() {
@@ -50,9 +51,11 @@ export default function PreferencesPage() {
   const pref = usePreferencesStore();
   const [idx, setIdx] = useState(0);
   const headingRef = useRef<HTMLDivElement>(null);
+  const questionHeadingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
-    headingRef.current?.focus();
+    if (ORDER[idx] === "intro") headingRef.current?.focus();
+    else questionHeadingRef.current?.focus();
   }, [idx]);
 
   if (!eligHydrated || !prefHydrated) {
@@ -111,18 +114,34 @@ export default function PreferencesPage() {
   const nextDisabled = step === "budget" ? !isBudgetComplete(pref) : false;
 
   return (
-    <PageContainer size="narrow" className="py-8">
-      <p className="mb-1 text-sm font-semibold text-primary">2단계 취향 추천</p>
-      {meta && (
-        <p className="mb-6 text-sm text-muted">
-          {idx} / {ORDER.length - 1} 단계
-          {meta.weight && (
+    <FlowShell
+      eyebrow="2단계 · 생활 적합도 높이기"
+      title="생활 취향 설정"
+      description="예산과 희망 지역을 먼저 정하고, 자주 가는 곳과 생활 취향을 추천 순서에 반영해요."
+      narrow
+      progress={
+        meta ? (
+          <p className="text-sm text-muted" aria-live="polite">
+            {idx} / {ORDER.length - 1} 단계
+            {meta.emphasis && (
             <Badge tone="neutral" className="ml-2">
-              가중치 {meta.weight}
+                {meta.emphasis}
             </Badge>
+            )}
+          </p>
+        ) : undefined
+      }
+      footer={
+        <>
+          {step === "intro" && (
+            <InformationBanner tone="warning" className="mt-6">
+              예산과 희망 지역은 반드시 맞아야 하는 조건이고, 생활 취향은 추천 순서를 정할 때만 사용해요.
+            </InformationBanner>
           )}
-        </p>
-      )}
+          <Disclaimer className="mt-8" />
+        </>
+      }
+    >
 
       <div ref={headingRef} tabIndex={-1} className="outline-none">
         <AnimatePresence mode="wait">
@@ -136,7 +155,7 @@ export default function PreferencesPage() {
             {step === "intro" ? (
               <Card>
                 <CardBody className="sm:p-8">
-                  <h1 className="text-2xl font-bold">취향 추천을 시작할게요</h1>
+                  <h2 className="text-2xl font-bold">취향 추천을 시작할게요</h2>
                   <p className="mt-2 text-muted">이 단계는 신청 자격이 아니라 추천 순서를 정해요. 언제든 건너뛰거나 이전 단계에서 수정할 수 있어요.</p>
                   <div className="mt-5 grid gap-3">
                     <div className="rounded-[var(--radius-input)] bg-primary-subtle p-4">
@@ -163,6 +182,7 @@ export default function PreferencesPage() {
             ) : (
               <QuestionCard
                 title={meta!.title}
+                headingRef={questionHeadingRef}
                 description={meta!.desc}
                 onPrev={() => setIdx((i) => i - 1)}
                 onNext={handleNext}
@@ -182,13 +202,6 @@ export default function PreferencesPage() {
           </motion.div>
         </AnimatePresence>
       </div>
-
-      {step === "intro" && (
-        <InformationBanner tone="warning" className="mt-6">
-          예산과 희망 지역은 하드필터예요. 취향 항목(자주 가는 장소·기반시설 등)은 점수로만 반영돼요.
-        </InformationBanner>
-      )}
-      <Disclaimer className="mt-8" />
-    </PageContainer>
+    </FlowShell>
   );
 }

@@ -7,10 +7,13 @@ import { applicationChecklist } from "@/features/housing/checklist";
 import type { EligibilityTypeCode } from "@/features/eligibility/eligibility.types";
 import { cn } from "@/lib/utils";
 
+const EMPTY_CHECKS: string[] = [];
+
 /** 신청 준비 체크리스트 — 유형별 준비 항목을 체크(로컬 저장). 진행률 표시. */
 export function ApplicationChecklist({ housingId, type }: { housingId: string; type: EligibilityTypeCode }) {
   const items = applicationChecklist(type);
-  const checked = useUserStore((s) => s.applicationChecks[housingId] ?? []);
+  const storedChecks = useUserStore((s) => s.applicationChecks[housingId]);
+  const checked = storedChecks ?? EMPTY_CHECKS;
   const toggleCheck = useUserStore((s) => s.toggleCheck);
   const done = items.filter((i) => checked.includes(i.id)).length;
   const pct = Math.round((done / items.length) * 100);
@@ -32,10 +35,10 @@ export function ApplicationChecklist({ housingId, type }: { housingId: string; t
         aria-label="신청 준비 진행률"
       >
         <motion.div
-          className="h-full rounded-full bg-primary"
+          className="h-full origin-left rounded-full bg-primary"
           initial={false}
-          animate={{ width: `${pct}%` }}
-          transition={{ duration: 0.25 }}
+          animate={{ scaleX: pct / 100 }}
+          transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
         />
       </div>
 

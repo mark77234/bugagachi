@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { MockMapView, type MapMarker, type MapViewProps } from "./MapView";
+import { MockMapView, type MapMarker, type MapViewProps, type MapViewportBounds } from "./MapView";
 
 const KAKAO_KEY = process.env.NEXT_PUBLIC_KAKAO_MAP_KEY;
 const SDK_ID = "kakao-maps-sdk";
@@ -52,6 +52,7 @@ function buildPin(m: MapMarker, active: boolean, onClick: () => void): HTMLButto
 }
 
 function stylePin(el: HTMLButtonElement, active: boolean) {
+  el.setAttribute("aria-pressed", String(active));
   Object.assign(el.style, {
     display: "inline-flex",
     alignItems: "center",
@@ -73,11 +74,18 @@ function stylePin(el: HTMLButtonElement, active: boolean) {
   } as CSSStyleDeclaration);
 }
 
-export function KakaoMapView({ markers, selectedId, onSelect }: MapViewProps) {
+export function KakaoMapView({
+  markers,
+  selectedId,
+  onSelect,
+  ariaLabel = "주택 위치 지도",
+  onViewportChange,
+}: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const overlaysRef = useRef<{ id: string; overlay: any; el: HTMLButtonElement }[]>([]);
   const onSelectRef = useRef(onSelect);
+  const onViewportChangeRef = useRef(onViewportChange);
   const markersRef = useRef<MapMarker[]>(markers);
   const [failed, setFailed] = useState(!KAKAO_KEY);
   const [ready, setReady] = useState(false);
@@ -85,6 +93,24 @@ export function KakaoMapView({ markers, selectedId, onSelect }: MapViewProps) {
   useEffect(() => {
     onSelectRef.current = onSelect;
   }, [onSelect]);
+
+  useEffect(() => {
+    onViewportChangeRef.current = onViewportChange;
+  }, [onViewportChange]);
+
+  const reportViewport = (map: any) => {
+    if (!map || !onViewportChangeRef.current) return;
+    const bounds = map.getBounds();
+    const northEast = bounds.getNorthEast();
+    const southWest = bounds.getSouthWest();
+    const next: MapViewportBounds = {
+      north: northEast.getLat(),
+      south: southWest.getLat(),
+      east: northEast.getLng(),
+      west: southWest.getLng(),
+    };
+    onViewportChangeRef.current(next);
+  };
 
   // relayout 후 마커 전체가 보이도록 뷰포트 맞춤 (컨테이너 크기 확정 후 호출해야 정확)
   const fitView = () => {
@@ -108,21 +134,30 @@ export function KakaoMapView({ markers, selectedId, onSelect }: MapViewProps) {
     if (!KAKAO_KEY) return;
     let cancelled = false;
     let ro: ResizeObserver | undefined;
+    let kakaoInstance: any;
+    let idleHandler: (() => void) | undefined;
     loadKakao()
       .then((kakao) => {
         if (cancelled || !containerRef.current) return;
+        kakaoInstance = kakao;
         mapRef.current = new kakao.maps.Map(containerRef.current, {
           center: new kakao.maps.LatLng(BUSAN_CENTER.lat, BUSAN_CENTER.lng),
           level: 7,
         });
+        idleHandler = () => reportViewport(mapRef.current);
+        kakao.maps.event.addListener(mapRef.current, "idle", idleHandler);
         setReady(true);
         ro = new ResizeObserver(() => fitView());
         ro.observe(containerRef.current);
+        reportViewport(mapRef.current);
       })
       .catch(() => !cancelled && setFailed(true));
     return () => {
       cancelled = true;
       ro?.disconnect();
+      if (kakaoInstance?.maps && mapRef.current && idleHandler) {
+        kakaoInstance.maps.event.removeListener(mapRef.current, "idle", idleHandler);
+      }
     };
   }, []);
 
@@ -161,14 +196,24 @@ export function KakaoMapView({ markers, selectedId, onSelect }: MapViewProps) {
     });
   }, [selectedId, ready]);
 
-  if (failed) return <MockMapView markers={markers} selectedId={selectedId} onSelect={onSelect} />;
+  if (failed) {
+    return (
+      <MockMapView
+        markers={markers}
+        selectedId={selectedId}
+        onSelect={onSelect}
+        ariaLabel={`${ariaLabel} (모의)`}
+        onViewportChange={onViewportChange}
+      />
+    );
+  }
 
   return (
     <div
       ref={containerRef}
       className="h-full min-h-[300px] w-full overflow-hidden rounded-[var(--radius-card)] border border-border"
       role="group"
-      aria-label="추천 주택 지도"
+      aria-label={ariaLabel}
     />
   );
 }

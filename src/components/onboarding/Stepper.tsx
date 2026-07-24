@@ -24,10 +24,16 @@ export function Stepper({
   return (
     <div>
       {/* 모바일 축약 */}
-      <p className="mb-1 text-sm font-medium text-muted sm:hidden" aria-hidden>
+      <p className="mb-1 text-sm font-medium text-muted sm:hidden" aria-live="polite">
         <span className="font-bold text-primary">{steps[currentIndex]?.badge}</span> · {currentIndex + 1} / {steps.length}단계 —{" "}
         {steps[currentIndex]?.label}
       </p>
+      <div className="h-1.5 overflow-hidden rounded-full bg-surface-muted sm:hidden" aria-hidden>
+        <div
+          className="h-full origin-left rounded-full bg-primary transition-transform duration-[var(--duration-standard)]"
+          style={{ transform: `scaleX(${(currentIndex + 1) / steps.length})` }}
+        />
+      </div>
 
       <ol className="hidden items-center gap-2 sm:flex" aria-label="진행 단계">
         {steps.map((s, i) => {
