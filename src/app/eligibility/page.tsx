@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
+import { SkipForward } from "lucide-react";
 import { PageContainer } from "@/components/common/PageContainer";
 import { LoadingState } from "@/components/common/states";
 import { Disclaimer } from "@/components/common/banners";
@@ -10,6 +12,7 @@ import { QuestionCard } from "@/components/onboarding/QuestionCard";
 import { SummarySidebar } from "@/components/onboarding/SummarySidebar";
 import { FlowShell } from "@/components/onboarding/FlowShell";
 import { ConfirmationDialog } from "@/components/common/ConfirmationDialog";
+import { Button } from "@/components/ui/button";
 import { StepA, StepB, StepC, StepD } from "@/components/eligibility/CommonSteps";
 import { DetailForm } from "@/components/eligibility/DetailForm";
 import { Stage1Result, FinalSummary, ExitScreen } from "@/components/eligibility/ResultScreens";
@@ -23,6 +26,7 @@ import { useHydrated } from "@/lib/use-hydrated";
 import { evaluateAll, stage1Common } from "@/features/eligibility/eligibility.rules";
 import { BASE_YEAR_BY_TYPE } from "@/config/eligibility-config.2025";
 import type { EligibilityTypeResult } from "@/features/eligibility/eligibility.types";
+import { usePreferencesStore } from "@/features/recommendation/preferences.store";
 
 type Phase = "common" | "result1" | "detail" | "summary" | "exit";
 type StepKey = "A" | "B" | "C" | "D";
@@ -35,8 +39,10 @@ const STEPS = [
 ];
 
 export default function EligibilityPage() {
+  const router = useRouter();
   const hydrated = useHydrated(useEligibilityStore);
   const store = useEligibilityStore();
+  const setEligibilitySkipped = usePreferencesStore((s) => s.setEligibilitySkipped);
   const [phase, setPhase] = useState<Phase>("common");
   const [step, setStep] = useState<StepKey>("A");
   const [gateOpen, setGateOpen] = useState(false);
@@ -81,6 +87,7 @@ export default function EligibilityPage() {
   };
 
   const handleStepNext = () => {
+    setEligibilitySkipped(false);
     if (step === "A") {
       if (store.ownSelfHouse) {
         setGateOpen(true);
@@ -137,20 +144,36 @@ export default function EligibilityPage() {
             transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
           >
             {phase === "common" && (
-              <QuestionCard
-                title={stepTitle(step)}
-                headingRef={questionHeadingRef}
-                description={stepDesc(step)}
-                onPrev={step === "A" ? undefined : handleStepPrev}
-                onNext={handleStepNext}
-                nextDisabled={!stepValid}
-                isLast={step === "D"}
-              >
-                {step === "A" && <StepA />}
-                {step === "B" && <StepB />}
-                {step === "C" && <StepC />}
-                {step === "D" && <StepD />}
-              </QuestionCard>
+              <>
+                {step === "A" && (
+                  <div className="mb-3 flex justify-end">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setEligibilitySkipped(true);
+                        router.push("/preferences");
+                      }}
+                    >
+                      자격 확인 건너뛰기 <SkipForward className="h-4 w-4" aria-hidden />
+                    </Button>
+                  </div>
+                )}
+                <QuestionCard
+                  title={stepTitle(step)}
+                  headingRef={questionHeadingRef}
+                  description={stepDesc(step)}
+                  onPrev={step === "A" ? undefined : handleStepPrev}
+                  onNext={handleStepNext}
+                  nextDisabled={!stepValid}
+                  isLast={step === "D"}
+                >
+                  {step === "A" && <StepA />}
+                  {step === "B" && <StepB />}
+                  {step === "C" && <StepC />}
+                  {step === "D" && <StepD />}
+                </QuestionCard>
+              </>
             )}
 
             {phase === "result1" &&
@@ -216,7 +239,7 @@ function stepDesc(step: StepKey): string {
   return {
     A: "무주택 세대만 공공임대를 신청할 수 있어요. 세 가지만 확인해 주세요.",
     B: "가구원 수와 만 나이는 소득·자산 기준의 축이 돼요.",
-    C: "정확한 금액 대신 범위만 선택하면 돼요.",
+    C: "슬라이더를 움직이거나 만원 단위 금액을 직접 입력할 수 있어요.",
     D: "부산 거주 여부에 따라 신청 가능한 유형이 달라져요.",
   }[step];
 }
@@ -228,7 +251,11 @@ function validateStep(step: StepKey, s: ReturnType<typeof useEligibilityStore.ge
     case "B":
       return calcKoreanAge(s.birthISO) !== null;
     case "C":
-      return s.incomeBracketIndex !== null && s.assetBracketIndex !== null && s.carBand !== null;
+      return (
+        (s.incomeManwonExact !== null || s.incomeBracketIndex !== null) &&
+        (s.assetManwonExact !== null || s.assetBracketIndex !== null) &&
+        s.carBand !== null
+      );
     case "D":
       return s.livesInBusan !== null;
   }

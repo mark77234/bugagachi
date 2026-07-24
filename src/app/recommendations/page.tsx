@@ -21,6 +21,7 @@ import { usePreferencesStore, buildSurvey, isBudgetComplete } from "@/features/r
 import { useHydrated } from "@/lib/use-hydrated";
 import { recommend, sortRecommendations, type SortKey } from "@/features/recommendation/recommendation.service";
 import { ELIGIBILITY_TYPE_LABEL, type EligibilityTypeCode } from "@/features/eligibility/eligibility.types";
+import { ALL_TYPES } from "@/features/eligibility/eligibility.rules";
 import { MOCK_HOUSING, bestCondition, housingById } from "@/mocks/housing";
 import { formatManwon } from "@/lib/formatting";
 import { cn } from "@/lib/utils";
@@ -66,13 +67,15 @@ function RecommendationsInner() {
   }, [fresh]);
 
   const passed = useMemo(() => (saved ?? []).filter((r) => r.evaluation.status === "PASS"), [saved]);
-  const recommendMode = passed.length > 0 && isBudgetComplete(pref);
+  const eligibilitySkipped = pref.eligibilitySkipped && passed.length === 0;
+  const recommendTypes = eligibilitySkipped ? ALL_TYPES : passed.map((result) => result.type);
+  const recommendMode = recommendTypes.length > 0 && isBudgetComplete(pref);
 
   const outcome = useMemo(() => {
     if (!recommendMode) return null;
-    return recommend(passed.map((r) => r.type), buildSurvey(pref));
+    return recommend(recommendTypes, buildSurvey(pref));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [recommendMode, saved, pref.maxDeposit, pref.maxMonthlyRent, pref.gungus, pref.anyRegion, pref.frequent, pref.infraCategories, pref.eduEnabled, pref.eduCategories, pref.storeChips, pref.storeCustom, pref.mood, pref.skipped]);
+  }, [recommendMode, saved, pref.eligibilitySkipped, pref.maxDeposit, pref.maxMonthlyRent, pref.gungus, pref.anyRegion, pref.frequent, pref.infraCategories, pref.eduEnabled, pref.eduCategories, pref.storeChips, pref.moodTarget, pref.skipped]);
 
   const baseRecs: HousingRecommendation[] = useMemo(() => {
     if (recommendMode) return outcome?.kind === "ok" ? outcome.recommendations : [];
@@ -154,11 +157,13 @@ function RecommendationsInner() {
   return (
     <PageContainer size="wide" className="py-8">
       <PageIntro
-        eyebrow={recommendMode ? "맞춤 추천" : "데모 주택 목록"}
+        eyebrow={recommendMode ? (eligibilitySkipped ? "자격 미반영 추천" : "맞춤 추천") : "데모 주택 목록"}
         title={recommendMode ? "추천 주택" : "부산 공공임대 데모 주택"}
         description={
           recommendMode
-            ? "자격을 통과한 주택을 예산·지역·생활 취향으로 정렬했어요. 점수 대신 근거로 설명해요."
+            ? eligibilitySkipped
+              ? "자격은 반영하지 않고 예산·지역·생활 취향으로 정렬했어요. 신청 전 1단계와 공식 공고를 확인하세요."
+              : "자격을 통과한 주택을 예산·지역·생활 취향으로 정렬했어요. 점수 대신 근거로 설명해요."
             : "현재 보유한 시연용 데이터 12곳을 보여드려요. 자격 확인과 취향 설문을 완료하면 나에게 맞는 순서로 추천해 드려요."
         }
         compact
@@ -192,11 +197,15 @@ function RecommendationsInner() {
       {recommendMode && (
         <div className="mb-4 flex flex-wrap items-center gap-2 rounded-[var(--radius-input)] bg-surface-muted/70 p-3 text-sm">
           <span className="font-semibold text-navy">선택한 조건</span>
-          {passed.map((r) => (
-            <Badge key={r.type} tone="success">
-              {ELIGIBILITY_TYPE_LABEL[r.type]}
-            </Badge>
-          ))}
+          {eligibilitySkipped ? (
+            <Badge tone="warning">자격 미반영</Badge>
+          ) : (
+            passed.map((r) => (
+              <Badge key={r.type} tone="success">
+                {ELIGIBILITY_TYPE_LABEL[r.type]}
+              </Badge>
+            ))
+          )}
           <span className="text-muted">
             · 예산 보증금 {formatManwon(pref.maxDeposit ?? 0)} / 월 {formatManwon(pref.maxMonthlyRent ?? 0)} 이하
           </span>

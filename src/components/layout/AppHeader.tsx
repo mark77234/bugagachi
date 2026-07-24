@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Home, Menu, X } from "lucide-react";
+import { Menu, Sparkles, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -26,7 +26,7 @@ function Logo() {
   return (
     <Link href="/" className="flex items-center gap-2 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-ring)]">
       <span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-primary text-white">
-        <Home className="h-[18px] w-[18px]" aria-hidden />
+        <Sparkles className="h-[18px] w-[18px]" aria-hidden />
       </span>
       <span className="text-lg font-extrabold tracking-tight text-navy">부가가치</span>
     </Link>

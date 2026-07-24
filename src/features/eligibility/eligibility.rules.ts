@@ -182,9 +182,10 @@ export function stage1Detail(
   if (d.rank === 2) {
     const incomeSum = incomeWon + won(d.parentIncomeManwon ?? 0);
     const assetSum = assetWon + won(d.parentAssetManwon ?? 0);
-    if (incomeSum > incomeCeiling("URBAN", size, 1.0)) reasons.push("2순위 소득(본인+부모 합산) 기준을 초과했어요.");
-    if (assetSum > 345_000_000) reasons.push("2순위 자산(부모 포함) 기준을 초과했어요.");
-    return finalize(reasons, checkLater, "2순위 (부모 합산)");
+    const qualifiesRank2 =
+      incomeSum <= incomeCeiling("URBAN", size, 1.0) && assetSum <= 345_000_000;
+    if (qualifiesRank2) return finalize(reasons, checkLater, "2순위 (부모 합산)");
+    checkLater.push("부모 포함 2순위 기준을 넘어 본인 기준 3순위로 자동 확인했어요.");
   }
   // rank 3
   if (incomeWon > incomeCeiling("URBAN", size, 1.0)) reasons.push("3순위 소득 기준을 초과했어요.");
@@ -219,19 +220,38 @@ export function evaluateAll(
       return { type, evaluation: s1.perType[type], baseYear }; // NEEDS_MORE
     }
     const evaluation = stage1Detail(type, common, detail);
-    const appliedTier = detailTierLabel(type, detail);
+    const appliedTier = detailTierLabel(type, common, detail);
     return { type, evaluation, baseYear, appliedTier };
   });
 }
 
-function detailTierLabel(type: EligibilityTypeCode, detail: EligibilityDetailInput): string | undefined {
+function detailTierLabel(
+  type: EligibilityTypeCode,
+  common: EligibilityCommonInput,
+  detail: EligibilityDetailInput,
+): string | undefined {
   switch (type) {
     case "TONGHAP":
       return detail.TONGHAP?.tier;
     case "HAENGBOK":
       return detail.HAENGBOK?.tier;
-    case "MAEIP_CHUNG":
-      return detail.MAEIP_CHUNG?.isRank1 ? "1순위" : detail.MAEIP_CHUNG?.rank ? `${detail.MAEIP_CHUNG.rank}순위` : undefined;
+    case "MAEIP_CHUNG": {
+      const youth = detail.MAEIP_CHUNG;
+      if (youth?.isRank1) return "1순위";
+      if (youth?.rank === 2) {
+        if (youth.parentIncomeManwon === undefined || youth.parentAssetManwon === undefined) return undefined;
+        const size = Math.min(Math.max(common.householdSize, 1), 8);
+        const incomeSum = won(common.incomeManwon) + won(youth.parentIncomeManwon);
+        const assetSum = won(common.assetManwon) + won(youth.parentAssetManwon);
+        if (
+          incomeSum <= incomeCeiling("URBAN", size, 1.0) &&
+          assetSum <= 345_000_000
+        ) {
+          return "2순위";
+        }
+      }
+      return youth?.rank ? "3순위" : undefined;
+    }
     case "MAEIP_ILBAN":
       return detail.MAEIP_ILBAN?.isRank1 ? "1순위" : "2순위";
     default:

@@ -26,6 +26,16 @@ export function equalMean(scores: number[]): number {
   return scores.reduce((a, b) => a + b, 0) / scores.length;
 }
 
+/** 0~1 목표 분위기와 건물 상권 백분위(c)·소음 구성비 백분위(n)의 적합도. */
+export function neighborhoodScore(target: number, bustlePercentile: number, noisePercentile: number): number {
+  const t = Math.min(1, Math.max(0, target));
+  const c = Math.min(1, Math.max(0, bustlePercentile));
+  const n = Math.min(1, Math.max(0, noisePercentile));
+  const match = 1 - Math.abs(c - t) / Math.max(t, 1 - t);
+  const noisePenalty = 1 - 0.5 * n * (1 - t);
+  return Math.min(1, Math.max(0, match * noisePenalty));
+}
+
 /** 답변된 축에 대해 가중치를 계산.
  *  RENORMALIZE_ON_SKIP=true → 합이 1이 되도록 재정규화. false → 원 가중치(제외 축은 자연히 0). */
 export function normalizeWeights(answered: ScoreAxis[]): Partial<Record<ScoreAxis, number>> {

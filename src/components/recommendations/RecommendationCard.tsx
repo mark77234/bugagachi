@@ -36,7 +36,13 @@ export function RecommendationCard({
   const best = bestCondition(unit);
   const st = STATUS[unit.recruitStatus];
   const match = matchLevel(rec);
-  const topReasons = rec.reasons.filter((r) => r.axis !== "eligibility").slice(0, 1);
+  const budgetReason = rec.reasons.find((reason) => reason.axis === "budget");
+  const lifestyleReason = rec.reasons.find(
+    (reason) => reason.axis !== "budget" && reason.axis !== "eligibility",
+  );
+  const topReasons = [budgetReason, lifestyleReason].filter(
+    (reason): reason is NonNullable<typeof reason> => reason !== undefined,
+  );
 
   return (
     <motion.article layout whileHover={{ y: -2 }} transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}>

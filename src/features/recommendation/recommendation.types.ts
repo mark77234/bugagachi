@@ -14,7 +14,6 @@ export const AXIS_LABEL: Record<ScoreAxis, string> = {
 
 export type InfraCategory = "HOSPITAL" | "MART" | "PARK" | "LIBRARY" | "SPORTS" | "SUBWAY";
 export type EduCategory = "DAYCARE" | "KINDER" | "ELEM" | "MIDDLE" | "HIGH";
-export type NeighborhoodMood = "quiet" | "moderate" | "lively";
 
 export interface BudgetCondition {
   maxDeposit: number; // 만원
@@ -42,7 +41,8 @@ export interface StorePreference {
   custom: string[];
 }
 export interface NeighborhoodPreference {
-  mood: NeighborhoodMood | null;
+  /** 0=조용, 0.5=적당, 1=번화. null이면 "상관없어요". */
+  target: number | null;
 }
 
 export interface PreferenceSurveyInput {

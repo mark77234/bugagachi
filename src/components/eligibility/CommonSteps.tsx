@@ -1,13 +1,16 @@
 "use client";
 
 import { Plus, X } from "lucide-react";
+import type { CSSProperties } from "react";
 import { useEligibilityStore } from "@/features/eligibility/eligibility.store";
 import { ASSET_BRACKETS, CAR_OPTIONS, incomeBrackets } from "@/features/eligibility/eligibility.brackets";
 import type { CarBand, MemberRelation } from "@/features/eligibility/eligibility.types";
 import { RadioCards } from "@/components/ui/selectable";
 import { InfoAccordion } from "@/components/ui/accordion";
 import { Input } from "@/components/ui/input";
-import { calcKoreanAge } from "@/lib/formatting";
+import { InformationBanner } from "@/components/common/banners";
+import { calcKoreanAge, withThousands } from "@/lib/formatting";
+import type { Bracket } from "@/features/eligibility/eligibility.brackets";
 
 const YESNO = (yesLabel: string, noLabel: string) => [
   { value: "no", label: noLabel },
@@ -40,7 +43,10 @@ export function StepA() {
           options={YESNO("있음", "없음(무주택)")}
         />
       </Field>
-      <Field legend="함께 사는 세대원 중 주택 소유자가 있나요?" help="세대 전체의 주택 소유 여부를 확인해요.">
+      <Field
+        legend="본인 외 세대원(주민등록상 함께 등재된 가족) 중 주택을 소유한 사람이 있나요?"
+        help="세대원이 본인뿐이면 ‘없음’을 선택하세요."
+      >
         <RadioCards
           name="ownMember"
           columns={2}
@@ -49,7 +55,10 @@ export function StepA() {
           options={YESNO("있음", "없음")}
         />
       </Field>
-      <Field legend="공공임대 제한이력에 해당하나요?" help="계약 중·불법전대(4년 내)·재당첨 제한 등에 해당하는 경우예요.">
+      <Field
+        legend="현재 공공임대에 살고 있거나, 불법 전대·양도(4년 내)·재당첨 제한에 해당하나요?"
+        help="정확하지 않다면 공식 기관에서 제한 여부를 확인해 주세요."
+      >
         <RadioCards
           name="restriction"
           columns={2}
@@ -82,6 +91,10 @@ export function StepB() {
   const age = calcKoreanAge(birthISO);
   return (
     <div>
+      <InformationBanner tone="primary" className="mb-6" title="가구원은 주민등록상 관계를 기준으로 입력해요">
+        본인·배우자·직계존속(부모·조부모, 배우자 부모 포함)·미성년 자녀·성년 자녀·태아를 포함하고,
+        형제자매와 단순 동거인은 제외해요.
+      </InformationBanner>
       <Field legend="생년월일을 입력해 주세요" help="만 나이는 자동으로 계산돼요.">
         <div className="flex flex-wrap items-center gap-3">
           <Input
@@ -100,7 +113,10 @@ export function StepB() {
         </div>
       </Field>
 
-      <Field legend="함께 거주하는 가구원" help="본인은 기본 포함돼요. 관계를 눌러 가구원을 추가하세요.">
+      <Field
+        legend="주민등록상 세대구성원을 관계별로 알려주세요"
+        help="본인은 기본 포함돼요. 같은 관계가 여러 명이면 필요한 만큼 추가하세요."
+      >
         <ul className="mb-3 flex flex-wrap gap-2">
           {members.map((m) => (
             <li
@@ -142,37 +158,155 @@ export function StepB() {
   );
 }
 
+function bracketIndexForValue(value: number, brackets: Bracket[]): number {
+  const index = brackets.findIndex((bracket) => value <= bracket.repManwon);
+  return index === -1 ? brackets.length - 1 : index;
+}
+
+function AmountRange({
+  label,
+  value,
+  max,
+  step,
+  marks,
+  onChange,
+}: {
+  label: string;
+  value: number | null;
+  max: number;
+  step: number;
+  marks: { value: number; label: string }[];
+  onChange: (value: number) => void;
+}) {
+  const current = Math.min(value ?? 0, max);
+  return (
+    <div>
+      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <p className="text-sm text-muted">슬라이더를 움직이거나 금액을 직접 입력하세요.</p>
+        <label className="flex items-center gap-2">
+          <span className="sr-only">{label}</span>
+          <Input
+            type="number"
+            inputMode="numeric"
+            min={0}
+            value={value ?? ""}
+            onChange={(event) => onChange(Math.max(0, Number(event.target.value) || 0))}
+            aria-label={`${label}, 만원 단위 직접 입력`}
+            className="w-full sm:w-44"
+          />
+          <span className="shrink-0 text-sm text-muted">만원</span>
+        </label>
+      </div>
+      <input
+        type="range"
+        min={0}
+        max={max}
+        step={step}
+        value={current}
+        onChange={(event) => onChange(Number(event.target.value))}
+        aria-label={`${label}, 슬라이더`}
+        className="preference-range w-full"
+        style={{ "--range-progress": `${(current / max) * 100}%` } as CSSProperties}
+      />
+      <div className="mt-3 flex justify-between gap-2 text-xs text-muted" aria-hidden>
+        {marks.map((mark) => (
+          <span key={mark.value} className="text-center">
+            {mark.label}
+          </span>
+        ))}
+      </div>
+      {value !== null && (
+        <p className="mt-3 rounded-[var(--radius-input)] bg-surface-muted px-4 py-3 text-sm text-fg">
+          입력 금액 <b>{withThousands(value)}만원</b>
+        </p>
+      )}
+    </div>
+  );
+}
+
 /** 스텝 C — 소득·자산 */
 export function StepC() {
-  const { members, incomeBracketIndex, assetBracketIndex, carBand, setStepC } = useEligibilityStore();
+  const {
+    members,
+    incomeBracketIndex,
+    assetBracketIndex,
+    incomeManwonExact,
+    assetManwonExact,
+    carBand,
+    setStepC,
+  } = useEligibilityStore();
   const size = Math.min(Math.max(members.length, 1), 8);
-  const incomeOpts = incomeBrackets(size).map((b) => ({ value: String(b.index), label: b.label }));
-  const assetOpts = ASSET_BRACKETS.map((b) => ({ value: String(b.index), label: b.label }));
+  const incomeOptions = incomeBrackets(size);
+  const finiteIncome = incomeOptions.filter((bracket) => Number.isFinite(bracket.repManwon));
+  const incomeMax = Math.ceil((finiteIncome.at(-1)?.repManwon ?? 1000) * 1.25 / 10) * 10;
+  const incomeValue =
+    incomeManwonExact ??
+    (incomeBracketIndex !== null && Number.isFinite(incomeOptions[incomeBracketIndex].repManwon)
+      ? incomeOptions[incomeBracketIndex].repManwon
+      : null);
+  const assetValue =
+    assetManwonExact ??
+    (assetBracketIndex !== null && Number.isFinite(ASSET_BRACKETS[assetBracketIndex].repManwon)
+      ? ASSET_BRACKETS[assetBracketIndex].repManwon
+      : null);
   const carOpts = CAR_OPTIONS.map((o) => ({ value: o.value, label: o.label }));
+  const incomeLegend =
+    size === 1
+      ? "본인의 월평균 소득(세전)은 얼마인가요?"
+      : "본인 포함 세대구성원 전원의 월소득 합계는 얼마인가요?";
+  const assetLegend =
+    size === 1 ? "본인이 보유한 총자산은 얼마인가요?" : "세대구성원 전원의 총자산 합계는 얼마인가요?";
 
   return (
     <div>
-      <Field legend={`세대 전체 월평균 소득 (세전) — ${size}인 가구 기준`} help="정확한 금액 대신 범위를 선택하면 돼요.">
-        <RadioCards
-          name="income"
-          columns={1}
-          value={incomeBracketIndex !== null ? String(incomeBracketIndex) : null}
-          onChange={(v) => setStepC({ incomeBracketIndex: Number(v) })}
-          options={incomeOpts}
+      <InformationBanner tone="primary" className="mb-6" title={`${size}인 가구 기준으로 확인해요`}>
+        청년은 본인 기준, 그 외는 세대 기준을 적용할 수 있어요. 세대 소득 합산 시 미성년 자녀 소득은 제외하고,
+        총자산은 세대원 전원을 포함해요.
+      </InformationBanner>
+      <Field
+        legend={incomeLegend}
+        help={size === 1 ? "월 기준 세전 금액을 입력하세요." : "미성년 자녀 소득은 제외한 월 기준 세전 합계예요."}
+      >
+        <AmountRange
+          label={incomeLegend}
+          value={incomeValue}
+          max={incomeMax}
+          step={1}
+          marks={[
+            { value: 0, label: "0" },
+            { value: Math.round(incomeMax / 2), label: `${withThousands(Math.round(incomeMax / 2))}만원` },
+            { value: incomeMax, label: `${withThousands(incomeMax)}만원+` },
+          ]}
+          onChange={(value) =>
+            setStepC({
+              incomeManwonExact: value,
+              incomeBracketIndex: bracketIndexForValue(value, incomeOptions),
+            })
+          }
         />
       </Field>
 
-      <Field legend="가구 총자산 범위는?" help="부동산 + 자동차 + 금융 + 기타 − 부채 기준이에요.">
-        <RadioCards
-          name="asset"
-          columns={1}
-          value={assetBracketIndex !== null ? String(assetBracketIndex) : null}
-          onChange={(v) => setStepC({ assetBracketIndex: Number(v) })}
-          options={assetOpts}
+      <Field legend={assetLegend} help="부동산 + 자동차 + 금융 + 기타 − 부채 기준이에요.">
+        <AmountRange
+          label={assetLegend}
+          value={assetValue}
+          max={50_000}
+          step={100}
+          marks={[
+            { value: 0, label: "0" },
+            { value: 25_000, label: "2억 5,000만원" },
+            { value: 50_000, label: "5억원+" },
+          ]}
+          onChange={(value) =>
+            setStepC({
+              assetManwonExact: value,
+              assetBracketIndex: bracketIndexForValue(value, ASSET_BRACKETS),
+            })
+          }
         />
       </Field>
 
-      <Field legend="가구 소유 차량 상태는?">
+      <Field legend="세대원이 보유한 차량 중 가장 비싼 차의 가액은?">
         <RadioCards
           name="car"
           columns={3}

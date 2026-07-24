@@ -5,25 +5,25 @@
    Tailwind v4 @theme → generates bg-*, text-*, border-*, rounded-* utils
    ============================================================ */
 @theme {
-  --color-bg: #f6f8f7;
+  --color-bg: #fcfdfd;
   --color-surface: #ffffff;
   --color-surface-muted: #eef2f1;
   --color-surface-elevated: #ffffff;
 
-  --color-primary: #0f766e;
-  --color-primary-hover: #0e6b64;
-  --color-primary-subtle: #e6f2f0;
+  --color-primary: #0e7c7b;
+  --color-primary-hover: #0b6f6e;
+  --color-primary-subtle: #e2f2f1;
 
-  --color-navy: #1e293b;
-  --color-fg: #0f172a;
-  --color-muted: #5b6b73;
-  --color-border: #dce3e1;
-  --color-border-strong: #c5d0cd;
+  --color-navy: #14201f;
+  --color-fg: #14201f;
+  --color-muted: #5c716f;
+  --color-border: #dbe5e3;
+  --color-border-strong: #c8d4d2;
 
   --color-success: #15803d;
   --color-success-subtle: #e7f4ec;
   --color-warning: #b45309;
-  --color-warning-subtle: #fbf0e2;
+  --color-warning-subtle: #fef1e6;
   --color-error: #b91c1c;
   --color-error-subtle: #fbeaea;
 
@@ -95,6 +95,9 @@
   input[type="number"] {
     -moz-appearance: textfield;
   }
+  input[type="range"] {
+    accent-color: var(--color-primary);
+  }
 }
 
 @layer utilities {
@@ -123,6 +126,41 @@
 
   .interactive-card:active {
     transform: translateY(1px) scale(0.99);
+  }
+
+  .preference-range {
+    height: 6px;
+    appearance: none;
+    border-radius: 9999px;
+    background:
+      linear-gradient(
+        90deg,
+        var(--color-primary) 0 var(--range-progress, 50%),
+        var(--color-border-strong) var(--range-progress, 50%) 100%
+      );
+  }
+
+  .preference-range::-webkit-slider-thumb {
+    height: 26px;
+    width: 26px;
+    appearance: none;
+    border: 3px solid var(--color-surface);
+    border-radius: 9999px;
+    background: var(--color-primary);
+    box-shadow: 0 2px 8px rgba(14, 124, 123, 0.28);
+  }
+
+  .preference-range::-moz-range-thumb {
+    height: 22px;
+    width: 22px;
+    border: 3px solid var(--color-surface);
+    border-radius: 9999px;
+    background: var(--color-primary);
+    box-shadow: 0 2px 8px rgba(14, 124, 123, 0.28);
+  }
+
+  .preference-range:disabled {
+    opacity: 0.45;
   }
 }
 

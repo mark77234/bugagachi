@@ -8,9 +8,9 @@
  *    - 부산_체육시설_위치정보.csv               → INFRA_POINTS.SPORTS
  *    - 부산 유초중고 도서관.csv                 → INFRA_POINTS.LIBRARY / EDU_POINTS.*
  *    - 부산 어린이집.xls                        → EDU_POINTS.DAYCARE
- *    - buld_CMSC_M_NM_counts.csv / _S_NM_counts.csv → storePercentile 분포 모집단
+ *    - buld_CMSC_M_NM_counts.csv / _S_NM_counts.csv → 건물별 750m 점포수·상권 백분위
  */
-import { haversineMeters, nearestMeters, type LatLng } from "@/lib/coordinates";
+import { nearestBoostedMeters, type LatLng } from "@/lib/coordinates";
 import type { EduCategory, InfraCategory } from "@/features/recommendation/recommendation.types";
 
 /** 구·군 center 근처로 흩뿌린 mock 시설 좌표. */
@@ -90,35 +90,99 @@ export const EDU_POINTS: Record<EduCategory, LatLng[]> = {
   ],
 };
 
-/** Q6 상권 밀집지(상가 클러스터) mock 좌표. */
-export const COMMERCIAL_CLUSTERS: LatLng[] = [
-  { lat: 35.1579, lng: 129.0594 }, // 서면
-  { lat: 35.1631, lng: 129.1636 }, // 해운대
-  { lat: 35.1533, lng: 129.1187 }, // 광안리
-  { lat: 35.2295, lng: 129.0902 }, // 부산대
-];
-
 export function nearestInfraMeters(from: LatLng, category: InfraCategory): number {
-  return nearestMeters(from, INFRA_POINTS[category]);
+  return nearestBoostedMeters(from, INFRA_POINTS[category]);
 }
 export function nearestEduMeters(from: LatLng, category: EduCategory): number {
-  return nearestMeters(from, EDU_POINTS[category]);
-}
-export function nearestCommercialMeters(from: LatLng): number {
-  return nearestMeters(from, COMMERCIAL_CLUSTERS);
+  return nearestBoostedMeters(from, EDU_POINTS[category]);
 }
 
-/** Q5 취향 가게 백분위 mock.
- *  실제로는 반경 750m 내 업종 점포 개수를 부산 전 재고 분포로 백분위화한다.
- *  여기서는 (주택, 업종) 조합의 결정적 해시 → 0~1 백분위로 근사한다. */
-export function storePercentile(unitId: string, chip: string): number {
-  const key = `${unitId}::${chip}`;
-  let h = 2166136261;
-  for (let i = 0; i < key.length; i++) {
-    h ^= key.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return ((h >>> 0) % 1000) / 1000; // 0.000 ~ 0.999
+const STORE_CATEGORIES = [
+  "카페",
+  "편의점",
+  "헬스장",
+  "빨래방",
+  "동물병원",
+  "스터디카페",
+  "밥집",
+  "베이커리",
+  "미용실",
+  "약국",
+] as const;
+
+type StoreCategory = (typeof STORE_CATEGORIES)[number];
+
+/** 현재 12개 데모 건물의 반경 750m 업종별 점포수 사전계산본.
+ *  동일 건물의 여러 호실은 반드시 같은 행을 공유하며, 백분위 모집단도 이 건물 행만 사용한다.
+ *  실제 상가 전처리 파일을 연결할 때 이 어댑터의 반환 형태를 유지한다. */
+const STORE_COUNTS_BY_BUILDING: Record<string, readonly number[]> = {
+  "h-001": [46, 18, 9, 5, 3, 8, 112, 16, 28, 14],
+  "h-002": [61, 22, 14, 4, 5, 10, 138, 21, 31, 18],
+  "h-003": [35, 15, 8, 7, 4, 6, 86, 12, 24, 13],
+  "h-004": [18, 9, 4, 3, 2, 2, 54, 8, 17, 7],
+  "h-005": [22, 13, 6, 8, 2, 3, 69, 9, 21, 9],
+  "h-006": [42, 19, 11, 6, 4, 7, 101, 15, 27, 15],
+  "h-007": [54, 17, 12, 5, 3, 15, 93, 13, 25, 12],
+  "h-008": [73, 24, 16, 5, 6, 12, 151, 25, 36, 19],
+  "h-009": [16, 10, 5, 6, 2, 2, 48, 7, 18, 8],
+  "h-010": [20, 11, 6, 5, 3, 3, 58, 8, 20, 9],
+  "h-011": [39, 16, 7, 4, 3, 5, 96, 14, 23, 13],
+  "h-012": [12, 8, 3, 4, 1, 1, 41, 5, 14, 6],
+};
+
+/** 소음업종 구성비 사전계산본(노래방·주점 등 / 전체 상가). */
+const NOISE_RATIO_BY_BUILDING: Record<string, number> = {
+  "h-001": 0.14,
+  "h-002": 0.18,
+  "h-003": 0.1,
+  "h-004": 0.07,
+  "h-005": 0.11,
+  "h-006": 0.13,
+  "h-007": 0.16,
+  "h-008": 0.22,
+  "h-009": 0.06,
+  "h-010": 0.08,
+  "h-011": 0.12,
+  "h-012": 0.05,
+};
+
+function midrankPercentile(value: number, population: number[]): number {
+  if (population.length <= 1) return 1;
+  const less = population.filter((candidate) => candidate < value).length;
+  const equal = population.filter((candidate) => candidate === value).length;
+  return (less + (equal - 1) / 2) / (population.length - 1);
 }
 
-export { haversineMeters };
+function categoryIndex(chip: string): number {
+  return STORE_CATEGORIES.indexOf(chip as StoreCategory);
+}
+
+export function storeDensity(
+  buildingId: string,
+  chip: string,
+): { count: number; percentile: number } | null {
+  const index = categoryIndex(chip);
+  const row = STORE_COUNTS_BY_BUILDING[buildingId];
+  if (index < 0 || !row) return null;
+  const population = Object.values(STORE_COUNTS_BY_BUILDING).map((counts) => counts[index]);
+  return { count: row[index], percentile: midrankPercentile(row[index], population) };
+}
+
+export function neighborhoodProfile(
+  buildingId: string,
+): { bustlePercentile: number; noisePercentile: number; storeCount: number; noiseRatio: number } | null {
+  const row = STORE_COUNTS_BY_BUILDING[buildingId];
+  const noiseRatio = NOISE_RATIO_BY_BUILDING[buildingId];
+  if (!row || noiseRatio === undefined) return null;
+  const storeCount = row.reduce((sum, count) => sum + count, 0);
+  const storePopulation = Object.values(STORE_COUNTS_BY_BUILDING).map((counts) =>
+    counts.reduce((sum, count) => sum + count, 0),
+  );
+  const noisePopulation = Object.values(NOISE_RATIO_BY_BUILDING);
+  return {
+    bustlePercentile: midrankPercentile(storeCount, storePopulation),
+    noisePercentile: midrankPercentile(noiseRatio, noisePopulation),
+    storeCount,
+    noiseRatio,
+  };
+}

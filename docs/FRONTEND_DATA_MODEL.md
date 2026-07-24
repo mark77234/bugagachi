@@ -69,7 +69,7 @@ type    InfraCategory = 'HOSPITAL'|'MART'|'PARK'|'LIBRARY'|'SPORTS'|'SUBWAY';
 interface EducationPreference { enabled: boolean; categories: EduCategory[]; }     // Q4
 type    EduCategory = 'DAYCARE'|'KINDER'|'ELEM'|'MIDDLE'|'HIGH';
 interface StorePreference   { chips: StoreChip[]; custom: string[]; }             // Q5
-interface NeighborhoodPreference { mood: 'quiet'|'moderate'|'lively'; }           // Q6
+interface NeighborhoodPreference { target: number|null; } // Q6: 0=조용, 0.5=적당, 1=번화, null=제외
 interface PreferenceSurveyInput {
   budget: BudgetCondition; region: RegionCondition;
   frequent: FrequentDestination[]; infra: InfrastructurePreference;

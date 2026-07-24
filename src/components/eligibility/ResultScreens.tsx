@@ -49,7 +49,7 @@ export function Stage1Result({
 
       <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-end">
         <Button variant="outline" size="lg" onClick={onEdit}>
-          <Pencil className="h-4 w-4" /> 입력 수정
+          <Pencil className="h-4 w-4" /> 입력 정보 수정하기
         </Button>
         <Button size="lg" onClick={onContinue} disabled={candidates.length === 0}>
           세부 자격 확인하기 <ArrowRight className="h-4 w-4" />
@@ -83,7 +83,7 @@ export function FinalSummary({
 
       <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-end">
         <Button variant="outline" size="lg" onClick={onEdit}>
-          <Pencil className="h-4 w-4" /> 입력 수정
+          <Pencil className="h-4 w-4" /> 입력 정보 수정하기
         </Button>
         {pass.length > 0 ? (
           <Link href="/preferences" className={cn(buttonVariants({ variant: "primary", size: "lg" }))}>
@@ -119,7 +119,7 @@ export function ExitScreen({
       </InformationBanner>
       <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
         <Button variant="outline" size="lg" onClick={onEdit}>
-          <Pencil className="h-4 w-4" /> 입력 수정
+          <Pencil className="h-4 w-4" /> 입력 정보 수정하기
         </Button>
         <Link href="/recommendations" className={cn(buttonVariants({ variant: "ghost", size: "lg" }))}>
           <RotateCcw className="h-4 w-4" /> 모집공고 둘러보기

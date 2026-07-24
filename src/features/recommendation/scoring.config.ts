@@ -30,7 +30,7 @@ export const FREQUENT_STEPS: StepPoint[] = [
   { d: 30000, s: 0.0 },
 ];
 
-/** Q3 도보 시설 (마트·공원·도서관·생활체육·지하철). */
+/** Q3 도보 시설 (마트·공원·생활체육·지하철). */
 export const INFRA_WALK_STEPS: StepPoint[] = [
   { d: 750, s: 1.0 },
   { d: 1500, s: 0.6 },
@@ -38,8 +38,8 @@ export const INFRA_WALK_STEPS: StepPoint[] = [
   { d: 6000, s: 0.0 },
 ];
 
-/** Q3 종합병원 (차량 기준). */
-export const INFRA_HOSPITAL_STEPS: StepPoint[] = [
+/** Q3 거점형 시설(병원·도서관, 차량 기준). */
+export const INFRA_VEHICLE_STEPS: StepPoint[] = [
   { d: 5000, s: 1.0 },
   { d: 10000, s: 0.6 },
   { d: 15000, s: 0.2 },
@@ -47,10 +47,10 @@ export const INFRA_HOSPITAL_STEPS: StepPoint[] = [
 ];
 
 export const INFRA_STEPS_BY_CATEGORY: Record<InfraCategory, StepPoint[]> = {
-  HOSPITAL: INFRA_HOSPITAL_STEPS,
+  HOSPITAL: INFRA_VEHICLE_STEPS,
   MART: INFRA_WALK_STEPS,
   PARK: INFRA_WALK_STEPS,
-  LIBRARY: INFRA_WALK_STEPS,
+  LIBRARY: INFRA_VEHICLE_STEPS,
   SPORTS: INFRA_WALK_STEPS,
   SUBWAY: INFRA_WALK_STEPS,
 };
@@ -82,9 +82,5 @@ export const EDU_STEPS_BY_CATEGORY: Record<EduCategory, StepPoint[]> = {
 /** Q5 취향 가게 반경(m). */
 export const STORE_RADIUS_M = 750;
 
-/** Q6 동네 분위기 임시 경계 [정책 P2 — 정책 결정 필요].
- *  상권 밀집지까지 거리(m) → 동네 분류. 실측 확정 시 교체. */
-export const NEIGHBORHOOD_TEMP = {
-  livelyMaxM: 500, // 이하 = 번화
-  quietMinM: 1500, // 이상 = 조용
-} as const;
+/** Q6 소음 감점 상한. */
+export const NEIGHBORHOOD_NOISE_CAP = 0.5;

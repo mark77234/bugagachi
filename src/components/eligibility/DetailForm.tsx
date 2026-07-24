@@ -273,15 +273,15 @@ function renderQuestions(
       </fieldset>
       {d?.isRank1 === false && (
         <fieldset>
-          <legend className="mb-3 font-semibold">심사 방식은?</legend>
+          <legend className="mb-3 font-semibold">부모 소득·자산 정보를 입력할 수 있나요?</legend>
           <RadioCards
             name="chung-rank"
             columns={2}
             value={d?.rank ? String(d.rank) : null}
             onChange={(v) => patch({ rank: Number(v) })}
             options={[
-              { value: "2", label: "2순위 (부모 합산)" },
-              { value: "3", label: "3순위 (본인만)" },
+              { value: "2", label: "입력할 수 있어요", description: "부모 정보를 받아 2순위를 먼저 확인해요." },
+              { value: "3", label: "입력이 어려워요", description: "본인 정보로 3순위를 확인해요." },
             ]}
           />
         </fieldset>
@@ -290,7 +290,9 @@ function renderQuestions(
         <div>
           <NumberField label="부모의 월평균 소득" suffix="만원" value={d?.parentIncomeManwon} onChange={(n) => patch({ parentIncomeManwon: n })} />
           <NumberField label="부모의 총자산" suffix="만원" value={d?.parentAssetManwon} onChange={(n) => patch({ parentAssetManwon: n })} />
-          <p className="text-sm text-muted">2순위는 본인+부모 소득 100%, 부모 포함 자산 기준으로 심사해요.</p>
+          <p className="text-sm text-muted">
+            본인+부모 기준이 2순위를 넘으면, 입력한 본인 정보로 3순위를 자동 확인해요.
+          </p>
         </div>
       )}
     </div>

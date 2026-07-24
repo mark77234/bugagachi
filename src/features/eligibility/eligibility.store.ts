@@ -26,6 +26,8 @@ interface EligibilityState {
   // 스텝 C
   incomeBracketIndex: number | null;
   assetBracketIndex: number | null;
+  incomeManwonExact: number | null;
+  assetManwonExact: number | null;
   carBand: CarBand | null;
   // 스텝 D
   livesInBusan: boolean | null;
@@ -39,7 +41,14 @@ interface EligibilityState {
   setBirth: (iso: string) => void;
   addMember: (relation: MemberRelation) => void;
   removeMember: (id: string) => void;
-  setStepC: (v: Partial<Pick<EligibilityState, "incomeBracketIndex" | "assetBracketIndex" | "carBand">>) => void;
+  setStepC: (
+    v: Partial<
+      Pick<
+        EligibilityState,
+        "incomeBracketIndex" | "assetBracketIndex" | "incomeManwonExact" | "assetManwonExact" | "carBand"
+      >
+    >,
+  ) => void;
   setLivesInBusan: (v: boolean) => void;
   setDetail: (detail: EligibilityDetailInput) => void;
   saveResults: (r: EligibilityTypeResult[]) => void;
@@ -55,6 +64,8 @@ const initial = {
   members: [{ id: "self", relation: "SELF" as MemberRelation }],
   incomeBracketIndex: null,
   assetBracketIndex: null,
+  incomeManwonExact: null,
+  assetManwonExact: null,
   carBand: null,
   livesInBusan: null,
   detail: {} as EligibilityDetailInput,
@@ -98,8 +109,8 @@ export function isCommonComplete(s: EligibilityState): boolean {
     s.ownMemberHouse !== null &&
     s.hasRestriction !== null &&
     s.birthISO !== "" &&
-    s.incomeBracketIndex !== null &&
-    s.assetBracketIndex !== null &&
+    (s.incomeManwonExact !== null || s.incomeBracketIndex !== null) &&
+    (s.assetManwonExact !== null || s.assetBracketIndex !== null) &&
     s.carBand !== null &&
     s.livesInBusan !== null
   );
@@ -109,8 +120,9 @@ export function isCommonComplete(s: EligibilityState): boolean {
 export function buildCommonInput(s: EligibilityState): EligibilityCommonInput | null {
   if (!isCommonComplete(s)) return null;
   const householdSize = Math.min(Math.max(s.members.length, 1), 8);
-  const income = incomeBrackets(householdSize)[s.incomeBracketIndex!];
-  const asset = ASSET_BRACKETS[s.assetBracketIndex!];
+  const income =
+    s.incomeBracketIndex !== null ? incomeBrackets(householdSize)[s.incomeBracketIndex] : null;
+  const asset = s.assetBracketIndex !== null ? ASSET_BRACKETS[s.assetBracketIndex] : null;
   return {
     ownSelfHouse: s.ownSelfHouse!,
     ownMemberHouse: s.ownMemberHouse!,
@@ -119,8 +131,8 @@ export function buildCommonInput(s: EligibilityState): EligibilityCommonInput | 
     ageYears: calcKoreanAge(s.birthISO) ?? 0,
     members: s.members,
     householdSize,
-    incomeManwon: income.repManwon,
-    assetManwon: asset.repManwon,
+    incomeManwon: s.incomeManwonExact ?? income?.repManwon ?? 0,
+    assetManwon: s.assetManwonExact ?? asset?.repManwon ?? 0,
     carBand: s.carBand!,
     livesInBusan: s.livesInBusan!,
   };

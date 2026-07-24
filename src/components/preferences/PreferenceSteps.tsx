@@ -3,32 +3,34 @@
 import { AnimatePresence, motion } from "motion/react";
 import {
   Baby,
+  Building2,
   Blocks,
   BookOpen,
   Dumbbell,
   GraduationCap,
   Hospital,
+  House,
+  Moon,
   School,
   ShoppingCart,
   Train,
   Trees,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import type { CSSProperties } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { CheckCards, RadioCards } from "@/components/ui/selectable";
-import { ToggleChip, RemovableChip } from "@/components/ui/chip";
+import { ToggleChip } from "@/components/ui/chip";
 import { InfoAccordion } from "@/components/ui/accordion";
 import { InformationBanner } from "@/components/common/banners";
 import { AddressSearch } from "./AddressSearch";
 import { usePreferencesStore } from "@/features/recommendation/preferences.store";
 import { BUSAN_GUNGU } from "@/mocks/regions";
 import { formatManwon, withThousands } from "@/lib/formatting";
-import { useState } from "react";
 import type {
   EduCategory,
   InfraCategory,
-  NeighborhoodMood,
 } from "@/features/recommendation/recommendation.types";
 
 function Legend({ children, hint }: { children: React.ReactNode; hint?: string }) {
@@ -47,10 +49,6 @@ export function BudgetStep() {
   const rentQuick = [15, 25, 35];
   return (
     <div className="space-y-6">
-      <InformationBanner tone="primary">
-        예산은 하드필터예요. 기준을 넘는 주택은 추천 목록에서 제외돼요(감점이 아니에요).
-      </InformationBanner>
-
       <fieldset>
         <Legend hint="만원 단위로 입력하세요.">보증금 최대 금액</Legend>
         <div className="flex items-center gap-2">
@@ -133,9 +131,13 @@ export function FrequentStep() {
   return (
     <div className="space-y-4">
       <InformationBanner tone="primary">
-        입력한 장소까지의 예상 보정거리(직선거리 × 부산 우회계수 1.291)로 점수를 매겨요.
+        주소를 EPSG:5186 좌표로 바꾼 뒤 직선거리 × 1.291로 예상 이동거리를 계산해요.
       </InformationBanner>
       <AddressSearch />
+      <InfoAccordion summary="거리 점수는 어떻게 계산하나요?">
+        5km 이하는 1점, 10km는 0.7점, 30km 이상은 0점으로 두고 그 사이는 선형으로 낮아져요. 여러
+        장소를 넣으면 장소별 점수를 같은 비중으로 평균해요.
+      </InfoAccordion>
     </div>
   );
 }
@@ -159,7 +161,8 @@ export function InfraStep() {
         <CheckCards<InfraCategory> values={infraCategories} onToggle={toggleInfra} options={INFRA_OPTS} columns={2} />
       </fieldset>
       <InfoAccordion summary="종합병원은 왜 기준이 다른가요?">
-        종합병원은 수가 적고 병원급 의료를 차량으로 이용하는 경우가 많아, 도보가 아닌 차량 이동거리 기준으로 점수를 매겨요.
+        병원과 도서관은 거점형 시설이라 5·10·15·20km 차량 기준을, 대형마트·공원·생활체육시설·지하철역은
+        750m·1.5km·3km·6km 도보 기준을 사용해요. 각 구간 사이는 점수가 선형으로 낮아집니다.
       </InfoAccordion>
     </div>
   );
@@ -205,6 +208,10 @@ export function EducationStep() {
           </motion.fieldset>
         )}
       </AnimatePresence>
+      <InfoAccordion summary="돌봄·교육 점수는 어떻게 계산하나요?">
+        어린이집은 375m·750m·1.5km·3km, 유치원과 초·중·고는 750m·1.5km·3km·6km를
+        기준으로 점수를 낮춰요. 여러 시설을 고르면 같은 비중으로 평균합니다.
+      </InfoAccordion>
     </div>
   );
 }
@@ -224,78 +231,91 @@ const STORE_CHIPS = [
 
 /** Q5 취향 가게 */
 export function StoreStep() {
-  const { storeChips, storeCustom, toggleChip, addCustom, removeCustom } = usePreferencesStore();
-  const [text, setText] = useState("");
+  const { storeChips, toggleChip } = usePreferencesStore();
+  const limitReached = storeChips.length >= 5;
   return (
     <div className="space-y-4">
       <InformationBanner tone="primary">
-        가까운 한 곳이 아니라, 주변 750m 안에 얼마나 많은지(선택지의 풍부함)를 부산 전체 기준 백분위로 평가해요.
+        건물 반경 750m 안의 업종별 점포 수를 전체 주택 건물과 비교해 백분위로 바꾸고, 선택한 업종을 같은 비중으로
+        평균해요.
       </InformationBanner>
       <fieldset>
-        <Legend>자주 이용하는 가게 (복수 선택)</Legend>
+        <Legend hint={`최대 5개까지 선택할 수 있어요. (${storeChips.length}/5)`}>
+          자주 이용하는 가게
+        </Legend>
         <div className="flex flex-wrap gap-2">
           {STORE_CHIPS.map((c) => (
-            <ToggleChip key={c} label={c} selected={storeChips.includes(c)} onToggle={() => toggleChip(c)} />
+            <ToggleChip
+              key={c}
+              label={c}
+              selected={storeChips.includes(c)}
+              disabled={limitReached && !storeChips.includes(c)}
+              onToggle={() => toggleChip(c)}
+            />
           ))}
         </div>
       </fieldset>
-      <div>
-        <span className="mb-1 block text-sm font-medium text-fg">직접 입력 (상호명·업종)</span>
-        <div className="flex gap-2">
-          <Input
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="예: 서점, ○○커피"
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                addCustom(text.trim());
-                setText("");
-              }
-            }}
-          />
-          <Button
-            variant="outline"
-            size="md"
-            onClick={() => {
-              addCustom(text.trim());
-              setText("");
-            }}
-          >
-            추가
-          </Button>
-        </div>
-        {storeCustom.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {storeCustom.map((c) => (
-              <RemovableChip key={c} label={c} onRemove={() => removeCustom(c)} />
-            ))}
-          </div>
-        )}
-      </div>
     </div>
   );
 }
 
-const MOOD_OPTS: { value: NeighborhoodMood; label: string; description: string }[] = [
-  { value: "quiet", label: "조용한 동네", description: "상업시설 밀도가 낮고 주거 중심인 환경" },
-  { value: "moderate", label: "적당히 생활감 있는 동네", description: "일상 편의시설과 주거지역이 균형을 이루는 환경" },
-  { value: "lively", label: "활기차고 번화한 동네", description: "상업시설과 유동인구가 많은 활기찬 환경" },
-];
-
 /** Q6 동네 분위기 */
 export function NeighborhoodStep() {
-  const { mood, setMood } = usePreferencesStore();
+  const { moodTarget, setMoodTarget } = usePreferencesStore();
+  const target = moodTarget ?? 0.5;
+  const label =
+    target < 0.35 ? "조용한 쪽" : target > 0.65 ? "번화한 쪽" : "적당한 생활감";
   return (
-    <fieldset>
-      <Legend hint="상권 밀집지와의 거리로 판단해요.">선호하는 동네 분위기</Legend>
-      <RadioCards<NeighborhoodMood>
-        name="mood"
-        columns={1}
-        value={mood}
-        onChange={setMood}
-        options={MOOD_OPTS}
-      />
-    </fieldset>
+    <div className="space-y-5">
+      <fieldset>
+        <Legend hint="상가 밀도와 소음 업종 비율을 함께 반영해요.">
+          선호하는 동네 분위기
+        </Legend>
+        <ToggleChip
+          label="상관없어요"
+          selected={moodTarget === null}
+          onToggle={() => setMoodTarget(moodTarget === null ? 0.5 : null)}
+        />
+        <div
+          className="mt-5 rounded-[var(--radius-card)] border border-border bg-surface-muted/60 p-5"
+          aria-disabled={moodTarget === null}
+        >
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <span className="text-sm font-semibold text-navy">현재 선택</span>
+            <output className="rounded-full bg-primary-subtle px-3 py-1 text-sm font-bold text-primary">
+              {moodTarget === null ? "추천에 반영하지 않음" : `${label} · ${Math.round(target * 100)}`}
+            </output>
+          </div>
+          <input
+            id="neighborhood-mood"
+            type="range"
+            min={0}
+            max={100}
+            step={1}
+            value={Math.round(target * 100)}
+            disabled={moodTarget === null}
+            onChange={(event) => setMoodTarget(Number(event.target.value) / 100)}
+            aria-label="동네 분위기 선호도, 조용함에서 번화함까지"
+            className="preference-range w-full"
+            style={{ "--range-progress": `${target * 100}%` } as CSSProperties}
+          />
+          <div className="mt-4 grid grid-cols-3 gap-2 text-center text-sm">
+            <span className="flex flex-col items-center gap-1 text-muted">
+              <Moon className="h-5 w-5" aria-hidden /> 조용
+            </span>
+            <span className="flex flex-col items-center gap-1 text-muted">
+              <House className="h-5 w-5" aria-hidden /> 적당
+            </span>
+            <span className="flex flex-col items-center gap-1 text-muted">
+              <Building2 className="h-5 w-5" aria-hidden /> 번화
+            </span>
+          </div>
+        </div>
+      </fieldset>
+      <InfoAccordion summary="분위기 점수는 어떻게 계산하나요?">
+        반경 750m의 전체 상가 수 백분위가 선택한 위치와 가까울수록 점수가 높아요. 조용한 쪽을 선택할수록 노래방·주점
+        같은 소음 업종 구성비에 최대 50% 감점을 적용하고, 번화한 쪽으로 갈수록 감점은 줄어듭니다.
+      </InfoAccordion>
+    </div>
   );
 }

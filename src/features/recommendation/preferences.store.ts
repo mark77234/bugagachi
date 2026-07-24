@@ -7,13 +7,13 @@ import type {
   EduCategory,
   FrequentDestination,
   InfraCategory,
-  NeighborhoodMood,
   PreferenceSurveyInput,
   ScoreAxis,
 } from "./recommendation.types";
 
 interface PreferencesState {
   hydrated: boolean;
+  eligibilitySkipped: boolean;
   maxDeposit: number | null;
   maxMonthlyRent: number | null;
   gungus: string[];
@@ -24,10 +24,11 @@ interface PreferencesState {
   eduCategories: EduCategory[];
   storeChips: string[];
   storeCustom: string[];
-  mood: NeighborhoodMood | null;
+  moodTarget: number | null;
   skipped: ScoreAxis[];
 
   setBudget: (v: { maxDeposit?: number; maxMonthlyRent?: number }) => void;
+  setEligibilitySkipped: (v: boolean) => void;
   toggleGungu: (name: string) => void;
   setAnyRegion: (v: boolean) => void;
   addFrequent: (d: FrequentDestination) => void;
@@ -38,12 +39,13 @@ interface PreferencesState {
   toggleChip: (chip: string) => void;
   addCustom: (chip: string) => void;
   removeCustom: (chip: string) => void;
-  setMood: (m: NeighborhoodMood) => void;
+  setMoodTarget: (target: number | null) => void;
   setSkip: (axis: ScoreAxis, skip: boolean) => void;
   reset: () => void;
 }
 
 const initial = {
+  eligibilitySkipped: false,
   maxDeposit: null,
   maxMonthlyRent: null,
   gungus: [] as string[],
@@ -54,7 +56,7 @@ const initial = {
   eduCategories: [] as EduCategory[],
   storeChips: [] as string[],
   storeCustom: [] as string[],
-  mood: null as NeighborhoodMood | null,
+  moodTarget: null as number | null,
   skipped: [] as ScoreAxis[],
 };
 
@@ -65,6 +67,7 @@ export const usePreferencesStore = create<PreferencesState>()(
     (set) => ({
       hydrated: false,
       ...initial,
+      setEligibilitySkipped: (v) => set({ eligibilitySkipped: v }),
       setBudget: (v) => set((s) => ({ ...s, ...v })),
       toggleGungu: (name) => set((s) => ({ gungus: toggle(s.gungus, name), anyRegion: false })),
       setAnyRegion: (v) => set({ anyRegion: v, gungus: [] }),
@@ -77,14 +80,25 @@ export const usePreferencesStore = create<PreferencesState>()(
       addCustom: (chip) =>
         set((s) => (chip && !s.storeCustom.includes(chip) ? { storeCustom: [...s.storeCustom, chip] } : s)),
       removeCustom: (chip) => set((s) => ({ storeCustom: s.storeCustom.filter((c) => c !== chip) })),
-      setMood: (m) => set({ mood: m }),
+      setMoodTarget: (target) => set({ moodTarget: target }),
       setSkip: (axis, skip) =>
         set((s) => ({ skipped: skip ? [...new Set([...s.skipped, axis])] : s.skipped.filter((a) => a !== axis) })),
       reset: () => set({ ...initial }),
     }),
     {
       name: STORAGE_KEYS.preferences,
+      version: 2,
       storage: createJSONStorage(() => localStorage),
+      migrate: (persisted, version) => {
+        const value = { ...((persisted ?? {}) as Record<string, unknown>) };
+        if (version < 2 && value.moodTarget === undefined) {
+          const legacy = value.mood;
+          value.moodTarget =
+            legacy === "quiet" ? 0 : legacy === "moderate" ? 0.5 : legacy === "lively" ? 1 : null;
+          delete value.mood;
+        }
+        return value as unknown as PreferencesState;
+      },
       onRehydrateStorage: () => (state) => {
         if (state) state.hydrated = true;
       },
@@ -104,8 +118,8 @@ export function buildSurvey(s: PreferencesState): PreferenceSurveyInput {
     frequent: s.frequent,
     infra: { categories: s.infraCategories },
     education: { enabled: s.eduEnabled === true, categories: s.eduCategories },
-    store: { chips: s.storeChips, custom: s.storeCustom },
-    neighborhood: { mood: s.mood },
+    store: { chips: s.storeChips, custom: [] },
+    neighborhood: { target: s.moodTarget },
     skipped: s.skipped,
   };
 }

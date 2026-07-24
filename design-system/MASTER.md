@@ -8,15 +8,15 @@
 ## 1. 컬러 토큰
 | 역할 | 변수 | 값 | 비고 |
 |---|---|---|---|
-| Background | `--color-bg` | `#f6f8f7` | 민트 섞인 회백색 |
+| Background | `--color-bg` | `#fcfdfd` | Warm Civic의 옅은 민트 백색 |
 | Surface | `--color-surface` | `#ffffff` | 카드/입력 |
 | Surface-muted | `--color-surface-muted` | `#eef2f1` | 보조 배경 |
-| Primary | `--color-primary` | `#0f766e` | 차분한 청록(CTA·강조) |
-| Primary-hover | `--color-primary-hover` | `#0e6b64` | |
-| Primary-subtle | `--color-primary-subtle` | `#e6f2f0` | 선택 배경/배지 |
-| Navy(Secondary) | `--color-navy` | `#1e293b` | 강조 텍스트/헤더 |
-| Foreground | `--color-fg` | `#0f172a` | 본문(차콜/네이비) |
-| Muted text | `--color-muted` | `#5b6b73` | 보조 텍스트(AA 확보) |
+| Primary | `--color-primary` | `#0e7c7b` | 차분한 청록(CTA·강조) |
+| Primary-hover | `--color-primary-hover` | `#0b6f6e` | |
+| Primary-subtle | `--color-primary-subtle` | `#e2f2f1` | 선택 배경/배지 |
+| Navy(Secondary) | `--color-navy` | `#14201f` | 강조 텍스트/헤더 |
+| Foreground | `--color-fg` | `#14201f` | 본문(차콜/네이비) |
+| Muted text | `--color-muted` | `#5c716f` | 보조 텍스트(AA 확보) |
 | Border | `--color-border` | `#dce3e1` | 얇은 테두리 |
 | Success | `--color-success` / `-subtle` | `#15803d` / `#e7f4ec` | 통과 |
 | Warning | `--color-warning` / `-subtle` | `#b45309` / `#fbf0e2` | 추가 확인 |

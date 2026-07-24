@@ -3,7 +3,7 @@
 import { ShieldCheck } from "lucide-react";
 import { useEligibilityStore } from "@/features/eligibility/eligibility.store";
 import { ASSET_BRACKETS, CAR_OPTIONS, incomeBrackets } from "@/features/eligibility/eligibility.brackets";
-import { calcKoreanAge } from "@/lib/formatting";
+import { calcKoreanAge, withThousands } from "@/lib/formatting";
 import { cn } from "@/lib/utils";
 
 function Row({ label, value }: { label: string; value: string }) {
@@ -24,8 +24,18 @@ export function SummarySidebar({ className }: { className?: string }) {
   const size = Math.min(Math.max(s.members.length, 1), 8);
   const age = calcKoreanAge(s.birthISO);
 
-  const income = s.incomeBracketIndex !== null ? incomeBrackets(size)[s.incomeBracketIndex].label : "—";
-  const asset = s.assetBracketIndex !== null ? ASSET_BRACKETS[s.assetBracketIndex].label : "—";
+  const income =
+    s.incomeManwonExact !== null
+      ? `${withThousands(s.incomeManwonExact)}만원`
+      : s.incomeBracketIndex !== null
+        ? incomeBrackets(size)[s.incomeBracketIndex].label
+        : "—";
+  const asset =
+    s.assetManwonExact !== null
+      ? `${withThousands(s.assetManwonExact)}만원`
+      : s.assetBracketIndex !== null
+        ? ASSET_BRACKETS[s.assetBracketIndex].label
+        : "—";
   const car = s.carBand ? CAR_OPTIONS.find((o) => o.value === s.carBand)?.label ?? "—" : "—";
 
   return (

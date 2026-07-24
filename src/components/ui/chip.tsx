@@ -8,21 +8,25 @@ export function ToggleChip({
   label,
   selected,
   onToggle,
+  disabled = false,
 }: {
   label: string;
   selected: boolean;
   onToggle: () => void;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       aria-pressed={selected}
       onClick={onToggle}
+      disabled={disabled}
       className={cn(
         "inline-flex min-h-11 items-center gap-1.5 rounded-full border px-4 text-base font-medium transition-colors",
         selected
           ? "border-primary bg-primary-subtle text-primary"
           : "border-border bg-surface text-fg hover:bg-surface-muted",
+        disabled && "cursor-not-allowed opacity-45 hover:bg-surface",
       )}
     >
       {selected && <Check className="h-4 w-4" strokeWidth={3} aria-hidden />}

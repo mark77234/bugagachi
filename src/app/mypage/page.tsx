@@ -86,8 +86,8 @@ export default function MyPage() {
   if (pref.frequent.length) axes.push("자주 가는 장소");
   if (pref.infraCategories.length) axes.push("기반시설");
   if (pref.eduEnabled) axes.push("돌봄·교육");
-  if (pref.storeChips.length + pref.storeCustom.length) axes.push("취향 가게");
-  if (pref.mood) axes.push("동네 분위기");
+  if (pref.storeChips.length) axes.push("취향 가게");
+  if (pref.moodTarget !== null) axes.push("동네 분위기");
 
   return (
     <PageContainer size="wide" className="py-8">
