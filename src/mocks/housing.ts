@@ -1,13 +1,158 @@
-/** Mock 공공임대 주택 재고. 실제 데이터 진입 시 이 배열을 loader 결과로 교체. */
+/**
+ * 부산 공공임대 주택 재고 어댑터.
+ *
+ * 원본 `data/busan_rental_scores.json`은 1행이 1호실이다. 화면과 지도에서는
+ * 동일 주소를 한 건물로 묶고, 추천 예산 필터는 건물 안의 개별 호실 조건으로
+ * 처리한다. 원본 행은 `sourceRows`에 그대로 보존해 모든 JSON 필드에 접근할 수 있다.
+ */
+import rentalScoreJson from "../../data/busan_rental_scores.json";
 import type { LatLng } from "@/lib/coordinates";
 import type { EligibilityTypeCode } from "@/features/eligibility/eligibility.types";
 
-export type RecruitStatus = "open" | "upcoming" | "closed";
+export type RecruitStatus = "open" | "upcoming" | "closed" | "unknown";
+
+export interface RentalScoreRow {
+  [key: string]: string | number | null;
+  rental_type: string | null;
+  complex_name: string | null;
+  district: string | null;
+  address: string | null;
+  address_norm: string | null;
+  house_type: string | null;
+  building_form: string | null;
+  completion_year: number | null;
+  unit_type: string | null;
+  area_exclusive_m2: number | null;
+  room_count: number | null;
+  household_count: number | null;
+  unit_count: number | null;
+  elevator: string | null;
+  parking_count: number | null;
+  heating_type: string | null;
+  eligibility_summary: string | null;
+  supply_class: string | null;
+  income_bracket: string | null;
+  household_size: string | number | null;
+  protection_type: string | null;
+  unit_no: string | number | null;
+  priority_rank: number | null;
+  deposit_krw: number | null;
+  rent_krw: number | null;
+  lat: number | null;
+  lon: number | null;
+  geocode_precision: string | null;
+  geocode_shift_m: number | null;
+  pnu: string | number | null;
+  anchor_lat: number | null;
+  anchor_lon: number | null;
+  anchor_dist_m: number | null;
+  anchor_score: number | null;
+  hospital_dist_m: number | null;
+  hospital_score: number | null;
+  library_dist_m: number | null;
+  library_score: number | null;
+  mart_dist_m: number | null;
+  mart_score: number | null;
+  park_dist_m: number | null;
+  park_score: number | null;
+  sports_dist_m: number | null;
+  sports_score: number | null;
+  subway_dist_m: number | null;
+  subway_score: number | null;
+  daycare_dist_m: number | null;
+  daycare_score: number | null;
+  kindergarten_dist_m: number | null;
+  kindergarten_score: number | null;
+  elementary_dist_m: number | null;
+  elementary_score: number | null;
+  middle_school_dist_m: number | null;
+  middle_school_score: number | null;
+  high_school_dist_m: number | null;
+  high_school_score: number | null;
+  cafe_cnt_750m: number | null;
+  cafe_score: number | null;
+  convenience_cnt_750m: number | null;
+  convenience_score: number | null;
+  gym_cnt_750m: number | null;
+  gym_score: number | null;
+  laundry_cnt_750m: number | null;
+  laundry_score: number | null;
+  vet_cnt_750m: number | null;
+  vet_score: number | null;
+  study_cafe_cnt_750m: number | null;
+  study_cafe_score: number | null;
+  restaurant_cnt_750m: number | null;
+  restaurant_score: number | null;
+  bakery_cnt_750m: number | null;
+  bakery_score: number | null;
+  hair_salon_cnt_750m: number | null;
+  hair_salon_score: number | null;
+  pharmacy_cnt_750m: number | null;
+  pharmacy_score: number | null;
+  store_total_750m: number | null;
+  noise_store_750m: number | null;
+  noise_ratio: number | null;
+  bustle_pct: number | null;
+  noise_pct: number | null;
+  vibe_t: number | null;
+  vibe_score: number | null;
+}
 
 export interface RentalCondition {
   priorityRank?: 1 | 2 | 3;
   deposit: number; // 만원
   monthlyRent: number; // 만원
+  unitNo?: string;
+  exclusiveArea?: number;
+  roomCount?: number;
+}
+
+export interface HousingMetric {
+  distance: number;
+  score: number;
+}
+
+export interface StoreMetric {
+  count: number;
+  score: number;
+}
+
+export interface HousingSourceData {
+  sourceRows: RentalScoreRow[];
+  sourceRowCount: number;
+  pricedUnitCount: number;
+  houseType: string | null;
+  buildingForm: string | null;
+  completionYear: number | null;
+  elevator: string | null;
+  parkingCount: number | null;
+  heatingType: string | null;
+  eligibilitySummary: string | null;
+  geocodePrecision: string | null;
+  geocodeShiftM: number | null;
+  infra: {
+    hospital: HousingMetric | null;
+    library: HousingMetric | null;
+    mart: HousingMetric | null;
+    park: HousingMetric | null;
+    sports: HousingMetric | null;
+    subway: HousingMetric | null;
+  };
+  education: {
+    daycare: HousingMetric | null;
+    kindergarten: HousingMetric | null;
+    elementary: HousingMetric | null;
+    middle: HousingMetric | null;
+    high: HousingMetric | null;
+  };
+  stores: Record<string, StoreMetric | null>;
+  neighborhood: {
+    storeTotal: number;
+    noiseStoreCount: number;
+    noiseRatio: number;
+    bustlePercentile: number;
+    noisePercentile: number;
+  } | null;
 }
 
 export interface HousingUnit {
@@ -17,226 +162,201 @@ export interface HousingUnit {
   gungu: string;
   address: string;
   coord: LatLng;
-  conditions: RentalCondition[]; // 순위별 임대조건(예산 보수 필터용)
+  conditions: RentalCondition[];
   recruitStatus: RecruitStatus;
   recruitPeriod?: { start: string; end: string };
   supplyCount: number;
-  exclusiveAreas: number[]; // ㎡
+  exclusiveAreas: number[];
   officialUrl: string;
+  source: HousingSourceData;
 }
 
+export const RENTAL_DATASET_STATS = {
+  sourceRows: (rentalScoreJson as unknown[]).length,
+  validRows: 0,
+  ignoredEmptyRows: 0,
+  buildings: 0,
+} as {
+  sourceRows: number;
+  validRows: number;
+  ignoredEmptyRows: number;
+  buildings: number;
+};
+
 const OFFICIAL = "https://www.myhome.go.kr";
+const rawRows = rentalScoreJson as unknown as RentalScoreRow[];
+const validRows = rawRows.filter(
+  (row) =>
+    row.address_norm &&
+    row.address &&
+    row.district &&
+    typeof row.lat === "number" &&
+    typeof row.lon === "number",
+);
 
-export const MOCK_HOUSING: HousingUnit[] = [
-  {
-    id: "h-001",
-    name: "부산진 행복주택 1단지",
-    type: "HAENGBOK",
-    gungu: "부산진구",
-    address: "부산광역시 부산진구 중앙대로 660",
-    coord: { lat: 35.1621, lng: 129.0533 },
-    conditions: [
-      { priorityRank: 1, deposit: 3200, monthlyRent: 21 },
-      { priorityRank: 2, deposit: 3600, monthlyRent: 25 },
-    ],
-    recruitStatus: "open",
-    recruitPeriod: { start: "2026-07-10", end: "2026-08-05" },
-    supplyCount: 120,
-    exclusiveAreas: [16, 26, 36],
-    officialUrl: OFFICIAL,
-  },
-  {
-    id: "h-002",
-    name: "해운대 통합공공임대 스테이",
-    type: "TONGHAP",
-    gungu: "해운대구",
-    address: "부산광역시 해운대구 좌동순환로 100",
-    coord: { lat: 35.1687, lng: 129.1735 },
-    conditions: [
-      { priorityRank: 2, deposit: 5200, monthlyRent: 33 },
-      { priorityRank: 3, deposit: 5800, monthlyRent: 38 },
-    ],
-    recruitStatus: "open",
-    recruitPeriod: { start: "2026-07-01", end: "2026-07-31" },
-    supplyCount: 210,
-    exclusiveAreas: [26, 36, 46],
-    officialUrl: OFFICIAL,
-  },
-  {
-    id: "h-003",
-    name: "동래 매입임대 청년주택",
-    type: "MAEIP_CHUNG",
-    gungu: "동래구",
-    address: "부산광역시 동래구 충렬대로 200",
-    coord: { lat: 35.2041, lng: 129.0846 },
-    conditions: [
-      { priorityRank: 1, deposit: 900, monthlyRent: 12 },
-      { priorityRank: 3, deposit: 1200, monthlyRent: 16 },
-    ],
-    recruitStatus: "open",
-    recruitPeriod: { start: "2026-07-15", end: "2026-08-10" },
-    supplyCount: 48,
-    exclusiveAreas: [17, 24],
-    officialUrl: OFFICIAL,
-  },
-  {
-    id: "h-004",
-    name: "남구 재개발 임대아파트",
-    type: "JAEGAEBAL",
-    gungu: "남구",
-    address: "부산광역시 남구 유엔평화로 50",
-    coord: { lat: 35.1359, lng: 129.0843 },
-    conditions: [{ priorityRank: 1, deposit: 4200, monthlyRent: 18 }],
-    recruitStatus: "upcoming",
-    recruitPeriod: { start: "2026-08-20", end: "2026-09-15" },
-    supplyCount: 86,
-    exclusiveAreas: [39, 49, 59],
-    officialUrl: OFFICIAL,
-  },
-  {
-    id: "h-005",
-    name: "사상 매입임대 일반",
-    type: "MAEIP_ILBAN",
-    gungu: "사상구",
-    address: "부산광역시 사상구 학감대로 30",
-    coord: { lat: 35.1524, lng: 128.9912 },
-    conditions: [
-      { priorityRank: 1, deposit: 1500, monthlyRent: 14 },
-      { priorityRank: 2, deposit: 1800, monthlyRent: 17 },
-    ],
-    recruitStatus: "open",
-    recruitPeriod: { start: "2026-07-05", end: "2026-07-28" },
-    supplyCount: 64,
-    exclusiveAreas: [29, 39],
-    officialUrl: OFFICIAL,
-  },
-  {
-    id: "h-006",
-    name: "연제 통합공공임대 뉴스테이",
-    type: "TONGHAP",
-    gungu: "연제구",
-    address: "부산광역시 연제구 중앙대로 1000",
-    coord: { lat: 35.1761, lng: 129.0792 },
-    conditions: [
-      { priorityRank: 2, deposit: 4600, monthlyRent: 29 },
-      { priorityRank: 3, deposit: 5000, monthlyRent: 34 },
-    ],
-    recruitStatus: "open",
-    recruitPeriod: { start: "2026-07-12", end: "2026-08-08" },
-    supplyCount: 150,
-    exclusiveAreas: [26, 36, 46],
-    officialUrl: OFFICIAL,
-  },
-  {
-    id: "h-007",
-    name: "금정 행복주택 대학타운",
-    type: "HAENGBOK",
-    gungu: "금정구",
-    address: "부산광역시 금정구 부산대학로 63",
-    coord: { lat: 35.2312, lng: 129.0844 },
-    conditions: [{ priorityRank: 1, deposit: 2100, monthlyRent: 15 }],
-    recruitStatus: "open",
-    recruitPeriod: { start: "2026-07-18", end: "2026-08-12" },
-    supplyCount: 96,
-    exclusiveAreas: [16, 21],
-    officialUrl: OFFICIAL,
-  },
-  {
-    id: "h-008",
-    name: "수영 매입임대 청년하우스",
-    type: "MAEIP_CHUNG",
-    gungu: "수영구",
-    address: "부산광역시 수영구 광안해변로 250",
-    coord: { lat: 35.1533, lng: 129.1187 },
-    conditions: [
-      { priorityRank: 1, deposit: 1000, monthlyRent: 13 },
-      { priorityRank: 2, deposit: 1400, monthlyRent: 18 },
-    ],
-    recruitStatus: "closed",
-    recruitPeriod: { start: "2026-05-01", end: "2026-05-28" },
-    supplyCount: 40,
-    exclusiveAreas: [17, 23],
-    officialUrl: OFFICIAL,
-  },
-  {
-    id: "h-009",
-    name: "북구 통합공공임대 家",
-    type: "TONGHAP",
-    gungu: "북구",
-    address: "부산광역시 북구 금곡대로 300",
-    coord: { lat: 35.1974, lng: 128.9905 },
-    conditions: [
-      { priorityRank: 2, deposit: 3800, monthlyRent: 24 },
-      { priorityRank: 3, deposit: 4200, monthlyRent: 28 },
-    ],
-    recruitStatus: "open",
-    recruitPeriod: { start: "2026-07-08", end: "2026-08-02" },
-    supplyCount: 130,
-    exclusiveAreas: [26, 36],
-    officialUrl: OFFICIAL,
-  },
-  {
-    id: "h-010",
-    name: "해운대 매입임대 일반",
-    type: "MAEIP_ILBAN",
-    gungu: "해운대구",
-    address: "부산광역시 해운대구 반송로 400",
-    coord: { lat: 35.2201, lng: 129.1408 },
-    conditions: [
-      { priorityRank: 1, deposit: 1700, monthlyRent: 15 },
-      { priorityRank: 2, deposit: 2100, monthlyRent: 19 },
-    ],
-    recruitStatus: "open",
-    recruitPeriod: { start: "2026-07-20", end: "2026-08-14" },
-    supplyCount: 72,
-    exclusiveAreas: [29, 39, 49],
-    officialUrl: OFFICIAL,
-  },
-  {
-    id: "h-011",
-    name: "동구 행복주택 역세권",
-    type: "HAENGBOK",
-    gungu: "동구",
-    address: "부산광역시 동구 중앙대로 200",
-    coord: { lat: 35.1291, lng: 129.0451 },
-    conditions: [
-      { priorityRank: 1, deposit: 2800, monthlyRent: 19 },
-      { priorityRank: 2, deposit: 3200, monthlyRent: 23 },
-    ],
-    recruitStatus: "open",
-    recruitPeriod: { start: "2026-07-14", end: "2026-08-09" },
-    supplyCount: 88,
-    exclusiveAreas: [16, 26, 36],
-    officialUrl: OFFICIAL,
-  },
-  {
-    id: "h-012",
-    name: "사하 재개발 임대",
-    type: "JAEGAEBAL",
-    gungu: "사하구",
-    address: "부산광역시 사하구 낙동대로 150",
-    coord: { lat: 35.1046, lng: 128.9748 },
-    conditions: [{ priorityRank: 1, deposit: 3600, monthlyRent: 16 }],
-    recruitStatus: "upcoming",
-    recruitPeriod: { start: "2026-09-01", end: "2026-09-26" },
-    supplyCount: 60,
-    exclusiveAreas: [39, 49],
-    officialUrl: OFFICIAL,
-  },
-];
+RENTAL_DATASET_STATS.validRows = validRows.length;
+RENTAL_DATASET_STATS.ignoredEmptyRows = rawRows.length - validRows.length;
 
-export const housingById = (id: string) => MOCK_HOUSING.find((h) => h.id === id);
+function stableId(value: string): string {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `rental-${(hash >>> 0).toString(36)}`;
+}
 
-/** 예산 보수 필터용: 순위 불명확 시 가장 비싼(2·3순위 등) 조건. */
-export function conservativeCondition(unit: HousingUnit): RentalCondition {
-  return unit.conditions.reduce((worst, c) =>
-    c.deposit + c.monthlyRent * 100 > worst.deposit + worst.monthlyRent * 100 ? c : worst,
+function metric(distance: number | null, score: number | null): HousingMetric | null {
+  return typeof distance === "number" && typeof score === "number" ? { distance, score } : null;
+}
+
+function storeMetric(count: number | null, score: number | null): StoreMetric | null {
+  return typeof count === "number" && typeof score === "number" ? { count, score } : null;
+}
+
+function uniqueNumbers(values: (number | null)[]): number[] {
+  return [...new Set(values.filter((value): value is number => typeof value === "number"))].sort(
+    (a, b) => a - b,
   );
 }
 
-/** 표시용 대표(가장 저렴한) 조건. */
-export function bestCondition(unit: HousingUnit): RentalCondition {
-  return unit.conditions.reduce((best, c) =>
-    c.deposit + c.monthlyRent * 100 < best.deposit + best.monthlyRent * 100 ? c : best,
+function displayName(row: RentalScoreRow): string {
+  const locality = row.complex_name?.trim() || row.district || "부산";
+  const addressDetail = row.address
+    ?.replace(/^부산광역시\s+/, "")
+    .replace(new RegExp(`^${row.district}\\s+`), "")
+    .replace(/\([^)]*\)$/, "")
+    .trim();
+  return `${locality} 매입임대${addressDetail ? ` · ${addressDetail}` : ""}`;
+}
+
+function toCondition(row: RentalScoreRow): RentalCondition | null {
+  if (typeof row.deposit_krw !== "number" || typeof row.rent_krw !== "number") return null;
+  const priority =
+    row.priority_rank === 1 || row.priority_rank === 2 || row.priority_rank === 3
+      ? row.priority_rank
+      : undefined;
+  return {
+    priorityRank: priority,
+    deposit: row.deposit_krw / 10_000,
+    monthlyRent: row.rent_krw / 10_000,
+    unitNo: row.unit_no === null ? undefined : String(row.unit_no),
+    exclusiveArea: row.area_exclusive_m2 ?? undefined,
+    roomCount: row.room_count ?? undefined,
+  };
+}
+
+function buildHousing(address: string, rows: RentalScoreRow[]): HousingUnit {
+  const first = rows[0];
+  const conditions = rows.map(toCondition).filter((value): value is RentalCondition => value !== null);
+  const neighborhood =
+    typeof first.store_total_750m === "number" &&
+    typeof first.noise_store_750m === "number" &&
+    typeof first.noise_ratio === "number" &&
+    typeof first.bustle_pct === "number" &&
+    typeof first.noise_pct === "number"
+      ? {
+          storeTotal: first.store_total_750m,
+          noiseStoreCount: first.noise_store_750m,
+          noiseRatio: first.noise_ratio,
+          bustlePercentile: first.bustle_pct,
+          noisePercentile: first.noise_pct,
+        }
+      : null;
+
+  return {
+    id: stableId(address),
+    name: displayName(first),
+    type: "MAEIP_ILBAN",
+    gungu: first.district!,
+    address: first.address!,
+    coord: { lat: first.lat!, lng: first.lon! },
+    conditions,
+    recruitStatus: "unknown",
+    supplyCount: rows.length,
+    exclusiveAreas: uniqueNumbers(rows.map((row) => row.area_exclusive_m2)),
+    officialUrl: OFFICIAL,
+    source: {
+      sourceRows: rows,
+      sourceRowCount: rows.length,
+      pricedUnitCount: conditions.length,
+      houseType: first.house_type,
+      buildingForm: first.building_form,
+      completionYear: first.completion_year,
+      elevator: first.elevator,
+      parkingCount: first.parking_count,
+      heatingType: first.heating_type,
+      eligibilitySummary: first.eligibility_summary,
+      geocodePrecision: first.geocode_precision,
+      geocodeShiftM: first.geocode_shift_m,
+      infra: {
+        hospital: metric(first.hospital_dist_m, first.hospital_score),
+        library: metric(first.library_dist_m, first.library_score),
+        mart: metric(first.mart_dist_m, first.mart_score),
+        park: metric(first.park_dist_m, first.park_score),
+        sports: metric(first.sports_dist_m, first.sports_score),
+        subway: metric(first.subway_dist_m, first.subway_score),
+      },
+      education: {
+        daycare: metric(first.daycare_dist_m, first.daycare_score),
+        kindergarten: metric(first.kindergarten_dist_m, first.kindergarten_score),
+        elementary: metric(first.elementary_dist_m, first.elementary_score),
+        middle: metric(first.middle_school_dist_m, first.middle_school_score),
+        high: metric(first.high_school_dist_m, first.high_school_score),
+      },
+      stores: {
+        카페: storeMetric(first.cafe_cnt_750m, first.cafe_score),
+        편의점: storeMetric(first.convenience_cnt_750m, first.convenience_score),
+        헬스장: storeMetric(first.gym_cnt_750m, first.gym_score),
+        빨래방: storeMetric(first.laundry_cnt_750m, first.laundry_score),
+        // 설명 문서 지침: 동물병원은 상가 원자료에 없어 점수 축에서 제외한다.
+        동물병원: null,
+        스터디카페: storeMetric(first.study_cafe_cnt_750m, first.study_cafe_score),
+        밥집: storeMetric(first.restaurant_cnt_750m, first.restaurant_score),
+        베이커리: storeMetric(first.bakery_cnt_750m, first.bakery_score),
+        미용실: storeMetric(first.hair_salon_cnt_750m, first.hair_salon_score),
+        약국: storeMetric(first.pharmacy_cnt_750m, first.pharmacy_score),
+      },
+      neighborhood,
+    },
+  };
+}
+
+const grouped = new Map<string, RentalScoreRow[]>();
+for (const row of validRows) {
+  const key = row.address_norm!;
+  const rows = grouped.get(key);
+  if (rows) rows.push(row);
+  else grouped.set(key, [row]);
+}
+
+export const HOUSING_INVENTORY: HousingUnit[] = [...grouped.entries()]
+  .map(([address, rows]) => buildHousing(address, rows))
+  .sort((a, b) => a.address.localeCompare(b.address, "ko"));
+
+RENTAL_DATASET_STATS.buildings = HOUSING_INVENTORY.length;
+
+/** 기존 import 호환용 별칭. 값은 더 이상 mock이 아니라 JSON 전체 유효 행이다. */
+export const MOCK_HOUSING = HOUSING_INVENTORY;
+
+export const housingById = (id: string) => HOUSING_INVENTORY.find((housing) => housing.id === id);
+
+export function bestCondition(unit: HousingUnit): RentalCondition | null {
+  if (unit.conditions.length === 0) return null;
+  return unit.conditions.reduce((best, condition) =>
+    condition.deposit + condition.monthlyRent * 100 <
+    best.deposit + best.monthlyRent * 100
+      ? condition
+      : best,
+  );
+}
+
+export function matchingConditions(
+  unit: HousingUnit,
+  maxDeposit: number,
+  maxMonthlyRent: number,
+): RentalCondition[] {
+  return unit.conditions.filter(
+    (condition) => condition.deposit <= maxDeposit && condition.monthlyRent <= maxMonthlyRent,
   );
 }

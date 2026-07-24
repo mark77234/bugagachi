@@ -55,7 +55,12 @@ function HousingMini({ id }: { id: string }) {
     <Link href={`/housing/${u.id}`} className="flex items-center justify-between rounded-[var(--radius-input)] border border-border p-3 hover:bg-surface-muted">
       <span className="min-w-0">
         <span className="block truncate font-medium text-fg">{u.name}</span>
-        <span className="block text-sm text-muted">{u.gungu} · 보증금 {formatManwon(best.deposit)} · 월 {formatManwon(best.monthlyRent)}</span>
+        <span className="block text-sm text-muted">
+          {u.gungu} ·{" "}
+          {best
+            ? `보증금 ${formatManwon(best.deposit)} · 월 ${formatManwon(best.monthlyRent)}`
+            : "임대조건 미공개"}
+        </span>
       </span>
       <Badge tone="neutral">{ELIGIBILITY_TYPE_LABEL[u.type]}</Badge>
     </Link>

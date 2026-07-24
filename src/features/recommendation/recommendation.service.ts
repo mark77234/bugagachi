@@ -5,18 +5,14 @@ import { formatDistance, formatManwon, formatPercentileTop } from "@/lib/formatt
 import {
   MOCK_HOUSING,
   bestCondition,
-  conservativeCondition,
+  matchingConditions,
   type HousingUnit,
 } from "@/mocks/housing";
-import {
-  neighborhoodProfile,
-  nearestEduMeters,
-  nearestInfraMeters,
-  storeDensity,
-} from "@/mocks/facilities";
 import type { EligibilityTypeCode } from "@/features/eligibility/eligibility.types";
 import {
   AXIS_LABEL,
+  type EduCategory,
+  type InfraCategory,
   type CategoryScore,
   type FilterOutcome,
   type HousingRecommendation,
@@ -25,9 +21,7 @@ import {
   type ScoreAxis,
 } from "./recommendation.types";
 import {
-  EDU_STEPS_BY_CATEGORY,
   FREQUENT_STEPS,
-  INFRA_STEPS_BY_CATEGORY,
 } from "./scoring.config";
 import { equalMean, neighborhoodScore, normalizeWeights, stepScore } from "./scoring.utils";
 import { gunguByName } from "@/mocks/regions";
@@ -38,46 +32,69 @@ interface AxisResult {
 }
 
 function scoreFrequent(unit: HousingUnit, s: PreferenceSurveyInput): AxisResult {
-  const dists = s.frequent.map((d) => boostedMeters(unit.coord, d.coord));
+  const dists = s.frequent.slice(0, 1).map((d) => boostedMeters(unit.coord, d.coord));
   const scores = dists.map((d) => stepScore(d, FREQUENT_STEPS));
   const avgDist = dists.reduce((a, b) => a + b, 0) / dists.length;
-  return { score: equalMean(scores), raw: `예상 보정거리 평균 ${formatDistance(avgDist)}` };
+  return { score: equalMean(scores), raw: `예상 보정거리 ${formatDistance(avgDist)}` };
 }
 
-function scoreInfra(unit: HousingUnit, s: PreferenceSurveyInput): AxisResult {
-  const cats = s.infra.categories;
-  const distances = cats.map((category) => ({
-    category,
-    distance: nearestInfraMeters(unit.coord, category),
-  }));
-  const scores = distances.map(({ category, distance }) =>
-    stepScore(distance, INFRA_STEPS_BY_CATEGORY[category]),
+const INFRA_PROFILE_KEY: Record<InfraCategory, keyof HousingUnit["source"]["infra"]> = {
+  HOSPITAL: "hospital",
+  MART: "mart",
+  PARK: "park",
+  LIBRARY: "library",
+  SPORTS: "sports",
+  SUBWAY: "subway",
+};
+
+const EDU_PROFILE_KEY: Record<EduCategory, keyof HousingUnit["source"]["education"]> = {
+  DAYCARE: "daycare",
+  KINDER: "kindergarten",
+  ELEM: "elementary",
+  MIDDLE: "middle",
+  HIGH: "high",
+};
+
+function scoreInfra(unit: HousingUnit, s: PreferenceSurveyInput): AxisResult | null {
+  const metrics = s.infra.categories
+    .map((category) => unit.source.infra[INFRA_PROFILE_KEY[category]])
+    .filter((value): value is NonNullable<typeof value> => value !== null);
+  if (metrics.length === 0) return null;
+  const close = metrics.filter(({ score }) => score >= 0.6).length;
+  const nearest = metrics.reduce((best, item) =>
+    item.distance < best.distance ? item : best,
   );
-  const close = scores.filter((v) => v >= 0.6).length;
-  const nearest = distances.reduce((best, item) => (item.distance < best.distance ? item : best));
   return {
-    score: equalMean(scores),
-    raw: `선택 ${cats.length}개 중 ${close}개가 가까운 편 · 최근접 ${formatDistance(nearest.distance)}`,
+    score: equalMean(metrics.map(({ score }) => score)),
+    raw: `계산 가능한 ${metrics.length}개 중 ${close}개가 가까운 편 · 최근접 ${formatDistance(nearest.distance)}`,
   };
 }
 
-function scoreEducation(unit: HousingUnit, s: PreferenceSurveyInput): AxisResult {
-  const cats = s.education.categories;
-  const scores = cats.map((c) => stepScore(nearestEduMeters(unit.coord, c), EDU_STEPS_BY_CATEGORY[c]));
-  const close = scores.filter((v) => v >= 0.6).length;
-  return { score: equalMean(scores), raw: `선택한 ${cats.length}개 중 ${close}개가 가까운 편` };
+function scoreEducation(unit: HousingUnit, s: PreferenceSurveyInput): AxisResult | null {
+  const metrics = s.education.categories
+    .map((category) => unit.source.education[EDU_PROFILE_KEY[category]])
+    .filter((value): value is NonNullable<typeof value> => value !== null);
+  if (metrics.length === 0) return null;
+  const close = metrics.filter(({ score }) => score >= 0.6).length;
+  const nearest = metrics.reduce((best, item) =>
+    item.distance < best.distance ? item : best,
+  );
+  return {
+    score: equalMean(metrics.map(({ score }) => score)),
+    raw: `계산 가능한 ${metrics.length}개 중 ${close}개가 가까운 편 · 최근접 ${formatDistance(nearest.distance)}`,
+  };
 }
 
 function scoreStore(unit: HousingUnit, s: PreferenceSurveyInput): AxisResult | null {
   const densities = s.store.chips
-    .map((chip) => ({ chip, density: storeDensity(unit.id, chip) }))
+    .map((chip) => ({ chip, density: unit.source.stores[chip] ?? null }))
     .filter(
-      (item): item is { chip: string; density: { count: number; percentile: number } } =>
+      (item): item is { chip: string; density: { count: number; score: number } } =>
         item.density !== null,
     );
   if (densities.length === 0) return null;
-  const mean = equalMean(densities.map((item) => item.density.percentile));
-  const strongest = [...densities].sort((a, b) => b.density.percentile - a.density.percentile)[0];
+  const mean = equalMean(densities.map((item) => item.density.score));
+  const strongest = [...densities].sort((a, b) => b.density.score - a.density.score)[0];
   return {
     score: mean,
     raw: `${strongest.chip} ${strongest.density.count}곳 · 평균 밀도 ${formatPercentileTop(mean)} (건물 기준)`,
@@ -91,13 +108,13 @@ function moodLabel(target: number): string {
 }
 
 function scoreNeighborhood(unit: HousingUnit, s: PreferenceSurveyInput): AxisResult | null {
-  const profile = neighborhoodProfile(unit.id);
+  const profile = unit.source.neighborhood;
   const target = s.neighborhood.target;
   if (!profile || target === null) return null;
   const score = neighborhoodScore(target, profile.bustlePercentile, profile.noisePercentile);
   return {
     score,
-    raw: `상가 ${profile.storeCount}곳 · 번화도 ${Math.round(profile.bustlePercentile * 100)}백분위 · 희망 ${moodLabel(target)}`,
+    raw: `상가 ${profile.storeTotal}곳 · 번화도 ${Math.round(profile.bustlePercentile * 100)}백분위 · 희망 ${moodLabel(target)}`,
   };
 }
 
@@ -120,43 +137,12 @@ const AXIS_FN: Record<ScoreAxis, (u: HousingUnit, s: PreferenceSurveyInput) => A
   neighborhood: scoreNeighborhood,
 };
 
-export type BudgetConditionSource = "호실일치" | "건물중앙값" | "없음";
-
-function median(values: number[]): number {
-  const sorted = [...values].sort((a, b) => a - b);
-  const middle = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0
-    ? (sorted[middle - 1] + sorted[middle]) / 2
-    : sorted[middle];
-}
-
-export function resolveBudgetCondition(
-  unit: HousingUnit,
-  inventory: HousingUnit[] = MOCK_HOUSING,
-): { condition: ReturnType<typeof conservativeCondition> | null; source: BudgetConditionSource } {
-  if (unit.conditions.length > 0) {
-    return { condition: conservativeCondition(unit), source: "호실일치" };
-  }
-  const sameBuilding = inventory
-    .filter((candidate) => candidate.address === unit.address && candidate.conditions.length > 0)
-    .flatMap((candidate) => candidate.conditions);
-  if (sameBuilding.length === 0) return { condition: null, source: "없음" };
-  return {
-    condition: {
-      deposit: median(sameBuilding.map((condition) => condition.deposit)),
-      monthlyRent: median(sameBuilding.map((condition) => condition.monthlyRent)),
-    },
-    source: "건물중앙값",
-  };
-}
-
 function withinBudget(unit: HousingUnit, s: PreferenceSurveyInput): boolean {
-  const { condition } = resolveBudgetCondition(unit);
-  if (!condition) return false;
-  return (
-    condition.deposit <= s.budget.maxDeposit &&
-    condition.monthlyRent <= s.budget.maxMonthlyRent
-  );
+  return matchingConditions(
+    unit,
+    s.budget.maxDeposit,
+    s.budget.maxMonthlyRent,
+  ).length > 0;
 }
 
 function inRegion(unit: HousingUnit, s: PreferenceSurveyInput): boolean {
@@ -173,14 +159,14 @@ export function recommend(
 
   const budgetPass = pool.filter((h) => withinBudget(h, survey));
   if (budgetPass.length === 0) {
-    const nearMiss = pool.filter((h) => {
-      const { condition } = resolveBudgetCondition(h);
-      return (
-        condition !== null &&
-        condition.deposit <= survey.budget.maxDeposit * 1.2 &&
-        condition.monthlyRent <= survey.budget.maxMonthlyRent * 1.2
-      );
-    }).length;
+    const nearMiss = pool.filter(
+      (housing) =>
+        matchingConditions(
+          housing,
+          survey.budget.maxDeposit * 1.2,
+          survey.budget.maxMonthlyRent * 1.2,
+        ).length > 0,
+    ).length;
     return { kind: "empty", reason: "budget", nearMissCount: nearMiss };
   }
 
@@ -204,12 +190,19 @@ export function recommend(
     const final = byAxis.reduce((sum, a) => sum + a.score * a.weight, 0);
 
     const reasons: RecommendationReason[] = [];
-    const best = bestCondition(unit);
-    const budget = resolveBudgetCondition(unit);
+    const best = matchingConditions(
+      unit,
+      survey.budget.maxDeposit,
+      survey.budget.maxMonthlyRent,
+    ).sort(
+      (a, b) =>
+        a.deposit + a.monthlyRent * 100 -
+        (b.deposit + b.monthlyRent * 100),
+    )[0];
     reasons.push({
       axis: "budget",
-      text: "보증금과 월 임대료가 예산 안에 있어요.",
-      rawValue: `보증금 ${formatManwon(best.deposit)} · 월 ${formatManwon(best.monthlyRent)} · 금액 출처 ${budget.source}`,
+      text: `예산에 맞는 호실이 ${matchingConditions(unit, survey.budget.maxDeposit, survey.budget.maxMonthlyRent).length}개 있어요.`,
+      rawValue: `최저 보증금 ${formatManwon(best.deposit)} · 월 ${formatManwon(best.monthlyRent)} · 호실 일치`,
     });
     [...byAxis]
       .sort((a, b) => b.score * b.weight - a.score * a.weight)
@@ -243,11 +236,21 @@ export function sortRecommendations(
 ): HousingRecommendation[] {
   const copy = [...recs];
   const unit = (id: string) => MOCK_HOUSING.find((h) => h.id === id)!;
+  const conditionValue = (id: string, field: "deposit" | "monthlyRent") =>
+    bestCondition(unit(id))?.[field] ?? Number.POSITIVE_INFINITY;
   switch (key) {
     case "rent":
-      return copy.sort((a, b) => bestCondition(unit(a.unitId)).monthlyRent - bestCondition(unit(b.unitId)).monthlyRent);
+      return copy.sort(
+        (a, b) =>
+          conditionValue(a.unitId, "monthlyRent") -
+          conditionValue(b.unitId, "monthlyRent"),
+      );
     case "deposit":
-      return copy.sort((a, b) => bestCondition(unit(a.unitId)).deposit - bestCondition(unit(b.unitId)).deposit);
+      return copy.sort(
+        (a, b) =>
+          conditionValue(a.unitId, "deposit") -
+          conditionValue(b.unitId, "deposit"),
+      );
     case "distance":
       if (originForDistance) {
         return copy.sort(

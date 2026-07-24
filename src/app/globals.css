@@ -26,6 +26,10 @@
   --color-warning-subtle: #fef1e6;
   --color-error: #b91c1c;
   --color-error-subtle: #fbeaea;
+  --color-score-good: #2e933c;
+  --color-score-mid: #f4a259;
+  --color-score-low: #9aa5b1;
+  --color-muted-surface: #e5ecea;
 
   --color-ring: #0f766e;
 

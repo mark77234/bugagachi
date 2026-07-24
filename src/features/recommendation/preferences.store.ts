@@ -71,7 +71,8 @@ export const usePreferencesStore = create<PreferencesState>()(
       setBudget: (v) => set((s) => ({ ...s, ...v })),
       toggleGungu: (name) => set((s) => ({ gungus: toggle(s.gungus, name), anyRegion: false })),
       setAnyRegion: (v) => set({ anyRegion: v, gungus: [] }),
-      addFrequent: (d) => set((s) => ({ frequent: [...s.frequent, d] })),
+      // Q2는 단일 직장/학교 앵커다. 새 주소를 적용하면 기존 앵커를 교체한다.
+      addFrequent: (d) => set({ frequent: [d] }),
       removeFrequent: (id) => set((s) => ({ frequent: s.frequent.filter((f) => f.id !== id) })),
       toggleInfra: (c) => set((s) => ({ infraCategories: toggle(s.infraCategories, c) })),
       setEduEnabled: (v) => set((s) => ({ eduEnabled: v, eduCategories: v ? s.eduCategories : [] })),
@@ -115,7 +116,7 @@ export function buildSurvey(s: PreferencesState): PreferenceSurveyInput {
   return {
     budget: { maxDeposit: s.maxDeposit ?? 0, maxMonthlyRent: s.maxMonthlyRent ?? 0 },
     region: { gungus: s.gungus, anyRegion: s.anyRegion },
-    frequent: s.frequent,
+    frequent: s.frequent.slice(0, 1),
     infra: { categories: s.infraCategories },
     education: { enabled: s.eduEnabled === true, categories: s.eduCategories },
     store: { chips: s.storeChips, custom: [] },

@@ -135,8 +135,8 @@ export function FrequentStep() {
       </InformationBanner>
       <AddressSearch />
       <InfoAccordion summary="거리 점수는 어떻게 계산하나요?">
-        5km 이하는 1점, 10km는 0.7점, 30km 이상은 0점으로 두고 그 사이는 선형으로 낮아져요. 여러
-        장소를 넣으면 장소별 점수를 같은 비중으로 평균해요.
+        5km 이하는 1점, 10km는 0.7점, 30km 이상은 0점으로 두고 그 사이는 선형으로 낮아져요.
+        직장이나 학교 한 곳을 기준 장소로 적용합니다.
       </InfoAccordion>
     </div>
   );

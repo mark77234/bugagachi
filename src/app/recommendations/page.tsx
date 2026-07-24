@@ -4,10 +4,9 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Filter, Map as MapIcon, List, MessageCircleQuestion, SlidersHorizontal } from "lucide-react";
+import { Filter, Map as MapIcon, List, SlidersHorizontal } from "lucide-react";
 import { PageContainer } from "@/components/common/PageContainer";
-import { PageIntro } from "@/components/common/PageIntro";
-import { Disclaimer, InformationBanner } from "@/components/common/banners";
+import { Disclaimer } from "@/components/common/banners";
 import { EmptyState, LoadingState } from "@/components/common/states";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,16 +21,10 @@ import { useHydrated } from "@/lib/use-hydrated";
 import { recommend, sortRecommendations, type SortKey } from "@/features/recommendation/recommendation.service";
 import { ELIGIBILITY_TYPE_LABEL, type EligibilityTypeCode } from "@/features/eligibility/eligibility.types";
 import { ALL_TYPES } from "@/features/eligibility/eligibility.rules";
-import { MOCK_HOUSING, bestCondition, housingById } from "@/mocks/housing";
+import { MOCK_HOUSING, RENTAL_DATASET_STATS, bestCondition, housingById } from "@/mocks/housing";
 import { formatManwon } from "@/lib/formatting";
 import { cn } from "@/lib/utils";
 import type { HousingRecommendation } from "@/features/recommendation/recommendation.types";
-
-const STATUS_OPTS = [
-  { value: "open", label: "모집 중" },
-  { value: "upcoming", label: "모집 예정" },
-  { value: "closed", label: "마감" },
-] as const;
 
 function browseRec(unitType: EligibilityTypeCode, id: string): HousingRecommendation {
   return {
@@ -56,7 +49,6 @@ function RecommendationsInner() {
   const [showFilters, setShowFilters] = useState(false);
   const [sort, setSort] = useState<SortKey>("recommend");
   const [typeF, setTypeF] = useState<Set<string>>(new Set());
-  const [statusF, setStatusF] = useState<Set<string>>(new Set());
   const [gunguF, setGunguF] = useState<Set<string>>(new Set());
   const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -93,25 +85,29 @@ function RecommendationsInner() {
     let list = baseRecs.filter((rec) => {
       const u = housingById(rec.unitId)!;
       if (typeF.size && !typeF.has(u.type)) return false;
-      if (statusF.size && !statusF.has(u.recruitStatus)) return false;
       if (gunguF.size && !gunguF.has(u.gungu)) return false;
       return true;
     });
     list = sortRecommendations(list, sort, pref.frequent[0]?.coord);
     return list;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [baseRecs, typeF, statusF, gunguF, sort]);
+  }, [baseRecs, typeF, gunguF, sort]);
 
   const availableTypes = useMemo(() => [...new Set(baseRecs.map((r) => housingById(r.unitId)!.type))], [baseRecs]);
   const availableGungus = useMemo(() => [...new Set(baseRecs.map((r) => housingById(r.unitId)!.gungu))], [baseRecs]);
 
   const markers: MapMarker[] = filtered.map((rec) => {
     const u = housingById(rec.unitId)!;
-    return { id: u.id, coord: u.coord, label: u.name, caption: `월 ${formatManwon(bestCondition(u).monthlyRent)}` };
+    const condition = bestCondition(u);
+    return {
+      id: u.id,
+      coord: u.coord,
+      label: u.name,
+      caption: condition ? `월 ${formatManwon(condition.monthlyRent)}` : "가격 미공개",
+    };
   });
   const resetFilters = () => {
     setTypeF(new Set());
-    setStatusF(new Set());
     setGunguF(new Set());
   };
 
@@ -155,163 +151,178 @@ function RecommendationsInner() {
   }
 
   return (
-    <PageContainer size="wide" className="py-8">
-      <PageIntro
-        eyebrow={recommendMode ? (eligibilitySkipped ? "자격 미반영 추천" : "맞춤 추천") : "데모 주택 목록"}
-        title={recommendMode ? "추천 주택" : "부산 공공임대 데모 주택"}
-        description={
-          recommendMode
-            ? eligibilitySkipped
-              ? "자격은 반영하지 않고 예산·지역·생활 취향으로 정렬했어요. 신청 전 1단계와 공식 공고를 확인하세요."
-              : "자격을 통과한 주택을 예산·지역·생활 취향으로 정렬했어요. 점수 대신 근거로 설명해요."
-            : "현재 보유한 시연용 데이터 12곳을 보여드려요. 자격 확인과 취향 설문을 완료하면 나에게 맞는 순서로 추천해 드려요."
-        }
-        compact
-        actions={
-          <>
-            <Link href="/chat?topic=recommendation" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
-              <MessageCircleQuestion className="h-4 w-4" aria-hidden />
-              추천 방식 물어보기
-            </Link>
-            <Link href="/map" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
-              <MapIcon className="h-4 w-4" aria-hidden />
-              전체 지도 보기
-            </Link>
-          </>
-        }
-      />
-
-      {!recommendMode && (
-        <InformationBanner tone="primary" className="mb-6" title="맞춤 추천을 받아보세요">
-          <Link href="/eligibility" className="font-semibold text-primary underline">
-            1단계 자격 확인
-          </Link>
-          과 2단계 취향 설문을 완료하면 예산·생활권에 맞춰 순서를 매겨드려요.
-        </InformationBanner>
-      )}
-
-      <InformationBanner tone="warning" className="mb-6" title="주택·모집 정보는 데모 데이터예요">
-        실시간 모집공고가 아니므로 실제 신청 전에는 공식 기관의 최신 공고를 확인하세요.
-      </InformationBanner>
-
-      {recommendMode && (
-        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-[var(--radius-input)] bg-surface-muted/70 p-3 text-sm">
-          <span className="font-semibold text-navy">선택한 조건</span>
-          {eligibilitySkipped ? (
-            <Badge tone="warning">자격 미반영</Badge>
-          ) : (
-            passed.map((r) => (
-              <Badge key={r.type} tone="success">
-                {ELIGIBILITY_TYPE_LABEL[r.type]}
+    <div className="flex min-h-[calc(100dvh-5rem)] flex-col bg-bg md:h-dvh md:min-h-0 md:overflow-hidden">
+      <header className="shrink-0 border-b border-border bg-surface px-4 py-3 sm:px-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <h1 className="truncate text-xl font-extrabold tracking-[-0.02em] text-navy sm:text-2xl">
+                {recommendMode ? "맞춤 추천" : "지도에서 찾기"}
+              </h1>
+              <Badge tone={recommendMode ? "success" : "primary"}>
+                {recommendMode ? `${filtered.length}곳 추천` : `${RENTAL_DATASET_STATS.buildings}개 건물`}
               </Badge>
-            ))
-          )}
-          <span className="text-muted">
-            · 예산 보증금 {formatManwon(pref.maxDeposit ?? 0)} / 월 {formatManwon(pref.maxMonthlyRent ?? 0)} 이하
-          </span>
-          <span className="text-muted">· 지역 {pref.anyRegion || pref.gungus.length === 0 ? "전체" : pref.gungus.join(", ")}</span>
-        </div>
-      )}
-
-      {/* 툴바 */}
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setShowFilters((v) => !v)} aria-expanded={showFilters}>
-            <SlidersHorizontal className="h-4 w-4" /> 필터
-          </Button>
-          <span className="text-sm text-muted">{filtered.length}곳</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <label className="sr-only" htmlFor="sort">
-            정렬
-          </label>
-          <Select id="sort" value={sort} onChange={(e) => setSort(e.target.value as SortKey)}>
-            <option value="recommend">추천순</option>
-            <option value="rent">월 임대료순</option>
-            <option value="deposit">보증금순</option>
-            <option value="distance">거리순</option>
-          </Select>
-          {/* 모바일 목록/지도 토글 */}
-          <div className="flex rounded-[var(--radius-input)] border border-border lg:hidden">
-            <button
-              type="button"
-              onClick={() => setView("list")}
-              className={cn("flex h-11 items-center gap-1 px-3 text-sm", view === "list" ? "bg-primary-subtle text-primary" : "text-muted")}
-              aria-pressed={view === "list"}
-            >
-              <List className="h-4 w-4" /> 목록
-            </button>
-            <button
-              type="button"
-              onClick={() => setView("map")}
-              className={cn("flex h-11 items-center gap-1 px-3 text-sm", view === "map" ? "bg-primary-subtle text-primary" : "text-muted")}
-              aria-pressed={view === "map"}
-            >
-              <MapIcon className="h-4 w-4" /> 지도
-            </button>
+            </div>
+            <p className="mt-1 text-xs text-muted sm:text-sm">
+              {recommendMode
+                ? "예산과 생활 취향을 반영한 순서예요. 최종 자격은 공식 공고에서 확인하세요."
+                : `제공된 JSON ${RENTAL_DATASET_STATS.validRows}호실을 건물 단위로 묶어 탐색해요.`}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="sr-only" htmlFor="sort">
+              결과 정렬
+            </label>
+            <Select id="sort" value={sort} onChange={(event) => setSort(event.target.value as SortKey)} className="min-w-32">
+              <option value="recommend">추천순</option>
+              <option value="rent">월 임대료순</option>
+              <option value="deposit">보증금순</option>
+              <option value="distance">거리순</option>
+            </Select>
+            <Button variant="outline" size="sm" onClick={() => setShowFilters((value) => !value)} aria-expanded={showFilters}>
+              <SlidersHorizontal className="h-4 w-4" aria-hidden />
+              조건
+            </Button>
           </div>
         </div>
-      </div>
+
+        {recommendMode && (
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+            {eligibilitySkipped ? (
+              <Badge tone="warning">자격 미반영</Badge>
+            ) : (
+              passed.map((result) => (
+                <Badge key={result.type} tone="success">
+                  {ELIGIBILITY_TYPE_LABEL[result.type]}
+                </Badge>
+              ))
+            )}
+            <span className="text-muted">
+              보증금 {formatManwon(pref.maxDeposit ?? 0)} · 월 {formatManwon(pref.maxMonthlyRent ?? 0)} 이하
+            </span>
+            <span className="text-muted">· {pref.anyRegion || pref.gungus.length === 0 ? "지역 전체" : pref.gungus.join(", ")}</span>
+          </div>
+        )}
+
+        <div className="mt-3 flex rounded-[var(--radius-input)] border border-border md:hidden">
+          <button
+            type="button"
+            onClick={() => setView("list")}
+            className={cn(
+              "flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-l-[var(--radius-input)] text-sm font-semibold",
+              view === "list" ? "bg-primary text-white" : "bg-surface text-muted",
+            )}
+            aria-pressed={view === "list"}
+          >
+            <List className="h-4 w-4" aria-hidden /> 목록
+          </button>
+          <button
+            type="button"
+            onClick={() => setView("map")}
+            className={cn(
+              "flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-r-[var(--radius-input)] text-sm font-semibold",
+              view === "map" ? "bg-primary text-white" : "bg-surface text-muted",
+            )}
+            aria-pressed={view === "map"}
+          >
+            <MapIcon className="h-4 w-4" aria-hidden /> 지도
+          </button>
+        </div>
+      </header>
 
       <AnimatePresence initial={false}>
         {showFilters && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
+          <motion.section
+            initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.2 }}
-            className="mb-5 space-y-4 rounded-[var(--radius-card)] border border-border bg-surface p-4 shadow-[var(--shadow-sm)]">
-          <FilterRow label="임대 유형">
-            {availableTypes.map((t) => (
-              <ToggleChip key={t} label={ELIGIBILITY_TYPE_LABEL[t]} selected={typeF.has(t)} onToggle={() => toggle(typeF, t, setTypeF)} />
-            ))}
-          </FilterRow>
-          <FilterRow label="모집 상태">
-            {STATUS_OPTS.map((s) => (
-              <ToggleChip key={s.value} label={s.label} selected={statusF.has(s.value)} onToggle={() => toggle(statusF, s.value, setStatusF)} />
-            ))}
-          </FilterRow>
-          <FilterRow label="구·군">
-            {availableGungus.map((g) => (
-              <ToggleChip key={g} label={g} selected={gunguF.has(g)} onToggle={() => toggle(gunguF, g, setGunguF)} />
-            ))}
-          </FilterRow>
-          </motion.div>
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.18 }}
+            className="z-10 shrink-0 border-b border-border bg-surface px-4 py-3 shadow-[var(--shadow-sm)] sm:px-6"
+            aria-label="추천 결과 필터"
+          >
+            <div className="flex flex-wrap items-end gap-4">
+              <FilterRow label="임대 유형">
+                {availableTypes.map((type) => (
+                  <ToggleChip
+                    key={type}
+                    label={ELIGIBILITY_TYPE_LABEL[type]}
+                    selected={typeF.has(type)}
+                    onToggle={() => toggle(typeF, type, setTypeF)}
+                  />
+                ))}
+              </FilterRow>
+              <FilterRow label="구·군">
+                {availableGungus.map((item) => (
+                  <ToggleChip key={item} label={item} selected={gunguF.has(item)} onToggle={() => toggle(gunguF, item, setGunguF)} />
+                ))}
+              </FilterRow>
+              {(typeF.size > 0 || gunguF.size > 0) && (
+                <Button variant="ghost" size="sm" onClick={resetFilters}>
+                  초기화
+                </Button>
+              )}
+            </div>
+          </motion.section>
         )}
       </AnimatePresence>
 
-      {/* 본문: 리스트 + 지도 */}
       {filtered.length === 0 ? (
-        <EmptyState
-          title="조건에 맞는 주택이 없어요"
-          description="적용한 필터를 초기화하면 전체 결과를 다시 볼 수 있어요."
-          action={
-            <Button variant="primary" size="md" onClick={resetFilters}>
-              필터 초기화
-            </Button>
-          }
-        />
+        <div className="grid flex-1 place-items-center p-6">
+          <EmptyState
+            title="조건에 맞는 주택이 없어요"
+            description="적용한 필터를 초기화하면 전체 결과를 다시 볼 수 있어요."
+            action={
+              <Button variant="primary" size="md" onClick={resetFilters}>
+                필터 초기화
+              </Button>
+            }
+          />
+        </div>
       ) : (
-        <div className="grid gap-6 lg:grid-cols-[minmax(340px,2fr)_minmax(520px,3fr)]">
-          <div className={cn("space-y-3", view === "map" && "hidden lg:block")}>
-            {filtered.map((rec) => (
-              <RecommendationCard
-                key={rec.unitId}
-                rec={rec}
-                unit={housingById(rec.unitId)!}
-                active={activeId === rec.unitId}
-                onActivate={() => setActiveId(rec.unitId)}
-              />
-            ))}
-          </div>
-          <div className={cn("h-[68vh] lg:sticky lg:top-20 lg:h-[calc(100dvh-7rem)]", view === "list" && "hidden lg:block")}>
-            <MapPanel markers={markers} selectedId={activeId} onSelect={setActiveId} />
-          </div>
+        <div className="grid min-h-0 flex-1 md:grid-cols-[430px_minmax(0,1fr)]">
+          <section
+            className={cn(
+              "min-h-0 border-r border-border bg-surface md:block md:overflow-y-auto",
+              view === "map" && "hidden",
+            )}
+            aria-label="추천 주택 목록"
+          >
+            <div className="sticky top-0 z-[1] flex items-center justify-between border-b border-border bg-surface/95 px-4 py-3 backdrop-blur">
+              <p className="text-sm font-bold text-navy">추천 결과 {filtered.length}곳</p>
+              <Link href="/map" className="text-sm font-semibold text-primary hover:underline">
+                전체 지도 보기
+              </Link>
+            </div>
+            <div className="space-y-3 p-4">
+              {!recommendMode && (
+                <Link
+                  href="/eligibility"
+                  className="block rounded-[var(--radius-card)] border border-primary/25 bg-primary-subtle p-4 text-sm font-semibold text-primary hover:border-primary focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-primary/25"
+                >
+                  자격 확인과 취향 설문을 완료해 맞춤 순서로 보기 →
+                </Link>
+              )}
+              {filtered.map((rec) => (
+                <RecommendationCard
+                  key={rec.unitId}
+                  rec={rec}
+                  unit={housingById(rec.unitId)!}
+                  active={activeId === rec.unitId}
+                  onActivate={() => setActiveId(rec.unitId)}
+                />
+              ))}
+              <Disclaimer className="mt-6" />
+            </div>
+          </section>
+          <section className={cn("relative min-h-[560px] md:block md:min-h-0", view === "list" && "hidden")} aria-label="추천 주택 지도">
+            <MapPanel markers={markers} selectedId={activeId} onSelect={setActiveId} ariaLabel={`추천 주택 ${filtered.length}곳 지도`} />
+            <div className="pointer-events-none absolute left-4 top-4 hidden max-w-xs rounded-[var(--radius-card)] border border-border bg-surface/95 p-3 text-xs text-muted shadow-[var(--shadow-md)] backdrop-blur lg:block">
+              JSON 원본 좌표를 사용합니다. 모집 상태와 일정은 제공되지 않아 공식 공고 확인이 필요합니다.
+            </div>
+          </section>
         </div>
       )}
-
-      <Disclaimer className="mt-10" />
-    </PageContainer>
+    </div>
   );
 }
 

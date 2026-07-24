@@ -13,11 +13,13 @@ import { formatManwon } from "@/lib/formatting";
 import { AXIS_LABEL, type HousingRecommendation } from "@/features/recommendation/recommendation.types";
 import { matchLevel } from "@/features/recommendation/recommendation.service";
 import { useUserStore } from "@/features/user/user.store";
+import { ScoreRing } from "./ScoreRing";
 
 const STATUS = {
   open: { tone: "success" as const, label: "모집 중" },
   upcoming: { tone: "primary" as const, label: "모집 예정" },
   closed: { tone: "neutral" as const, label: "마감" },
+  unknown: { tone: "neutral" as const, label: "공고 확인 필요" },
 };
 
 export function RecommendationCard({
@@ -51,9 +53,10 @@ export function RecommendationCard({
         onMouseEnter={onActivate}
         onFocus={onActivate}
       >
-        <CardBody className="space-y-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
+        <CardBody className="space-y-3 p-4">
+        <div className="flex items-start gap-3">
+          {rec.score.byAxis.length > 0 && <ScoreRing score={rec.score.final} />}
+          <div className="min-w-0 flex-1">
             <div className="mb-1 flex flex-wrap items-center gap-1.5">
               {match && <Badge tone={match.tone}>적합도 · {match.label}</Badge>}
               <Badge tone="neutral">{ELIGIBILITY_TYPE_LABEL[unit.type]}</Badge>
@@ -78,14 +81,19 @@ export function RecommendationCard({
           </button>
         </div>
 
-        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-          <span>
-            보증금 <b className="text-fg">{formatManwon(best.deposit)}</b>
-          </span>
-          <span>
-            월 임대료 <b className="text-fg">{formatManwon(best.monthlyRent)}</b>
-          </span>
-        </div>
+        {best ? (
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+            <span>
+              보증금 <b className="text-fg">{formatManwon(best.deposit)}</b>
+            </span>
+            <span>
+              월 임대료 <b className="text-fg">{formatManwon(best.monthlyRent)}</b>
+            </span>
+            <span className="text-muted">가격 공개 {unit.source.pricedUnitCount}호</span>
+          </div>
+        ) : (
+          <p className="text-sm font-semibold text-warning">임대조건 미공개 · 공식 공고 확인 필요</p>
+        )}
 
         {topReasons.length > 0 && (
           <ul className="space-y-1.5 rounded-[var(--radius-input)] bg-surface-muted/70 p-3 text-sm">

@@ -9,7 +9,7 @@ import { usePreferencesStore } from "@/features/recommendation/preferences.store
 
 let destSeq = 0;
 
-/** Q2 자주 가는 장소 입력 (mock 주소 자동완성). 실제 API는 adapter로 교체. */
+/** Q2 직장·학교 단일 앵커 입력 (mock 주소 자동완성). 실제 API는 adapter로 교체. */
 export function AddressSearch() {
   const { frequent, addFrequent, removeFrequent } = usePreferencesStore();
   const [label, setLabel] = useState("");
@@ -78,7 +78,7 @@ export function AddressSearch() {
           setPicked(null);
         }}
       >
-        장소 추가
+        {frequent.length > 0 ? "기준 장소 바꾸기" : "기준 장소 적용"}
       </Button>
 
       {frequent.length > 0 && (

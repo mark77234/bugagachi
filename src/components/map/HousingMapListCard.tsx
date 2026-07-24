@@ -13,6 +13,7 @@ const STATUS = {
   open: { tone: "success" as const, label: "모집 중" },
   upcoming: { tone: "primary" as const, label: "모집 예정" },
   closed: { tone: "neutral" as const, label: "마감" },
+  unknown: { tone: "neutral" as const, label: "공고 확인 필요" },
 };
 
 export function HousingMapListCard({
@@ -51,11 +52,15 @@ export function HousingMapListCard({
       <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 rounded-[var(--radius-input)] bg-surface-muted/70 p-3 text-sm">
         <div>
           <dt className="text-xs text-muted">보증금</dt>
-          <dd className="font-semibold text-fg">{formatManwon(condition.deposit)}</dd>
+          <dd className="font-semibold text-fg">
+            {condition ? formatManwon(condition.deposit) : "미공개"}
+          </dd>
         </div>
         <div>
           <dt className="text-xs text-muted">월 임대료</dt>
-          <dd className="font-semibold text-fg">{formatManwon(condition.monthlyRent)}</dd>
+          <dd className="font-semibold text-fg">
+            {condition ? formatManwon(condition.monthlyRent) : "미공개"}
+          </dd>
         </div>
         <div className="flex items-center gap-1.5">
           <Building2 className="h-4 w-4 text-primary" aria-hidden />
@@ -63,7 +68,7 @@ export function HousingMapListCard({
         </div>
         <div className="flex items-center gap-1.5">
           <CalendarDays className="h-4 w-4 text-primary" aria-hidden />
-          <span>{unit.recruitPeriod ? `${unit.recruitPeriod.end}까지` : "일정 미정"}</span>
+          <span>공식 공고 확인</span>
         </div>
       </dl>
 

@@ -9,8 +9,9 @@ import { HousingMapListCard } from "@/components/map/HousingMapListCard";
 import { MapResultsSheet } from "@/components/map/MapResultsSheet";
 import { Select } from "@/components/ui/select";
 import { buttonVariants } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { ELIGIBILITY_TYPE_LABEL, type EligibilityTypeCode } from "@/features/eligibility/eligibility.types";
-import { MOCK_HOUSING, bestCondition, housingById, type RecruitStatus } from "@/mocks/housing";
+import { MOCK_HOUSING, RENTAL_DATASET_STATS, bestCondition, housingById, type RecruitStatus } from "@/mocks/housing";
 import { formatManwon } from "@/lib/formatting";
 import { cn } from "@/lib/utils";
 
@@ -18,8 +19,9 @@ const STATUS_LABEL: Record<RecruitStatus, string> = {
   open: "모집 중",
   upcoming: "모집 예정",
   closed: "마감",
+  unknown: "공고 확인 필요",
 };
-const VALID_STATUSES = new Set<RecruitStatus>(["open", "upcoming", "closed"]);
+const VALID_STATUSES = new Set<RecruitStatus>(["open", "upcoming", "closed", "unknown"]);
 const VALID_TYPES = new Set<EligibilityTypeCode>(MOCK_HOUSING.map((unit) => unit.type));
 const VALID_GUNGUS = new Set(MOCK_HOUSING.map((unit) => unit.gungu));
 
@@ -68,6 +70,7 @@ export function HousingMapExplorer() {
 
   const gungus = useMemo(() => [...new Set(MOCK_HOUSING.map((unit) => unit.gungu))].sort(), []);
   const types = useMemo(() => [...new Set(MOCK_HOUSING.map((unit) => unit.type))], []);
+  const statuses = useMemo(() => [...new Set(MOCK_HOUSING.map((unit) => unit.recruitStatus))], []);
 
   const filteredUnits = useMemo(
     () =>
@@ -82,12 +85,15 @@ export function HousingMapExplorer() {
 
   const activeId = filteredUnits.some((unit) => unit.id === selectedId) ? selectedId : null;
   const visibleUnits = viewport ? filteredUnits.filter((unit) => isInside(viewport, unit)) : filteredUnits;
-  const markers: MapMarker[] = filteredUnits.map((unit) => ({
-    id: unit.id,
-    coord: unit.coord,
-    label: unit.name,
-    caption: `월 ${formatManwon(bestCondition(unit).monthlyRent)}`,
-  }));
+  const markers: MapMarker[] = filteredUnits.map((unit) => {
+    const condition = bestCondition(unit);
+    return {
+      id: unit.id,
+      coord: unit.coord,
+      label: unit.name,
+      caption: condition ? `월 ${formatManwon(condition.monthlyRent)}` : "가격 미공개",
+    };
+  });
 
   const handleViewportChange = useCallback((next: MapViewportBounds) => {
     setViewport((current) => (sameBounds(current, next) ? current : next));
@@ -112,10 +118,27 @@ export function HousingMapExplorer() {
   }, [activeId, gungu, router, status, type]);
 
   return (
-    <div>
+    <div className="flex min-h-[calc(100dvh-5rem)] flex-col md:h-dvh md:min-h-0">
+      <header className="shrink-0 border-b border-border bg-surface px-4 py-3 sm:px-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-extrabold tracking-[-0.02em] text-navy sm:text-2xl">전체 주택 지도</h1>
+              <Badge tone="primary">{RENTAL_DATASET_STATS.buildings}개 건물</Badge>
+            </div>
+            <p className="mt-1 text-xs text-muted sm:text-sm">
+              JSON 원본 {RENTAL_DATASET_STATS.validRows}호실을 건물 단위로 탐색해요. 모집 일정은 공식 공고 확인이 필요합니다.
+            </p>
+          </div>
+          <p className="rounded-full bg-warning-subtle px-3 py-1.5 text-xs font-semibold text-warning">
+            재고 데이터 · 실시간 공고 아님
+          </p>
+        </div>
+      </header>
+
       <section
         aria-labelledby="map-filter-title"
-        className="sticky top-16 z-20 mb-4 rounded-[var(--radius-card)] border border-border bg-surface/95 p-3 shadow-[var(--shadow-sm)] backdrop-blur"
+        className="z-20 shrink-0 border-b border-border bg-surface/95 px-4 py-3 shadow-[var(--shadow-sm)] backdrop-blur sm:px-6"
       >
         <div className="flex flex-wrap items-center justify-between gap-2 sm:mb-2">
           <h2 id="map-filter-title" className="flex items-center gap-2 text-base font-bold">
@@ -176,9 +199,9 @@ export function HousingMapExplorer() {
               className="w-full"
             >
               <option value="all">전체 상태</option>
-              {(Object.entries(STATUS_LABEL) as [RecruitStatus, string][]).map(([value, label]) => (
+              {statuses.map((value) => (
                 <option key={value} value={value}>
-                  {label}
+                  {STATUS_LABEL[value]}
                 </option>
               ))}
             </Select>
@@ -186,7 +209,7 @@ export function HousingMapExplorer() {
         </div>
       </section>
 
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border bg-bg px-4 py-2 text-sm sm:px-6">
         <p className="font-semibold text-navy">
           필터 결과 <span className="text-primary">{filteredUnits.length}곳</span>
         </p>
@@ -195,9 +218,9 @@ export function HousingMapExplorer() {
         </p>
       </div>
 
-      <div className="relative grid gap-5 lg:grid-cols-[420px_minmax(0,1fr)]">
+      <div className="relative grid min-h-0 flex-1 lg:grid-cols-[420px_minmax(0,1fr)]">
         <aside
-          className="hidden max-h-[calc(100dvh-9rem)] space-y-3 overflow-y-auto pr-1 lg:block"
+          className="hidden min-h-0 space-y-3 overflow-y-auto border-r border-border bg-surface p-4 lg:block"
           aria-label="현재 지도 영역의 주택 목록"
         >
           {visibleUnits.length > 0 ? (
@@ -216,7 +239,7 @@ export function HousingMapExplorer() {
           )}
         </aside>
 
-        <div className="relative h-[calc(100dvh-13rem)] min-h-[500px] lg:sticky lg:top-20 lg:h-[calc(100dvh-7rem)]">
+        <div className="relative min-h-[560px] lg:min-h-0">
           <MapPanel
             markers={markers}
             selectedId={activeId}

@@ -28,6 +28,7 @@ import {
 import { cn } from "@/lib/utils";
 import { ELIGIBILITY_TYPE_LABEL } from "@/features/eligibility/eligibility.types";
 import { BASE_YEAR_BY_TYPE } from "@/config/eligibility-config.2025";
+import { RENTAL_DATASET_STATS } from "@/mocks/housing";
 
 const PROCESS = [
   { icon: ClipboardCheck, title: "자격 확인", desc: "기본 신청 조건을 확인해요." },
@@ -143,7 +144,7 @@ export default function LandingPage() {
             href="/map"
             eyebrow="부산 공공임대주택을 한눈에"
             title="지도에서 전체 주택 둘러보기"
-            description="현재 보유한 데모 주택 12곳을 지역, 임대 유형, 모집 상태로 살펴보세요."
+            description={`JSON 원본 ${RENTAL_DATASET_STATS.validRows}호실을 ${RENTAL_DATASET_STATS.buildings}개 건물로 묶어 지도에서 살펴보세요.`}
             actionLabel="부산 공공임대 전체 지도 열기"
             tone="map"
             illustration={<MapIllustration />}
@@ -155,7 +156,7 @@ export default function LandingPage() {
         <aside className="mt-5 grid gap-2 rounded-[var(--radius-card)] border border-border bg-surface p-3 text-sm text-muted shadow-[var(--shadow-sm)] sm:grid-cols-3" aria-label="서비스 신뢰 안내">
           <p className="flex items-center gap-2 px-2 py-1">
             <Database className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-            현재 데모 주택 12곳
+            JSON 원본 {RENTAL_DATASET_STATS.validRows}호실 · {RENTAL_DATASET_STATS.buildings}개 건물
           </p>
           <p className="flex items-center gap-2 px-2 py-1">
             <ShieldCheck className="h-4 w-4 shrink-0 text-primary" aria-hidden />
@@ -219,8 +220,9 @@ export default function LandingPage() {
           <InformationBanner tone="warning" title="추천 결과는 참고용이에요">
             최종 신청 가능 여부는 각 유형의 공식 모집공고와 제출 서류로 확인해야 합니다.
           </InformationBanner>
-          <InformationBanner tone="primary" title="현재는 데모 데이터 12곳을 사용해요">
-            주택·모집 정보와 생활 인프라는 시연용 데이터이며, 실시간 공고가 아닙니다.
+          <InformationBanner tone="primary" title="제공된 JSON 주택·생활권 데이터를 사용해요">
+            유효한 {RENTAL_DATASET_STATS.validRows}호실을 {RENTAL_DATASET_STATS.buildings}개 건물로 묶어 보여주며,
+            모집 상태와 신청 일정은 포함되어 있지 않습니다.
           </InformationBanner>
           <PrivacyNotice className="lg:col-span-2" />
         </Reveal>

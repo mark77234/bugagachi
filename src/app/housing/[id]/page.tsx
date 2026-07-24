@@ -7,7 +7,6 @@ import {
   ArrowLeft,
   Bookmark,
   Building2,
-  CalendarDays,
   ExternalLink,
   MessageCircleQuestion,
   MapPin,
@@ -24,7 +23,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { ScoreBreakdown } from "@/components/housing/ScoreBreakdown";
 import { MapPanel } from "@/components/map/MapPanel";
-import { bestCondition, housingById } from "@/mocks/housing";
+import { bestCondition, housingById, type HousingMetric } from "@/mocks/housing";
 import { reviewsByHousing } from "@/mocks/reviews";
 import { useUserStore } from "@/features/user/user.store";
 import { useEligibilityStore } from "@/features/eligibility/eligibility.store";
@@ -34,21 +33,20 @@ import { recommend, matchLevel } from "@/features/recommendation/recommendation.
 import { ApplicationChecklist } from "@/components/housing/ApplicationChecklist";
 import { ELIGIBILITY_TYPE_LABEL } from "@/features/eligibility/eligibility.types";
 import { formatManwon, formatDistance } from "@/lib/formatting";
-import { nearestInfraMeters } from "@/mocks/facilities";
-import type { InfraCategory } from "@/features/recommendation/recommendation.types";
 import { cn } from "@/lib/utils";
 
-const NEARBY: { cat: InfraCategory; label: string }[] = [
-  { cat: "SUBWAY", label: "지하철역" },
-  { cat: "MART", label: "대형마트" },
-  { cat: "HOSPITAL", label: "종합병원(차량)" },
-  { cat: "PARK", label: "공원" },
+const NEARBY = [
+  { key: "subway" as const, label: "지하철역" },
+  { key: "mart" as const, label: "대형마트" },
+  { key: "hospital" as const, label: "종합병원(차량)" },
+  { key: "park" as const, label: "공원" },
 ];
 
 const STATUS = {
   open: { tone: "success" as const, label: "모집 중" },
   upcoming: { tone: "primary" as const, label: "모집 예정" },
   closed: { tone: "neutral" as const, label: "마감" },
+  unknown: { tone: "neutral" as const, label: "공고 확인 필요" },
 };
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -57,6 +55,49 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <h2 className="mb-3 text-lg font-bold text-navy">{title}</h2>
       {children}
     </section>
+  );
+}
+
+function DataMetricTable({
+  title,
+  items,
+}: {
+  title: string;
+  items: [string, HousingMetric | null][];
+}) {
+  return (
+    <div>
+      <h3 className="mb-2 text-sm font-bold text-navy">{title}</h3>
+      <div className="overflow-x-auto rounded-[var(--radius-input)] border border-border">
+        <table className="w-full min-w-[480px] text-left text-sm">
+          <thead className="bg-surface-muted text-xs text-muted">
+            <tr>
+              <th className="px-3 py-2">시설</th>
+              <th className="px-3 py-2">보정거리</th>
+              <th className="px-3 py-2">사전계산 점수</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map(([label, value]) => (
+              <tr key={label} className="border-t border-border/70">
+                <td className="px-3 py-2 font-medium">{label}</td>
+                <td className="px-3 py-2 tabular-nums">{value ? formatDistance(value.distance) : "계산 불가"}</td>
+                <td className="px-3 py-2 tabular-nums">{value ? `${Math.round(value.score * 100)}점` : "축에서 제외"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function MetricTerm({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt className="text-xs text-muted">{label}</dt>
+      <dd className="mt-1 font-semibold tabular-nums text-fg">{value}</dd>
+    </div>
   );
 }
 
@@ -94,6 +135,7 @@ export default function HousingDetailPage() {
 
   const st = STATUS[unit.recruitStatus];
   const representative = bestCondition(unit);
+  const sourceHead = unit.source.sourceRows[0];
   const match = rec ? matchLevel(rec) : null;
   const reviews = reviewsByHousing(unit.id);
   const myElig = eligHydrated ? (savedResults ?? []).find((r) => r.type === unit.type) : undefined;
@@ -131,7 +173,9 @@ export default function HousingDetailPage() {
           <p className="mt-4 text-sm text-muted">
             대표 조건
             <span className="ml-2 font-bold tabular-nums text-navy">
-              보증금 {formatManwon(representative.deposit)} · 월 {formatManwon(representative.monthlyRent)}
+              {representative
+                ? `보증금 ${formatManwon(representative.deposit)} · 월 ${formatManwon(representative.monthlyRent)}`
+                : "임대조건 미공개"}
             </span>
           </p>
         </div>
@@ -242,36 +286,166 @@ export default function HousingDetailPage() {
           {/* 3) 비용 */}
           <Section title="비용 (보증금·임대료)">
             <Card>
-              <CardBody className="space-y-2">
-                {unit.conditions.map((c, i) => (
-                  <div key={i} className="flex items-center justify-between border-b border-border/70 pb-2 last:border-0 last:pb-0">
-                    <span className="text-sm text-muted">{c.priorityRank ? `${c.priorityRank}순위` : "기본"}</span>
-                    <span className="text-sm">
-                      보증금 <b>{formatManwon(c.deposit)}</b> · 월 <b>{formatManwon(c.monthlyRent)}</b>
-                    </span>
+              <CardBody>
+                {unit.source.sourceRows.length > 0 ? (
+                  <div className="max-h-[420px] overflow-auto rounded-[var(--radius-input)] border border-border">
+                    <table className="w-full min-w-[980px] border-collapse text-left text-sm">
+                      <thead className="sticky top-0 bg-surface-muted text-xs text-muted">
+                        <tr>
+                          <th className="px-3 py-2 font-semibold">호실</th>
+                          <th className="px-3 py-2 font-semibold">전용면적</th>
+                          <th className="px-3 py-2 font-semibold">방</th>
+                          <th className="px-3 py-2 font-semibold">공급 구분</th>
+                          <th className="px-3 py-2 font-semibold">소득 구간</th>
+                          <th className="px-3 py-2 font-semibold">가구원</th>
+                          <th className="px-3 py-2 font-semibold">보호 유형</th>
+                          <th className="px-3 py-2 font-semibold">순위</th>
+                          <th className="px-3 py-2 font-semibold">보증금</th>
+                          <th className="px-3 py-2 font-semibold">월 임대료</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {unit.source.sourceRows.map((row, index) => (
+                          <tr key={`${row.unit_no ?? "unit"}-${index}`} className="border-t border-border/70">
+                            <td className="px-3 py-2">{row.unit_no ?? "미상"}</td>
+                            <td className="px-3 py-2 tabular-nums">
+                              {row.area_exclusive_m2 === null ? "미공개" : `${row.area_exclusive_m2}㎡`}
+                            </td>
+                            <td className="px-3 py-2">
+                              {row.room_count === null ? "미공개" : `${row.room_count}개`}
+                            </td>
+                            <td className="px-3 py-2">{row.supply_class ?? "미공개"}</td>
+                            <td className="px-3 py-2">{row.income_bracket ?? "미공개"}</td>
+                            <td className="px-3 py-2">{row.household_size ?? "미공개"}</td>
+                            <td className="px-3 py-2">{row.protection_type ?? "미공개"}</td>
+                            <td className="px-3 py-2">{row.priority_rank === null ? "미공개" : `${row.priority_rank}순위`}</td>
+                            <td className="px-3 py-2 font-semibold tabular-nums">
+                              {row.deposit_krw === null ? "미공개" : formatManwon(row.deposit_krw / 10_000)}
+                            </td>
+                            <td className="px-3 py-2 font-semibold tabular-nums">
+                              {row.rent_krw === null ? "미공개" : formatManwon(row.rent_krw / 10_000)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                ))}
-                <p className="pt-1 text-xs text-muted">
-                  <Building2 className="mr-1 inline h-3.5 w-3.5" aria-hidden /> 공급 {unit.supplyCount}세대 · 전용 {unit.exclusiveAreas.join(", ")}㎡
+                ) : (
+                  <InformationBanner tone="warning">
+                    원자료에 임대조건이 없는 건물이에요. 공식 공고에서 보증금과 월 임대료를 확인해 주세요.
+                  </InformationBanner>
+                )}
+                <p className="pt-3 text-xs text-muted">
+                  <Building2 className="mr-1 inline h-3.5 w-3.5" aria-hidden /> 원본 {unit.source.sourceRowCount}호실 ·
+                  가격 공개 {unit.source.pricedUnitCount}호실 · 전용 {unit.exclusiveAreas.join(", ")}㎡
                 </p>
+              </CardBody>
+            </Card>
+          </Section>
+
+          <Section title="주택 원본 정보">
+            <Card>
+              <CardBody>
+                <dl className="grid gap-4 text-sm sm:grid-cols-2">
+                  {[
+                    ["주택 유형", unit.source.houseType ?? "미공개"],
+                    ["임대 구분", sourceHead.rental_type ?? "미공개"],
+                    ["건물 형태", unit.source.buildingForm ?? "미공개"],
+                    ["준공연도", unit.source.completionYear ? `${unit.source.completionYear}년` : "미공개"],
+                    ["원자료 세대 수", sourceHead.household_count === null ? "미공개" : `${sourceHead.household_count}세대`],
+                    ["원자료 호실 수", sourceHead.unit_count === null ? "미공개" : `${sourceHead.unit_count}호`],
+                    ["엘리베이터", unit.source.elevator ?? "미공개"],
+                    ["주차면", unit.source.parkingCount === null ? "미공개" : `${unit.source.parkingCount}면`],
+                    ["난방 방식", unit.source.heatingType ?? "미공개"],
+                    ["입주자격 요약", unit.source.eligibilitySummary ?? "미공개"],
+                    ["좌표 정밀도", unit.source.geocodePrecision ?? "미공개"],
+                    ["좌표 보정량", unit.source.geocodeShiftM === null ? "미공개" : `${unit.source.geocodeShiftM}m`],
+                    ["PNU", sourceHead.pnu ?? "미공개"],
+                  ].map(([label, value]) => (
+                    <div key={label} className="rounded-[var(--radius-input)] bg-surface-muted/70 p-3">
+                      <dt className="text-xs text-muted">{label}</dt>
+                      <dd className="mt-1 font-semibold text-fg">{value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </CardBody>
+            </Card>
+          </Section>
+
+          <Section title="생활권 원본 점수">
+            <Card>
+              <CardBody className="space-y-6">
+                <DataMetricTable
+                  title="필수 인프라"
+                  items={[
+                    ["병원", unit.source.infra.hospital],
+                    ["도서관", unit.source.infra.library],
+                    ["대형마트", unit.source.infra.mart],
+                    ["공원", unit.source.infra.park],
+                    ["생활체육시설", unit.source.infra.sports],
+                    ["지하철역", unit.source.infra.subway],
+                  ]}
+                />
+                <DataMetricTable
+                  title="돌봄·교육"
+                  items={[
+                    ["어린이집", unit.source.education.daycare],
+                    ["유치원", unit.source.education.kindergarten],
+                    ["초등학교", unit.source.education.elementary],
+                    ["중학교", unit.source.education.middle],
+                    ["고등학교", unit.source.education.high],
+                  ]}
+                />
+                <div>
+                  <h3 className="mb-2 text-sm font-bold text-navy">반경 750m 취향 가게</h3>
+                  <div className="overflow-x-auto rounded-[var(--radius-input)] border border-border">
+                    <table className="w-full min-w-[520px] text-left text-sm">
+                      <thead className="bg-surface-muted text-xs text-muted">
+                        <tr>
+                          <th className="px-3 py-2">업종</th>
+                          <th className="px-3 py-2">점포 수</th>
+                          <th className="px-3 py-2">건물 백분위 점수</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Object.entries(unit.source.stores).map(([label, value]) => (
+                          <tr key={label} className="border-t border-border/70">
+                            <td className="px-3 py-2 font-medium">{label}</td>
+                            <td className="px-3 py-2 tabular-nums">{value ? `${value.count}곳` : "계산 불가"}</td>
+                            <td className="px-3 py-2 tabular-nums">{value ? `${Math.round(value.score * 100)}점` : "축에서 제외"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="mt-2 text-xs text-muted">
+                    동물병원은 원자료 안내에 따라 0점 처리하지 않고 추천 축에서 제외합니다. 약국은 값은 있으나
+                    원자료 설명상 변별력이 낮아 참고용으로 해석해야 합니다.
+                  </p>
+                </div>
+                <div className="rounded-[var(--radius-input)] bg-surface-muted/70 p-4 text-sm">
+                  <h3 className="font-bold text-navy">동네 분위기 사전계산값</h3>
+                  {unit.source.neighborhood ? (
+                    <dl className="mt-3 grid gap-3 sm:grid-cols-5">
+                      <MetricTerm label="전체 상가" value={`${unit.source.neighborhood.storeTotal}곳`} />
+                      <MetricTerm label="소음 업종" value={`${unit.source.neighborhood.noiseStoreCount}곳`} />
+                      <MetricTerm label="소음 구성비" value={`${Math.round(unit.source.neighborhood.noiseRatio * 100)}%`} />
+                      <MetricTerm label="번화도 백분위" value={`${Math.round(unit.source.neighborhood.bustlePercentile * 100)}점`} />
+                      <MetricTerm label="소음 백분위" value={`${Math.round(unit.source.neighborhood.noisePercentile * 100)}점`} />
+                    </dl>
+                  ) : (
+                    <p className="mt-2 text-muted">상권 데이터가 없어 Q5·Q6 축을 제외합니다.</p>
+                  )}
+                </div>
               </CardBody>
             </Card>
           </Section>
 
           {/* 4) 모집 및 신청 일정 */}
           <Section title="모집 및 신청 일정">
-            <Card>
-              <CardBody className="flex items-center gap-2 text-sm">
-                <CalendarDays className="h-5 w-5 text-primary" aria-hidden />
-                {unit.recruitPeriod ? (
-                  <span>
-                    신청 기간 <b>{unit.recruitPeriod.start}</b> ~ <b>{unit.recruitPeriod.end}</b>
-                  </span>
-                ) : (
-                  <span className="text-muted">일정 미정</span>
-                )}
-              </CardBody>
-            </Card>
+            <InformationBanner tone="warning" title="JSON에는 모집 일정이 포함되어 있지 않아요">
+              현재 재고와 임대조건 데이터이며 실시간 모집공고가 아닙니다. 신청 기간과 모집 상태는 공식 기관에서 확인하세요.
+            </InformationBanner>
           </Section>
 
           {/* 5) 신청 준비 체크리스트 (차별점: 신청 준비까지 연결) */}
@@ -300,10 +474,14 @@ export default function HousingDetailPage() {
             <CardBody>
               <h2 className="mb-3 text-sm font-bold text-navy">주변시설 · 예상 정보</h2>
               <ul className="space-y-2 text-sm">
-                {NEARBY.map((n) => (
-                  <li key={n.cat} className="flex items-center justify-between">
-                    <span className="text-muted">{n.label}</span>
-                    <span className="font-medium text-fg">{formatDistance(nearestInfraMeters(unit.coord, n.cat))}</span>
+                {NEARBY.map((nearby) => (
+                  <li key={nearby.key} className="flex items-center justify-between">
+                    <span className="text-muted">{nearby.label}</span>
+                    <span className="font-medium text-fg">
+                      {unit.source.infra[nearby.key]
+                        ? formatDistance(unit.source.infra[nearby.key]!.distance)
+                        : "데이터 없음"}
+                    </span>
                   </li>
                 ))}
               </ul>
