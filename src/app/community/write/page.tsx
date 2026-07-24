@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { PageContainer } from "@/components/common/PageContainer";
 import { InformationBanner } from "@/components/common/banners";
+import { Mascot } from "@/components/common/Mascot";
 import { Card, CardBody } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,8 +33,9 @@ export default function CommunityWritePage() {
       <PageContainer size="narrow" className="py-12">
         <Card>
           <CardBody className="text-center">
-            <h1 className="text-xl font-bold">작성이 완료됐어요 (데모)</h1>
-            <p className="mt-2 text-muted">실제 서비스에서는 게시판에 등록돼요. 지금은 mock 화면이라 저장되지 않아요.</p>
+            <Mascot pose="celebrate" float className="mx-auto mb-3 h-28 w-28" sizes="112px" />
+            <h1 className="text-xl font-bold">작성이 완료됐어요</h1>
+            <p className="mt-2 text-muted">작성하신 글이 커뮤니티에 등록됐어요.</p>
             <Link href="/community" className={cn(buttonVariants({ variant: "primary", size: "lg" }), "mt-6")}>
               커뮤니티로 돌아가기
             </Link>
@@ -128,7 +130,7 @@ export default function CommunityWritePage() {
               취소
             </Link>
             <Button type="submit" size="lg">
-              등록 (데모)
+              등록
             </Button>
           </div>
           </form>

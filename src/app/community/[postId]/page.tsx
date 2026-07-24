@@ -53,7 +53,7 @@ export default function CommunityPostPage() {
         <CardBody>
           <p className="whitespace-pre-line leading-relaxed text-fg">{post.excerpt}</p>
           <p className="mt-4 text-sm text-muted">
-            (데모 게시글) 실제 서비스에서는 본문·이미지·댓글이 표시돼요.
+            본문과 댓글은 커뮤니티에서 함께 확인할 수 있어요.
           </p>
         </CardBody>
       </Card>

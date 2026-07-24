@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { SkipForward } from "lucide-react";
 import { PageContainer } from "@/components/common/PageContainer";
 import { LoadingState } from "@/components/common/states";
+import { MascotVideo } from "@/components/common/MascotVideo";
 import { Disclaimer } from "@/components/common/banners";
 import { Stepper } from "@/components/onboarding/Stepper";
 import { QuestionCard } from "@/components/onboarding/QuestionCard";
@@ -131,7 +132,28 @@ export default function EligibilityPage() {
           </p>
         )
       }
-      aside={showTwoCol ? <SummarySidebar className="hidden lg:block" /> : undefined}
+      aside={
+        showTwoCol ? (
+          <div className="hidden flex-col gap-4 lg:flex">
+            <div className="overflow-hidden rounded-[var(--radius-cardlg)] border border-border bg-surface shadow-[var(--shadow-card)]">
+              <MascotVideo
+                src="read"
+                poster="readDocument"
+                fullPoster
+                className="aspect-video w-full"
+                objectClassName="object-cover"
+              />
+              <div className="p-4">
+                <p className="text-sm font-bold text-primary">갈붕이가 함께해요</p>
+                <p className="mt-1 text-sm leading-relaxed text-muted">
+                  복잡한 자격 조건, 어려운 서류 용어 없이 질문에 답만 하면 신청 가능성이 있는 유형을 확인해 드려요.
+                </p>
+              </div>
+            </div>
+            <SummarySidebar />
+          </div>
+        ) : undefined
+      }
       footer={<Disclaimer className="mt-8" />}
     >
       <div ref={headingRef} tabIndex={-1} className="outline-none">

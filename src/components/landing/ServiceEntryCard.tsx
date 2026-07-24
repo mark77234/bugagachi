@@ -33,6 +33,12 @@ const ACTION_STYLES: Record<ServiceTone, string> = {
   map: "bg-primary text-white",
 };
 
+const SCRIM_STYLES: Record<ServiceTone, string> = {
+  primary: "bg-gradient-to-t from-primary via-primary/85 to-primary/25 sm:bg-gradient-to-r sm:from-primary sm:via-primary/80 sm:to-transparent",
+  warm: "bg-gradient-to-t from-warning-subtle via-warning-subtle/90 to-warning-subtle/30 sm:bg-gradient-to-r sm:from-warning-subtle sm:via-warning-subtle/85 sm:to-transparent",
+  map: "bg-gradient-to-t from-primary-subtle via-primary-subtle/90 to-primary-subtle/30 sm:bg-gradient-to-r sm:from-primary-subtle sm:via-primary-subtle/85 sm:to-transparent",
+};
+
 export function ServiceEntryCard({
   href,
   eyebrow,
@@ -42,6 +48,7 @@ export function ServiceEntryCard({
   tone,
   size = "secondary",
   illustration,
+  illustrationFill = false,
   badge,
   highlights,
   delay = 0,
@@ -55,6 +62,8 @@ export function ServiceEntryCard({
   tone: ServiceTone;
   size?: ServiceSize;
   illustration: ReactNode;
+  /** true면 일러스트가 카드 전체 배경을 꽉 채우고 텍스트는 스크림 위에 표시. */
+  illustrationFill?: boolean;
   badge?: string;
   highlights?: string[];
   delay?: number;
@@ -84,7 +93,25 @@ export function ServiceEntryCard({
           TONE_STYLES[tone],
         )}
       >
-        <div className={cn("relative z-10 flex w-full flex-col", size === "primary" ? "max-w-[68%] sm:max-w-[60%]" : "max-w-[68%]")}>
+        {illustrationFill && (
+          <>
+            <div aria-hidden className="absolute inset-0">
+              {illustration}
+            </div>
+            <div aria-hidden className={cn("absolute inset-0", SCRIM_STYLES[tone])} />
+          </>
+        )}
+
+        <div
+          className={cn(
+            "relative z-10 flex w-full flex-col",
+            illustrationFill
+              ? "max-w-full sm:max-w-[62%]"
+              : size === "primary"
+                ? "max-w-[68%] sm:max-w-[60%]"
+                : "max-w-[68%]",
+          )}
+        >
           <div className="flex flex-wrap items-center gap-2">
             <p className={cn("text-sm font-semibold", EYEBROW_STYLES[tone])}>{eyebrow}</p>
             {badge && (
@@ -146,15 +173,17 @@ export function ServiceEntryCard({
           </span>
         </div>
 
-        <div
-          aria-hidden
-          className={cn(
-            "pointer-events-none absolute bottom-0 right-0 flex items-end justify-end",
-            size === "primary" ? "h-[66%] w-[54%] sm:h-[70%]" : "h-[62%] w-[48%]",
-          )}
-        >
-          {illustration}
-        </div>
+        {!illustrationFill && (
+          <div
+            aria-hidden
+            className={cn(
+              "pointer-events-none absolute bottom-0 right-0 flex items-end justify-end",
+              size === "primary" ? "h-[66%] w-[54%] sm:h-[70%]" : "h-[62%] w-[48%]",
+            )}
+          >
+            {illustration}
+          </div>
+        )}
       </Link>
     </motion.article>
   );

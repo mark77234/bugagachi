@@ -4,9 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowRight, ClipboardList } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { PageContainer } from "@/components/common/PageContainer";
 import { LoadingState } from "@/components/common/states";
+import { Mascot } from "@/components/common/Mascot";
 import { Disclaimer, InformationBanner } from "@/components/common/banners";
 import { Card, CardBody } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -77,7 +78,7 @@ export default function PreferencesPage() {
       <PageContainer size="narrow" className="py-12">
         <Card>
           <CardBody className="text-center">
-            <ClipboardList className="mx-auto mb-3 h-10 w-10 text-primary" aria-hidden />
+            <Mascot pose="locked" className="mx-auto mb-3 h-28 w-28" sizes="112px" />
             <h1 className="text-xl font-bold">먼저 1단계 자격 확인이 필요해요</h1>
             <p className="mt-2 text-muted">
               2단계 취향 추천은 자격을 통과한 주택만을 대상으로 해요. 1단계를 완료하면 이어서 진행할 수 있어요.
@@ -171,8 +172,13 @@ export default function PreferencesPage() {
             {step === "intro" ? (
               <Card>
                 <CardBody className="sm:p-8">
-                  <h2 className="text-2xl font-bold">취향 추천을 시작할게요</h2>
-                  <p className="mt-2 text-muted">이 단계는 신청 자격이 아니라 추천 순서를 정해요. 언제든 건너뛰거나 이전 단계에서 수정할 수 있어요.</p>
+                  <div className="mb-4 flex items-center gap-4">
+                    <Mascot pose="wave" float className="h-20 w-20 shrink-0" sizes="80px" />
+                    <div>
+                      <h2 className="text-2xl font-bold">취향 추천을 시작할게요</h2>
+                      <p className="mt-1 text-muted">이 단계는 신청 자격이 아니라 추천 순서를 정해요. 언제든 건너뛰거나 이전 단계에서 수정할 수 있어요.</p>
+                    </div>
+                  </div>
                   <div className="mt-5 grid gap-3">
                     <div className="rounded-[var(--radius-input)] bg-primary-subtle p-4">
                       <p className="text-sm font-semibold text-primary">

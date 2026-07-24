@@ -1,17 +1,17 @@
 import Link from "next/link";
+import Image from "next/image";
 import {
-  ArrowDown,
   ArrowRight,
-  Building2,
   ClipboardCheck,
   FileCheck2,
   ListChecks,
   MapPin,
   ShieldCheck,
   Database,
-  SlidersHorizontal,
 } from "lucide-react";
 import { PageContainer } from "@/components/common/PageContainer";
+import { Mascot, type MascotPose } from "@/components/common/Mascot";
+import { MascotVideo, type MascotVideoKey } from "@/components/common/MascotVideo";
 import { SectionHeader } from "@/components/common/SectionHeader";
 import { InformationBanner, PrivacyNotice } from "@/components/common/banners";
 import { Badge } from "@/components/ui/badge";
@@ -30,14 +30,58 @@ import { ELIGIBILITY_TYPE_LABEL } from "@/features/eligibility/eligibility.types
 import { BASE_YEAR_BY_TYPE } from "@/config/eligibility-config.2025";
 import { RENTAL_DATASET_STATS } from "@/mocks/housing";
 
-const PROCESS = [
-  { icon: ClipboardCheck, title: "자격 확인", desc: "기본 신청 조건을 확인해요." },
-  { icon: MapPin, title: "생활 취향 입력", desc: "예산과 희망 생활권을 골라요." },
-  { icon: ListChecks, title: "맞춤 추천 확인", desc: "추천 주택과 이유를 살펴봐요." },
-  { icon: FileCheck2, title: "공식 공고 확인", desc: "신청 전 최종 조건을 확인해요." },
+const PROCESS: { icon: typeof ClipboardCheck; pose: MascotPose; title: string; desc: string }[] = [
+  { icon: ClipboardCheck, pose: "checklist", title: "자격 확인", desc: "기본 신청 조건을 확인해요." },
+  { icon: MapPin, pose: "mapLocation", title: "생활 취향 입력", desc: "예산과 희망 생활권을 골라요." },
+  { icon: ListChecks, pose: "compareHousing", title: "맞춤 추천 확인", desc: "추천 주택과 이유를 살펴봐요." },
+  { icon: FileCheck2, pose: "documentDirection", title: "공식 공고 확인", desc: "신청 전 최종 조건을 확인해요." },
 ];
 
 const TYPES = Object.entries(ELIGIBILITY_TYPE_LABEL) as [keyof typeof ELIGIBILITY_TYPE_LABEL, string][];
+
+const VIDEO_FEATURES: {
+  video: MascotVideoKey;
+  poster: MascotPose;
+  eyebrow: string;
+  title: string;
+  desc: string;
+}[] = [
+  {
+    video: "read",
+    poster: "readDocument",
+    eyebrow: "01 · 자격 확인",
+    title: "복잡한 자격 조건, 갈붕이가 쉽게 읽어드려요",
+    desc: "무주택·소득·자산 같은 기본 조건을 질문으로 하나씩 확인해요. 어려운 서류 용어 없이 신청 가능성이 있는 유형을 골라줘요.",
+  },
+  {
+    video: "pickHouse",
+    poster: "present",
+    eyebrow: "02 · 맞춤 추천",
+    title: "예산과 생활 취향에 맞는 집을 골라줘요",
+    desc: "자주 가는 곳, 생활권, 예산을 반영해 후보 주택의 순서를 매기고, 왜 추천했는지 이유까지 함께 보여드려요.",
+  },
+  {
+    video: "question",
+    poster: "readDocument",
+    eyebrow: "03 · AI 안내",
+    title: "궁금한 점은 언제든 물어보세요",
+    desc: "임대 유형, 자격 조건, 준비 서류와 신청 절차를 쉬운 말로 안내해요. 헷갈리는 부분을 바로 확인할 수 있어요.",
+  },
+  {
+    video: "onTheMap",
+    poster: "mapLocation",
+    eyebrow: "04 · 지도 탐색",
+    title: "부산 어디에 있는 집인지 지도에서 확인해요",
+    desc: "추천받은 집이 어느 동네에 있는지, 생활권이 어떤지 지도에서 한눈에 살펴볼 수 있어요.",
+  },
+  {
+    video: "markers",
+    poster: "mapSearch",
+    eyebrow: "05 · 전체 둘러보기",
+    title: "부산 전역의 공공임대를 마커로 한눈에",
+    desc: "자격 확인 전이라도 부산 곳곳의 공공임대주택을 지도 마커로 자유롭게 둘러볼 수 있어요.",
+  },
+];
 
 export default function LandingPage() {
   return (
@@ -46,6 +90,7 @@ export default function LandingPage() {
         <PageContainer size="wide" className="py-14 sm:py-20 lg:py-24">
           <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,1fr)_400px]">
             <FadeIn y={12}>
+              <Mascot pose="wave" float className="mb-3 h-24 w-24 lg:hidden" priority sizes="96px" />
               <Badge tone="primary" className="mb-5">
                 부산 공공임대 · 자격 확인부터 추천까지
               </Badge>
@@ -76,31 +121,18 @@ export default function LandingPage() {
             </FadeIn>
 
             <FadeIn delay={0.06} y={10} className="hidden lg:block">
-              <div className="rounded-[var(--radius-cardlg)] border border-primary/15 bg-surface/85 p-6 shadow-[var(--shadow-card)]">
-                <p className="text-sm font-bold text-primary">추천은 이렇게 만들어져요</p>
-                <ul className="mt-4 grid grid-cols-3 gap-2 text-center text-sm">
-                  <li className="rounded-[var(--radius-input)] bg-primary-subtle p-3">
-                    <ClipboardCheck className="mx-auto h-5 w-5 text-primary" aria-hidden />
-                    <span className="mt-2 block font-semibold text-navy">자격 조건</span>
-                  </li>
-                  <li className="rounded-[var(--radius-input)] bg-primary-subtle p-3">
-                    <MapPin className="mx-auto h-5 w-5 text-primary" aria-hidden />
-                    <span className="mt-2 block font-semibold text-navy">예산·지역</span>
-                  </li>
-                  <li className="rounded-[var(--radius-input)] bg-primary-subtle p-3">
-                    <SlidersHorizontal className="mx-auto h-5 w-5 text-primary" aria-hidden />
-                    <span className="mt-2 block font-semibold text-navy">생활 취향</span>
-                  </li>
-                </ul>
-                <ArrowDown className="mx-auto my-3 h-5 w-5 text-primary" aria-hidden />
-                <div className="flex items-center gap-3 rounded-[var(--radius-card)] bg-primary p-4 text-white">
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/15">
-                    <Building2 className="h-5 w-5" aria-hidden />
-                  </span>
-                  <span>
-                    <span className="block font-bold">추천 이유가 있는 주택</span>
-                    <span className="mt-0.5 block text-sm text-white/75">조건별 적합도를 쉬운 말로 확인해요</span>
-                  </span>
+              <div className="relative overflow-hidden rounded-[var(--radius-cardlg)] border border-primary/15 shadow-[var(--shadow-card)]">
+                <Image
+                  src="/assets/wallpapers/hf_20260724_120406_f313782a-7cc8-42fb-b2c0-c812e1158941.png"
+                  alt="집 모양 모자를 쓴 마스코트 갈붕이가 추천·지도·채팅 정보를 안내하는 모습"
+                  width={800}
+                  height={451}
+                  priority
+                  className="aspect-[4/3] w-full object-cover object-right"
+                />
+                <div className="absolute inset-x-0 bottom-0 flex items-center gap-2 bg-gradient-to-t from-primary/85 to-transparent px-4 pb-4 pt-10 text-sm font-semibold text-white">
+                  <ShieldCheck className="h-4 w-4 shrink-0" aria-hidden />
+                  자격 · 예산 · 생활 취향으로 만드는 맞춤 추천
                 </div>
               </div>
             </FadeIn>
@@ -125,6 +157,7 @@ export default function LandingPage() {
             tone="primary"
             size="primary"
             illustration={<RecommendationIllustration />}
+            illustrationFill
             highlights={["자격 확인", "취향 입력", "추천 이유"]}
             className="lg:col-span-7 lg:row-span-2"
           />
@@ -133,10 +166,10 @@ export default function LandingPage() {
             eyebrow="복잡한 공공임대 정보를 쉽게"
             title="궁금한 점, AI에게 물어보기"
             description="임대 유형, 자격 조건, 준비 서류와 신청 절차를 쉬운 말로 안내받아보세요."
-            actionLabel="AI 안내 데모 시작하기"
+            actionLabel="AI 안내 시작하기"
             tone="warm"
-            badge="데모"
             illustration={<ChatIllustration />}
+            illustrationFill
             delay={0.04}
             className="lg:col-span-5"
           />
@@ -144,10 +177,11 @@ export default function LandingPage() {
             href="/map"
             eyebrow="부산 공공임대주택을 한눈에"
             title="지도에서 전체 주택 둘러보기"
-            description={`JSON 원본 ${RENTAL_DATASET_STATS.validRows}호실을 ${RENTAL_DATASET_STATS.buildings}개 건물로 묶어 지도에서 살펴보세요.`}
+            description={`부산 공공임대주택 ${RENTAL_DATASET_STATS.buildings}개 건물을 지도에서 한눈에 살펴보세요.`}
             actionLabel="부산 공공임대 전체 지도 열기"
             tone="map"
             illustration={<MapIllustration />}
+            illustrationFill
             delay={0.08}
             className="lg:col-span-5"
           />
@@ -156,7 +190,7 @@ export default function LandingPage() {
         <aside className="mt-5 grid gap-2 rounded-[var(--radius-card)] border border-border bg-surface p-3 text-sm text-muted shadow-[var(--shadow-sm)] sm:grid-cols-3" aria-label="서비스 신뢰 안내">
           <p className="flex items-center gap-2 px-2 py-1">
             <Database className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-            JSON 원본 {RENTAL_DATASET_STATS.validRows}호실 · {RENTAL_DATASET_STATS.buildings}개 건물
+            부산 공공임대 {RENTAL_DATASET_STATS.validRows}호실 · {RENTAL_DATASET_STATS.buildings}개 건물
           </p>
           <p className="flex items-center gap-2 px-2 py-1">
             <ShieldCheck className="h-4 w-4 shrink-0 text-primary" aria-hidden />
@@ -169,6 +203,51 @@ export default function LandingPage() {
         </aside>
       </PageContainer>
 
+      <section className="relative overflow-hidden py-14 sm:py-20">
+        <Image
+          src="/assets/wallpapers/hf_20260724_120349_438fc9d3-b715-4a63-92c8-29e5ffd80cd0.png"
+          alt=""
+          fill
+          sizes="100vw"
+          className="object-cover object-right opacity-40"
+          aria-hidden
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-bg via-bg/85 to-bg" aria-hidden />
+        <PageContainer size="wide" className="relative">
+          <SectionHeader
+            eyebrow="영상으로 보는 부가가치"
+            title="이렇게 도와드려요"
+            description="자격 확인부터 맞춤 추천, 지도 탐색까지 — 갈붕이가 단계마다 함께해요."
+          />
+          <div className="mt-8 flex flex-col gap-6 sm:gap-10">
+            {VIDEO_FEATURES.map((f, i) => (
+              <Reveal
+                key={f.video}
+                y={16}
+                className={cn(
+                  "grid items-center gap-5 sm:gap-8 lg:grid-cols-2",
+                )}
+              >
+                <div className={cn("overflow-hidden rounded-[var(--radius-cardlg)] border border-border bg-surface shadow-[var(--shadow-card)]", i % 2 === 1 && "lg:order-2")}>
+                  <MascotVideo
+                    src={f.video}
+                    poster={f.poster}
+                    fullPoster
+                    className="aspect-video w-full"
+                    objectClassName="object-cover"
+                  />
+                </div>
+                <div className={cn(i % 2 === 1 && "lg:order-1")}>
+                  <p className="text-sm font-bold text-primary">{f.eyebrow}</p>
+                  <h3 className="mt-2 text-xl font-extrabold text-navy sm:text-2xl">{f.title}</h3>
+                  <p className="mt-3 leading-relaxed text-muted">{f.desc}</p>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+        </PageContainer>
+      </section>
+
       <section className="bg-surface-muted/60 py-12 sm:py-16">
         <PageContainer size="wide">
           <SectionHeader
@@ -180,13 +259,14 @@ export default function LandingPage() {
             {PROCESS.map((step, index) => (
               <Card key={step.title}>
                 <CardBody className="h-full">
-                  <div className="mb-4 flex items-center justify-between">
-                    <span className="flex h-11 w-11 items-center justify-center rounded-[12px] bg-primary-subtle text-primary">
-                      <step.icon className="h-5 w-5" aria-hidden />
-                    </span>
+                  <div className="mb-3 flex items-start justify-between">
+                    <Mascot pose={step.pose} className="h-20 w-20" sizes="80px" />
                     <span className="text-sm font-bold text-primary">0{index + 1}</span>
                   </div>
-                  <h3 className="text-lg font-bold">{step.title}</h3>
+                  <div className="flex items-center gap-2">
+                    <step.icon className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+                    <h3 className="text-lg font-bold">{step.title}</h3>
+                  </div>
                   <p className="mt-1 text-sm text-muted">{step.desc}</p>
                 </CardBody>
               </Card>
@@ -199,7 +279,7 @@ export default function LandingPage() {
         <SectionHeader
           eyebrow="지원 임대 유형"
           title="5가지 공공임대 유형을 함께 확인해요"
-          description="현재 데모의 자격 기준과 주택 정보는 실제 신청 자격을 확정하지 않아요."
+          description="자격 기준과 주택 정보는 실제 신청 자격을 확정하지 않아요."
         />
         <Reveal className="flex flex-wrap gap-2" y={10}>
           {TYPES.map(([code, label]) => (
@@ -220,9 +300,9 @@ export default function LandingPage() {
           <InformationBanner tone="warning" title="추천 결과는 참고용이에요">
             최종 신청 가능 여부는 각 유형의 공식 모집공고와 제출 서류로 확인해야 합니다.
           </InformationBanner>
-          <InformationBanner tone="primary" title="제공된 JSON 주택·생활권 데이터를 사용해요">
-            유효한 {RENTAL_DATASET_STATS.validRows}호실을 {RENTAL_DATASET_STATS.buildings}개 건물로 묶어 보여주며,
-            모집 상태와 신청 일정은 포함되어 있지 않습니다.
+          <InformationBanner tone="primary" title="부산 공공임대 주택·생활권 정보를 사용해요">
+            {RENTAL_DATASET_STATS.validRows}호실을 {RENTAL_DATASET_STATS.buildings}개 건물로 묶어 보여주며,
+            모집 상태와 신청 일정은 포함되어 있지 않아요.
           </InformationBanner>
           <PrivacyNotice className="lg:col-span-2" />
         </Reveal>

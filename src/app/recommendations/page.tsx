@@ -166,7 +166,7 @@ function RecommendationsInner() {
             <p className="mt-1 text-xs text-muted sm:text-sm">
               {recommendMode
                 ? "예산과 생활 취향을 반영한 순서예요. 최종 자격은 공식 공고에서 확인하세요."
-                : `제공된 JSON ${RENTAL_DATASET_STATS.validRows}호실을 건물 단위로 묶어 탐색해요.`}
+                : `부산 공공임대주택 ${RENTAL_DATASET_STATS.validRows}호실을 건물 단위로 묶어 탐색해요.`}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -317,7 +317,7 @@ function RecommendationsInner() {
           <section className={cn("relative min-h-[560px] md:block md:min-h-0", view === "list" && "hidden")} aria-label="추천 주택 지도">
             <MapPanel markers={markers} selectedId={activeId} onSelect={setActiveId} ariaLabel={`추천 주택 ${filtered.length}곳 지도`} />
             <div className="pointer-events-none absolute left-4 top-4 hidden max-w-xs rounded-[var(--radius-card)] border border-border bg-surface/95 p-3 text-xs text-muted shadow-[var(--shadow-md)] backdrop-blur lg:block">
-              JSON 원본 좌표를 사용합니다. 모집 상태와 일정은 제공되지 않아 공식 공고 확인이 필요합니다.
+              모집 상태와 일정은 포함되어 있지 않아 공식 공고 확인이 필요해요.
             </div>
           </section>
         </div>

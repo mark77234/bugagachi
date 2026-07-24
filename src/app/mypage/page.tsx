@@ -16,6 +16,7 @@ import { PageContainer } from "@/components/common/PageContainer";
 import { SectionHeader } from "@/components/common/SectionHeader";
 import { InformationBanner } from "@/components/common/banners";
 import { LoadingState } from "@/components/common/states";
+import { Mascot } from "@/components/common/Mascot";
 import { Card, CardBody } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -96,7 +97,12 @@ export default function MyPage() {
 
   return (
     <PageContainer size="wide" className="py-8">
-      <SectionHeader as="h1" eyebrow="마이페이지" title="내 진단·추천 관리" />
+      <div className="mb-2 flex items-center gap-4">
+        <Mascot pose="present" float className="h-20 w-20 shrink-0 sm:h-24 sm:w-24" sizes="96px" />
+        <div className="flex-1">
+          <SectionHeader as="h1" eyebrow="마이페이지" title="내 진단·추천 관리" />
+        </div>
+      </div>
 
       <InformationBanner tone="primary" className="mb-6" title="비로그인(게스트) 모드">
         입력·저장 정보는 이 브라우저에만 보관돼요. 다른 기기와 동기화되지 않으며, 아래에서 언제든 삭제할 수 있어요.
@@ -166,7 +172,10 @@ export default function MyPage() {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-muted">아직 저장한 주택이 없어요. 추천 목록에서 저장해 보세요.</p>
+            <div className="flex items-center gap-3">
+              <Mascot pose="idle" className="h-16 w-16 shrink-0" sizes="64px" />
+              <p className="text-sm text-muted">아직 저장한 주택이 없어요. 추천 목록에서 저장해 보세요.</p>
+            </div>
           )}
         </Tile>
 

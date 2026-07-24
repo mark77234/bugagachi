@@ -5,9 +5,19 @@ import { ArrowRight, Pencil, RotateCcw } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { InformationBanner } from "@/components/common/banners";
 import { EmptyState } from "@/components/common/states";
+import { Mascot, type MascotPose } from "@/components/common/Mascot";
 import { TypeResultCard } from "./TypeResultCard";
 import { cn } from "@/lib/utils";
 import type { EligibilityTypeResult } from "@/features/eligibility/eligibility.types";
+
+function ResultMascot({ pose, message, float }: { pose: MascotPose; message: string; float?: boolean }) {
+  return (
+    <div className="mb-5 flex flex-col items-center text-center sm:flex-row sm:items-center sm:gap-4 sm:text-left">
+      <Mascot pose={pose} float={float} className="h-24 w-24 shrink-0 sm:h-20 sm:w-20" sizes="96px" />
+      <p className="mt-2 text-sm font-semibold text-navy sm:mt-0 sm:text-base">{message}</p>
+    </div>
+  );
+}
 
 function Group({ title, items }: { title: string; items: EligibilityTypeResult[] }) {
   if (items.length === 0) return null;
@@ -40,6 +50,14 @@ export function Stage1Result({
 
   return (
     <div>
+      <ResultMascot
+        pose={candidates.length > 0 ? "success" : "confused"}
+        message={
+          candidates.length > 0
+            ? `공통 자격을 확인했어요. 후보 ${candidates.length}개 유형을 더 살펴볼게요!`
+            : "지금 조건으로는 이어갈 후보 유형이 없어요."
+        }
+      />
       <InformationBanner tone="primary" title={`공통 자격 확인 완료 · 후보 ${candidates.length}개`} className="mb-6">
         아래 후보 유형은 세부 조건(계층·순위·출산 등)을 추가로 확인해요. 제외된 유형의 질문은 표시하지 않아요.
       </InformationBanner>
@@ -73,6 +91,17 @@ export function FinalSummary({
 
   return (
     <div>
+      <ResultMascot
+        pose={pass.length > 0 ? "celebrate" : needs.length > 0 ? "checklist" : "sad"}
+        float={pass.length > 0}
+        message={
+          pass.length > 0
+            ? `신청 가능성이 있는 유형 ${pass.length}개를 찾았어요. 축하해요!`
+            : needs.length > 0
+              ? "조금 더 확인하면 되는 유형이 있어요."
+              : "지금 조건으로는 어려운 유형이 많아요. 함께 다시 살펴봐요."
+        }
+      />
       <InformationBanner tone="warning" title="이 결과는 자격 확정이 아니에요" className="mb-6">
         아래는 입력 기준의 참고 판정이에요. 실제 신청 가능 여부는 각 유형의 공식 모집공고로 확정됩니다.
       </InformationBanner>
@@ -110,6 +139,7 @@ export function ExitScreen({
   return (
     <div className="space-y-5">
       <EmptyState
+        pose="locked"
         title="현재 조건으로는 신청 가능한 유형이 없어요"
         description={reason}
       />

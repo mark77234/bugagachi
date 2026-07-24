@@ -2,9 +2,9 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Flag, Heart, MessageSquare, PenLine, Search } from "lucide-react";
 import { PageContainer } from "@/components/common/PageContainer";
-import { SectionHeader } from "@/components/common/SectionHeader";
 import { InformationBanner } from "@/components/common/banners";
 import { EmptyState } from "@/components/common/states";
 import { Card, CardBody } from "@/components/ui/card";
@@ -37,11 +37,23 @@ export default function CommunityPage() {
 
   return (
     <PageContainer size="default" className="py-8">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <SectionHeader as="h1" eyebrow="커뮤니티" title="함께 나누는 공공임대 정보" description="공고 정보·입주 후기·질문을 나눠요." />
-        <Link href="/community/write" className={cn(buttonVariants({ variant: "primary", size: "md" }))}>
-          <PenLine className="h-4 w-4" /> 글쓰기
-        </Link>
+      <div className="relative mb-6 overflow-hidden rounded-[var(--radius-cardlg)] border border-primary/15 bg-primary-subtle/50">
+        <Image
+          src="/assets/behaviors/hf_20260724_120457_7845334a-4e53-4bfe-8289-dacbe009f5a6.png"
+          alt=""
+          width={1200}
+          height={420}
+          className="h-40 w-full object-cover object-right sm:h-48"
+          aria-hidden
+        />
+        <div className="absolute inset-0 flex flex-col justify-center bg-gradient-to-r from-surface via-surface/85 to-transparent p-6 sm:p-8">
+          <p className="text-sm font-semibold text-primary">커뮤니티</p>
+          <h1 className="mt-1 text-2xl font-extrabold text-navy sm:text-3xl">함께 나누는 공공임대 정보</h1>
+          <p className="mt-2 max-w-md text-sm text-muted">공고 정보·입주 후기·질문을 갈붕이와 함께 나눠요.</p>
+          <Link href="/community/write" className={cn(buttonVariants({ variant: "primary", size: "md" }), "mt-4 w-fit")}>
+            <PenLine className="h-4 w-4" /> 글쓰기
+          </Link>
+        </div>
       </div>
 
       <InformationBanner tone="primary" className="mb-5">

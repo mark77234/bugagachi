@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Sparkles } from "lucide-react";
+import Image from "next/image";
 import { PageContainer } from "@/components/common/PageContainer";
 import { cn } from "@/lib/utils";
 
@@ -32,9 +32,14 @@ export function FlowShell({
             className="flex items-center gap-2 rounded-lg text-primary focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-primary/25"
             aria-label="부가가치 홈으로 이동"
           >
-            <span className="grid h-8 w-8 place-items-center rounded-[10px] bg-primary text-white">
-              <Sparkles className="h-4 w-4" aria-hidden />
-            </span>
+            <Image
+              src="/assets/logo/bugagachi_website_logo.png"
+              alt=""
+              width={32}
+              height={32}
+              className="h-8 w-8 rounded-[10px] object-contain"
+              aria-hidden
+            />
             <span className="text-lg font-extrabold tracking-[-0.03em]">부가가치</span>
           </Link>
           <p className="text-sm font-semibold text-muted">{eyebrow}</p>

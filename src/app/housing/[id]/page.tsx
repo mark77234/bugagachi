@@ -17,6 +17,7 @@ import {
 import { PageContainer } from "@/components/common/PageContainer";
 import { Disclaimer, InformationBanner } from "@/components/common/banners";
 import { EmptyState } from "@/components/common/states";
+import { Mascot } from "@/components/common/Mascot";
 import { Card, CardBody } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -159,7 +160,9 @@ export default function HousingDetailPage() {
       {/* 주택 요약 */}
       <header className="rounded-[var(--radius-cardlg)] border border-primary/15 bg-primary-subtle/55 p-5 shadow-[var(--shadow-sm)] sm:p-7">
       <div className="flex flex-wrap items-start justify-between gap-5">
-        <div>
+        <div className="flex items-start gap-4">
+          <Mascot pose="housePin" className="hidden h-24 w-24 shrink-0 sm:block" sizes="96px" />
+          <div>
           <div className="mb-2 flex flex-wrap items-center gap-1.5">
             <Badge tone="neutral">{ELIGIBILITY_TYPE_LABEL[unit.type]}</Badge>
             <Badge tone={st.tone}>{st.label}</Badge>
@@ -178,6 +181,7 @@ export default function HousingDetailPage() {
                 : "임대조건 미공개"}
             </span>
           </p>
+          </div>
         </div>
         <div className="flex flex-wrap gap-2">
           <a
@@ -336,14 +340,14 @@ export default function HousingDetailPage() {
                   </InformationBanner>
                 )}
                 <p className="pt-3 text-xs text-muted">
-                  <Building2 className="mr-1 inline h-3.5 w-3.5" aria-hidden /> 원본 {unit.source.sourceRowCount}호실 ·
+                  <Building2 className="mr-1 inline h-3.5 w-3.5" aria-hidden /> 총 {unit.source.sourceRowCount}호실 ·
                   가격 공개 {unit.source.pricedUnitCount}호실 · 전용 {unit.exclusiveAreas.join(", ")}㎡
                 </p>
               </CardBody>
             </Card>
           </Section>
 
-          <Section title="주택 원본 정보">
+          <Section title="주택 상세 정보">
             <Card>
               <CardBody>
                 <dl className="grid gap-4 text-sm sm:grid-cols-2">
@@ -372,7 +376,7 @@ export default function HousingDetailPage() {
             </Card>
           </Section>
 
-          <Section title="생활권 원본 점수">
+          <Section title="생활권 점수">
             <Card>
               <CardBody className="space-y-6">
                 <DataMetricTable
@@ -443,8 +447,8 @@ export default function HousingDetailPage() {
 
           {/* 4) 모집 및 신청 일정 */}
           <Section title="모집 및 신청 일정">
-            <InformationBanner tone="warning" title="JSON에는 모집 일정이 포함되어 있지 않아요">
-              현재 재고와 임대조건 데이터이며 실시간 모집공고가 아닙니다. 신청 기간과 모집 상태는 공식 기관에서 확인하세요.
+            <InformationBanner tone="warning" title="모집 일정은 포함되어 있지 않아요">
+              현재 주택·임대조건 정보이며 실시간 모집공고가 아니에요. 신청 기간과 모집 상태는 공식 기관에서 확인하세요.
             </InformationBanner>
           </Section>
 
@@ -498,12 +502,12 @@ export default function HousingDetailPage() {
         </aside>
       </div>
 
-      <Section title={`데모 후기 (${reviews.length})`}>
+      <Section title={`이용 후기 (${reviews.length})`}>
         <InformationBanner tone="warning" className="mb-3">
-          아래 후기는 화면 시연을 위한 mock 정보이며 실제 입주민 후기가 아니에요.
+          아래 후기는 화면 예시이며 실제 입주민 후기가 아니에요.
         </InformationBanner>
         <div className="grid gap-3 md:grid-cols-2">
-          {reviews.length === 0 && <p className="text-sm text-muted">등록된 데모 후기가 없어요.</p>}
+          {reviews.length === 0 && <p className="text-sm text-muted">등록된 후기가 없어요.</p>}
           {reviews.map((rv) => (
             <Card key={rv.id}>
               <CardBody className="space-y-2">

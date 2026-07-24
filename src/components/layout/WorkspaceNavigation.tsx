@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Map, Sparkles, UsersRound, UserRound, WandSparkles } from "lucide-react";
+import { Map, UsersRound, UserRound, WandSparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ITEMS = [
@@ -20,9 +21,16 @@ export function WorkspaceNavigation() {
       <Link
         href="/"
         aria-label="부가가치 홈"
-        className="mt-4 flex h-11 w-11 items-center justify-center rounded-[var(--radius-input)] bg-primary text-white shadow-[var(--shadow-card)]"
+        className="mt-4 flex h-11 w-11 items-center justify-center overflow-hidden rounded-[var(--radius-input)] bg-surface shadow-[var(--shadow-card)]"
       >
-        <Sparkles className="h-6 w-6" aria-hidden />
+        <Image
+          src="/assets/logo/bugagachi_website_logo.png"
+          alt=""
+          width={44}
+          height={44}
+          className="h-11 w-11 object-contain"
+          aria-hidden
+        />
       </Link>
       <nav className="mt-6 flex w-full flex-1 flex-col items-center gap-2" aria-label="추천 탐색 메뉴">
         {ITEMS.map((item) => {

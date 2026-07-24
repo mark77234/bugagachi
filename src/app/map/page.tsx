@@ -5,7 +5,7 @@ import { HousingMapExplorer } from "@/components/map/HousingMapExplorer";
 
 export const metadata: Metadata = {
   title: "전체 주택 지도 · 부가가치",
-  description: "제공된 부산 공공임대 JSON 재고를 건물 단위로 지도에서 탐색하세요.",
+  description: "부산 공공임대주택을 건물 단위로 지도에서 탐색하세요.",
 };
 
 export default function MapPage() {

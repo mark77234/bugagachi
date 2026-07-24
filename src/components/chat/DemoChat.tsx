@@ -3,8 +3,9 @@
 import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Bot, Send, Sparkles, UserRound } from "lucide-react";
+import { Send, Sparkles, UserRound } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
+import { Mascot } from "@/components/common/Mascot";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -39,7 +40,7 @@ function initialMessages(topicKey: string | null, housingId: string | null): Cha
     messages.push({
       id: `housing-${unit.id}`,
       role: "assistant",
-      text: `${unit.name}은 현재 데모 데이터에서 ${ELIGIBILITY_TYPE_LABEL[unit.type]} 유형으로 표시돼요. 이 정보만으로 신청 자격을 판단할 수는 없으며, 자격 확인 후 공식 공고의 대상·서류·일정을 확인해야 해요.`,
+      text: `${unit.name}은 ${ELIGIBILITY_TYPE_LABEL[unit.type]} 유형으로 안내돼요. 이 정보만으로 신청 자격을 판단할 수는 없으며, 자격 확인 후 공식 공고의 대상·서류·일정을 확인해야 해요.`,
       actions: [
         { label: "이 주택을 지도에서 보기", href: `/map?selected=${unit.id}` },
         { label: "내 자격 확인하기", href: "/eligibility" },
@@ -104,16 +105,16 @@ export function DemoChat() {
     <div className="mx-auto max-w-4xl overflow-hidden rounded-[var(--radius-cardlg)] border border-border bg-surface shadow-[var(--shadow-card)]">
       <div className="border-b border-border bg-warning-subtle/70 p-4 sm:p-5">
         <div className="flex items-start gap-3">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-warning text-white">
-            <Bot className="h-5 w-5" aria-hidden />
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-warning-subtle ring-1 ring-warning/30">
+            <Mascot pose="readDocument" className="h-11 w-11" sizes="44px" objectClassName="object-cover object-top" />
           </span>
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="font-bold text-navy">공공임대 안내 도우미</h2>
-              <Badge tone="warning">로컬 데모</Badge>
+              <Badge tone="warning">AI 안내</Badge>
             </div>
             <p id="chat-demo-notice" className="mt-1 text-sm text-muted">
-              준비된 키워드 답변을 제공하며, 실시간 생성형 AI나 공식 자격 판정 서비스가 아니에요.
+              공공임대 관련 기본 질문을 안내해요. 공식 자격 판정 서비스는 아니에요.
             </p>
           </div>
         </div>
@@ -133,8 +134,8 @@ export function DemoChat() {
                   className={cn("flex gap-2.5", assistant ? "justify-start" : "justify-end")}
                 >
                   {assistant && (
-                    <span className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-warning-subtle text-warning">
-                      <Bot className="h-4 w-4" aria-hidden />
+                    <span className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-warning-subtle ring-1 ring-warning/20">
+                      <Mascot pose="idle" className="h-8 w-8" sizes="32px" objectClassName="object-cover object-top" />
                     </span>
                   )}
                   <div

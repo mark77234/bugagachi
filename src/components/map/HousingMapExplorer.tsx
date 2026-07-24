@@ -127,11 +127,11 @@ export function HousingMapExplorer() {
               <Badge tone="primary">{RENTAL_DATASET_STATS.buildings}개 건물</Badge>
             </div>
             <p className="mt-1 text-xs text-muted sm:text-sm">
-              JSON 원본 {RENTAL_DATASET_STATS.validRows}호실을 건물 단위로 탐색해요. 모집 일정은 공식 공고 확인이 필요합니다.
+              부산 공공임대주택 {RENTAL_DATASET_STATS.validRows}호실을 건물 단위로 탐색해요. 모집 일정은 공식 공고 확인이 필요해요.
             </p>
           </div>
           <p className="rounded-full bg-warning-subtle px-3 py-1.5 text-xs font-semibold text-warning">
-            재고 데이터 · 실시간 공고 아님
+            실시간 모집공고 아님
           </p>
         </div>
       </header>

@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Menu, Sparkles, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -25,9 +26,15 @@ function isActivePath(pathname: string, href: string) {
 function Logo() {
   return (
     <Link href="/" className="flex items-center gap-2 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-ring)]">
-      <span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-primary text-white">
-        <Sparkles className="h-[18px] w-[18px]" aria-hidden />
-      </span>
+      <Image
+        src="/assets/logo/bugagachi_website_logo.png"
+        alt=""
+        width={36}
+        height={36}
+        priority
+        className="h-9 w-9 rounded-[10px] object-contain"
+        aria-hidden
+      />
       <span className="text-lg font-extrabold tracking-tight text-navy">부가가치</span>
     </Link>
   );
