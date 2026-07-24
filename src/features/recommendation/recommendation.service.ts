@@ -200,4 +200,16 @@ export function sortRecommendations(
   }
 }
 
+/** 최종 점수(0~1)를 정성적 적합도 라벨로. 벌거벗은 숫자 대신 이해 가능한 표현.
+ *  byAxis가 비어있으면(browse 모드) 적합도를 계산하지 않는다(null). */
+export type MatchTone = "success" | "primary" | "neutral";
+export function matchLevel(rec: HousingRecommendation): { label: string; tone: MatchTone } | null {
+  if (rec.score.byAxis.length === 0) return null;
+  const f = rec.score.final;
+  if (f >= 0.75) return { label: "매우 잘 맞아요", tone: "success" };
+  if (f >= 0.5) return { label: "잘 맞아요", tone: "success" };
+  if (f >= 0.3) return { label: "무난해요", tone: "primary" };
+  return { label: "조건 확인 필요", tone: "neutral" };
+}
+
 export { gunguByName };

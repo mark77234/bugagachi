@@ -10,11 +10,13 @@ interface UserState {
   savedHousingIds: string[];
   recentHousingIds: string[];
   notifications: { recruitOpen: boolean; savedUpdate: boolean };
+  applicationChecks: Record<string, string[]>; // housingId -> 체크된 항목 id
 
   toggleSaved: (id: string) => void;
   isSaved: (id: string) => boolean;
   addRecent: (id: string) => void;
   setNotification: (k: "recruitOpen" | "savedUpdate", v: boolean) => void;
+  toggleCheck: (housingId: string, itemId: string) => void;
   clearAll: () => void;
 }
 
@@ -26,6 +28,7 @@ export const useUserStore = create<UserState>()(
       savedHousingIds: [],
       recentHousingIds: [],
       notifications: { recruitOpen: true, savedUpdate: false },
+      applicationChecks: {},
 
       toggleSaved: (id) =>
         set((s) => ({
@@ -37,9 +40,20 @@ export const useUserStore = create<UserState>()(
       addRecent: (id) =>
         set((s) => ({ recentHousingIds: [id, ...s.recentHousingIds.filter((x) => x !== id)].slice(0, 12) })),
       setNotification: (k, v) => set((s) => ({ notifications: { ...s.notifications, [k]: v } })),
+      toggleCheck: (housingId, itemId) =>
+        set((s) => {
+          const cur = s.applicationChecks[housingId] ?? [];
+          const next = cur.includes(itemId) ? cur.filter((x) => x !== itemId) : [...cur, itemId];
+          return { applicationChecks: { ...s.applicationChecks, [housingId]: next } };
+        }),
       clearAll: () => {
         clearAllAppData();
-        set({ savedHousingIds: [], recentHousingIds: [], notifications: { recruitOpen: true, savedUpdate: false } });
+        set({
+          savedHousingIds: [],
+          recentHousingIds: [],
+          notifications: { recruitOpen: true, savedUpdate: false },
+          applicationChecks: {},
+        });
       },
     }),
     {

@@ -28,7 +28,8 @@ import { useUserStore } from "@/features/user/user.store";
 import { useEligibilityStore } from "@/features/eligibility/eligibility.store";
 import { usePreferencesStore, buildSurvey, isBudgetComplete } from "@/features/recommendation/preferences.store";
 import { useHydrated } from "@/lib/use-hydrated";
-import { recommend } from "@/features/recommendation/recommendation.service";
+import { recommend, matchLevel } from "@/features/recommendation/recommendation.service";
+import { ApplicationChecklist } from "@/components/housing/ApplicationChecklist";
 import { ELIGIBILITY_TYPE_LABEL } from "@/features/eligibility/eligibility.types";
 import { formatManwon, formatDistance } from "@/lib/formatting";
 import { nearestInfraMeters } from "@/mocks/facilities";
@@ -90,6 +91,7 @@ export default function HousingDetailPage() {
   }
 
   const st = STATUS[unit.recruitStatus];
+  const match = rec ? matchLevel(rec) : null;
   const reviews = reviewsByHousing(unit.id);
   const myElig = eligHydrated ? (savedResults ?? []).find((r) => r.type === unit.type) : undefined;
 
@@ -116,6 +118,7 @@ export default function HousingDetailPage() {
             <Badge tone="neutral">{ELIGIBILITY_TYPE_LABEL[unit.type]}</Badge>
             <Badge tone={st.tone}>{st.label}</Badge>
             {unit.type === "JAEGAEBAL" && <Badge tone="warning">2025년 기준</Badge>}
+            {match && <Badge tone={match.tone}>적합도 · {match.label}</Badge>}
           </div>
           <h1 className="text-2xl font-bold sm:text-3xl">{unit.name}</h1>
           <p className="mt-1 flex items-center gap-1 text-muted">
@@ -134,43 +137,44 @@ export default function HousingDetailPage() {
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_360px]">
         <div className="min-w-0">
-          {/* 임대 조건 */}
-          <Section title="임대 조건">
+          {/* 1) 나에게 추천된 이유 + 항목별 점수 (차별점: 왜 추천되었는지) */}
+          <Section title="나에게 추천된 이유">
             <Card>
-              <CardBody className="space-y-2">
-                {unit.conditions.map((c, i) => (
-                  <div key={i} className="flex items-center justify-between border-b border-border/70 pb-2 last:border-0 last:pb-0">
-                    <span className="text-sm text-muted">{c.priorityRank ? `${c.priorityRank}순위` : "기본"}</span>
-                    <span className="text-sm">
-                      보증금 <b>{formatManwon(c.deposit)}</b> · 월 <b>{formatManwon(c.monthlyRent)}</b>
-                    </span>
-                  </div>
-                ))}
-                <p className="pt-1 text-xs text-muted">
-                  <Building2 className="mr-1 inline h-3.5 w-3.5" aria-hidden /> 공급 {unit.supplyCount}세대 · 전용 {unit.exclusiveAreas.join(", ")}㎡
-                </p>
-              </CardBody>
-            </Card>
-          </Section>
-
-          {/* 모집 일정 */}
-          <Section title="모집 일정">
-            <Card>
-              <CardBody className="flex items-center gap-2 text-sm">
-                <CalendarDays className="h-5 w-5 text-primary" aria-hidden />
-                {unit.recruitPeriod ? (
-                  <span>
-                    신청 기간 <b>{unit.recruitPeriod.start}</b> ~ <b>{unit.recruitPeriod.end}</b>
-                  </span>
+              <CardBody className="space-y-4">
+                {rec ? (
+                  <>
+                    {match && (
+                      <div className="flex items-center gap-2">
+                        <Badge tone={match.tone}>적합도 · {match.label}</Badge>
+                        <span className="text-sm text-muted">아래 근거로 순위를 매겼어요.</span>
+                      </div>
+                    )}
+                    <ul className="space-y-1.5 text-sm">
+                      {rec.reasons.filter((r) => r.axis !== "eligibility").map((r, i) => (
+                        <li key={i} className="flex gap-2">
+                          <span aria-hidden className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                          <span className="text-fg">{r.text} <span className="text-muted">{r.rawValue}</span></span>
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="border-t border-border pt-4">
+                      <ScoreBreakdown byAxis={rec.score.byAxis} />
+                    </div>
+                  </>
                 ) : (
-                  <span className="text-muted">일정 미정</span>
+                  <div className="space-y-3">
+                    <p className="text-sm text-muted">
+                      <Link href="/preferences" className="font-semibold text-primary underline">2단계 취향 설문</Link>을 완료하면 나에게 맞는 이유와 항목별 점수가 표시돼요.
+                    </p>
+                    <ScoreBreakdown byAxis={[]} />
+                  </div>
                 )}
               </CardBody>
             </Card>
           </Section>
 
-          {/* 신청 자격 요약 (병렬 표시) */}
-          <Section title="신청 자격 요약">
+          {/* 2) 신청 자격 요약 (판정 병렬 표시 — 취향 점수와 혼합하지 않음) */}
+          <Section title="신청 자격">
             <Card>
               <CardBody className="space-y-3">
                 {myElig ? (
@@ -202,32 +206,52 @@ export default function HousingDetailPage() {
             </Card>
           </Section>
 
-          {/* 내 조건과 일치하는 이유 + 항목별 점수 */}
-          <Section title="내 조건과 일치하는 이유">
+          {/* 3) 비용 */}
+          <Section title="비용 (보증금·임대료)">
             <Card>
-              <CardBody className="space-y-4">
-                {rec ? (
-                  <>
-                    <ul className="space-y-1.5 text-sm">
-                      {rec.reasons.filter((r) => r.axis !== "eligibility").map((r, i) => (
-                        <li key={i} className="flex gap-2">
-                          <span aria-hidden className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-                          <span className="text-fg">{r.text} <span className="text-muted">{r.rawValue}</span></span>
-                        </li>
-                      ))}
-                    </ul>
-                    <div className="border-t border-border pt-4">
-                      <ScoreBreakdown byAxis={rec.score.byAxis} />
-                    </div>
-                  </>
+              <CardBody className="space-y-2">
+                {unit.conditions.map((c, i) => (
+                  <div key={i} className="flex items-center justify-between border-b border-border/70 pb-2 last:border-0 last:pb-0">
+                    <span className="text-sm text-muted">{c.priorityRank ? `${c.priorityRank}순위` : "기본"}</span>
+                    <span className="text-sm">
+                      보증금 <b>{formatManwon(c.deposit)}</b> · 월 <b>{formatManwon(c.monthlyRent)}</b>
+                    </span>
+                  </div>
+                ))}
+                <p className="pt-1 text-xs text-muted">
+                  <Building2 className="mr-1 inline h-3.5 w-3.5" aria-hidden /> 공급 {unit.supplyCount}세대 · 전용 {unit.exclusiveAreas.join(", ")}㎡
+                </p>
+              </CardBody>
+            </Card>
+          </Section>
+
+          {/* 4) 모집 및 신청 일정 */}
+          <Section title="모집 및 신청 일정">
+            <Card>
+              <CardBody className="flex items-center gap-2 text-sm">
+                <CalendarDays className="h-5 w-5 text-primary" aria-hidden />
+                {unit.recruitPeriod ? (
+                  <span>
+                    신청 기간 <b>{unit.recruitPeriod.start}</b> ~ <b>{unit.recruitPeriod.end}</b>
+                  </span>
                 ) : (
-                  <ScoreBreakdown byAxis={[]} />
+                  <span className="text-muted">일정 미정</span>
                 )}
               </CardBody>
             </Card>
           </Section>
 
-          {/* 리뷰 */}
+          {/* 5) 신청 준비 체크리스트 (차별점: 신청 준비까지 연결) */}
+          <Section title="신청 준비 체크리스트">
+            <Card>
+              <CardBody>
+                <p className="mb-4 text-sm text-muted">신청 전에 준비할 항목이에요. 체크하면 이 브라우저에 저장돼요.</p>
+                <ApplicationChecklist housingId={unit.id} type={unit.type} />
+              </CardBody>
+            </Card>
+          </Section>
+
+          {/* 6) 리뷰 */}
           <Section title={`사용자 리뷰 (${reviews.length})`}>
             <div className="space-y-3">
               {reviews.length === 0 && <p className="text-sm text-muted">아직 리뷰가 없어요.</p>}

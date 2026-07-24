@@ -103,7 +103,9 @@ export function stage1Detail(
 
   if (type === "TONGHAP") {
     const d = detail.TONGHAP;
-    if (!d) return needMore("계층을 선택해 주세요.");
+    if (!d?.tier) return needMore("계층을 선택해 주세요.");
+    if (d.tier === "신혼한부모" && (!d.marriageMonths || d.dualIncome === undefined))
+      return needMore("혼인 개월과 맞벌이 여부를 입력해 주세요.");
     const rule = STAGE2_RULES[`TONGHAP:${d.tier}`];
     checkHouseholder(rule.householderDef);
     const isNewlywed = d.tier === "신혼한부모";
@@ -117,7 +119,11 @@ export function stage1Detail(
 
   if (type === "HAENGBOK") {
     const d = detail.HAENGBOK;
-    if (!d) return needMore("계층을 선택해 주세요.");
+    if (!d?.tier) return needMore("계층을 선택해 주세요.");
+    if ((d.tier === "대학생" || d.tier === "사회초년생") && !d.studentStatus)
+      return needMore("현재 상태를 선택해 주세요.");
+    if (d.tier === "신혼한부모" && (!d.marriageMonths || d.dualIncome === undefined))
+      return needMore("혼인 개월과 맞벌이 여부를 입력해 주세요.");
     const rule = STAGE2_RULES[`HAENGBOK:${d.tier}`];
     checkHouseholder(rule.householderDef);
     if (rule.asset !== null && assetWon > rule.asset) reasons.push("계층 총자산 기준을 초과했어요.");
@@ -137,7 +143,7 @@ export function stage1Detail(
 
   if (type === "JAEGAEBAL") {
     const d = detail.JAEGAEBAL;
-    if (!d) return needMore("출산 자녀 수를 선택해 주세요.");
+    if (!d || d.children === undefined) return needMore("출산 자녀 수를 선택해 주세요.");
     checkHouseholder("household");
     const relief = BIRTH_RELIEF.JAEGAEBAL[Math.min(d.children, 2)];
     if (assetWon > relief.asset) reasons.push("총자산 기준을 초과했어요.");
@@ -148,7 +154,8 @@ export function stage1Detail(
 
   if (type === "MAEIP_ILBAN") {
     const d = detail.MAEIP_ILBAN;
-    if (!d) return needMore("1순위 여부와 출산 자녀 수를 선택해 주세요.");
+    if (!d || d.isRank1 === undefined || d.children === undefined)
+      return needMore("1순위 여부와 출산 자녀 수를 선택해 주세요.");
     checkHouseholder("household");
     const relief = BIRTH_RELIEF.MAEIP_ILBAN[Math.min(d.children, 2)];
     if (assetWon > relief.asset) reasons.push("총자산 기준을 초과했어요.");
@@ -163,12 +170,15 @@ export function stage1Detail(
 
   // MAEIP_CHUNG
   const d = detail.MAEIP_CHUNG;
-  if (!d) return needMore("1순위 여부와 심사 순위를 선택해 주세요.");
+  if (!d || d.isRank1 === undefined) return needMore("1순위 여부와 심사 순위를 선택해 주세요.");
   if (!(common.ageYears >= 19 && common.ageYears <= 39)) reasons.push("만 19~39세 대상이에요.");
   if (d.isRank1) {
     checkLater.push("1순위 자격(수급·한부모·차상위)은 서류로 확인해요.");
     return finalize(reasons, checkLater, "1순위");
   }
+  if (!d.rank) return needMore("심사 순위를 선택해 주세요.");
+  if (d.rank === 2 && (d.parentIncomeManwon === undefined || d.parentAssetManwon === undefined))
+    return needMore("부모 월소득과 총자산을 입력해 주세요.");
   if (d.rank === 2) {
     const incomeSum = incomeWon + won(d.parentIncomeManwon ?? 0);
     const assetSum = assetWon + won(d.parentAssetManwon ?? 0);

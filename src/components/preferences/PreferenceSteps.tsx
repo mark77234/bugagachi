@@ -1,5 +1,6 @@
 "use client";
 
+import { AnimatePresence, motion } from "motion/react";
 import {
   Baby,
   Blocks,
@@ -190,12 +191,20 @@ export function EducationStep() {
           ]}
         />
       </fieldset>
-      {eduEnabled && (
-        <fieldset>
-          <Legend hint="자녀 개인정보는 묻지 않아요. 필요한 시설만 선택하세요.">필요한 시설</Legend>
-          <CheckCards<EduCategory> values={eduCategories} onToggle={toggleEdu} options={EDU_OPTS} columns={2} />
-        </fieldset>
-      )}
+      <AnimatePresence initial={false}>
+        {eduEnabled && (
+          <motion.fieldset
+            key="edu-cats"
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2 }}
+          >
+            <Legend hint="자녀 개인정보는 묻지 않아요. 필요한 시설만 선택하세요.">필요한 시설</Legend>
+            <CheckCards<EduCategory> values={eduCategories} onToggle={toggleEdu} options={EDU_OPTS} columns={2} />
+          </motion.fieldset>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

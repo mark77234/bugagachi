@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Filter, Map as MapIcon, List, SlidersHorizontal } from "lucide-react";
@@ -222,8 +223,14 @@ function RecommendationsInner() {
         </div>
       </div>
 
-      {showFilters && (
-        <div className="mb-5 space-y-4 rounded-[var(--radius-card)] border border-border bg-surface p-4">
+      <AnimatePresence initial={false}>
+        {showFilters && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2 }}
+            className="mb-5 space-y-4 rounded-[var(--radius-card)] border border-border bg-surface p-4">
           <FilterRow label="임대 유형">
             {availableTypes.map((t) => (
               <ToggleChip key={t} label={ELIGIBILITY_TYPE_LABEL[t]} selected={typeF.has(t)} onToggle={() => toggle(typeF, t, setTypeF)} />
@@ -239,8 +246,9 @@ function RecommendationsInner() {
               <ToggleChip key={g} label={g} selected={gunguF.has(g)} onToggle={() => toggle(gunguF, g, setGunguF)} />
             ))}
           </FilterRow>
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* 본문: 리스트 + 지도 */}
       {filtered.length === 0 ? (

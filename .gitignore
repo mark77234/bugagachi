@@ -31,3 +31,6 @@ next-env.d.ts
 .vscode/
 .idea/
 .vercel
+
+# vendored Claude Code skills (local tooling, not app source)
+.claude/skills/

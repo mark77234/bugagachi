@@ -1,9 +1,10 @@
 import { cva, type VariantProps } from "class-variance-authority";
 import { forwardRef } from "react";
+import { motion, type HTMLMotionProps } from "motion/react";
 import { cn } from "@/lib/utils";
 
 export const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 rounded-[var(--radius-choice)] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-ring)] disabled:opacity-50 disabled:pointer-events-none select-none",
+  "inline-flex items-center justify-center gap-2 rounded-[var(--radius-choice)] font-semibold transition-colors cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-ring)] disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed select-none",
   {
     variants: {
       variant: {
@@ -24,13 +25,18 @@ export const buttonVariants = cva(
   },
 );
 
-export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {}
+export type ButtonProps = HTMLMotionProps<"button"> & VariantProps<typeof buttonVariants>;
 
+/** 탭 시 미세 축소 피드백(whileTap). reduced-motion은 MotionProvider가 존중. */
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, ...props }, ref) => (
-    <button ref={ref} className={cn(buttonVariants({ variant, size }), className)} {...props} />
+    <motion.button
+      ref={ref}
+      whileTap={{ scale: 0.98 }}
+      transition={{ duration: 0.12 }}
+      className={cn(buttonVariants({ variant, size }), className)}
+      {...props}
+    />
   ),
 );
 Button.displayName = "Button";

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { motion } from "motion/react";
 import { Bookmark, ChevronRight, MapPin } from "lucide-react";
 import { Card, CardBody } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +11,7 @@ import { ELIGIBILITY_TYPE_LABEL } from "@/features/eligibility/eligibility.types
 import { bestCondition, type HousingUnit } from "@/mocks/housing";
 import { formatManwon } from "@/lib/formatting";
 import { AXIS_LABEL, type HousingRecommendation } from "@/features/recommendation/recommendation.types";
+import { matchLevel } from "@/features/recommendation/recommendation.service";
 import { useUserStore } from "@/features/user/user.store";
 
 const STATUS = {
@@ -33,18 +35,21 @@ export function RecommendationCard({
   const toggleSaved = useUserStore((s) => s.toggleSaved);
   const best = bestCondition(unit);
   const st = STATUS[unit.recruitStatus];
+  const match = matchLevel(rec);
   const topReasons = rec.reasons.filter((r) => r.axis !== "eligibility").slice(0, 3);
 
   return (
-    <Card
-      className={cn("transition-colors", active ? "border-primary ring-1 ring-primary/30" : "hover:border-primary/40")}
-      onMouseEnter={onActivate}
-      onFocus={onActivate}
-    >
-      <CardBody className="space-y-3">
+    <motion.div whileHover={{ y: -2 }} transition={{ duration: 0.15 }}>
+      <Card
+        className={cn("transition-colors", active ? "border-primary ring-1 ring-primary/30" : "hover:border-primary/40")}
+        onMouseEnter={onActivate}
+        onFocus={onActivate}
+      >
+        <CardBody className="space-y-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="mb-1 flex flex-wrap items-center gap-1.5">
+              {match && <Badge tone={match.tone}>적합도 · {match.label}</Badge>}
               <Badge tone="neutral">{ELIGIBILITY_TYPE_LABEL[unit.type]}</Badge>
               <Badge tone={st.tone}>{st.label}</Badge>
             </div>
@@ -103,7 +108,8 @@ export function RecommendationCard({
             </Button>
           </Link>
         </div>
-      </CardBody>
-    </Card>
+        </CardBody>
+      </Card>
+    </motion.div>
   );
 }
