@@ -70,20 +70,18 @@ function DataMetricTable({
     <div>
       <h3 className="mb-2 text-sm font-bold text-navy">{title}</h3>
       <div className="overflow-x-auto rounded-[var(--radius-input)] border border-border">
-        <table className="w-full min-w-[480px] text-left text-sm">
+        <table className="w-full min-w-[280px] text-left text-sm">
           <thead className="bg-surface-muted text-xs text-muted">
             <tr>
               <th className="px-3 py-2">시설</th>
-              <th className="px-3 py-2">보정거리</th>
-              <th className="px-3 py-2">사전계산 점수</th>
+              <th className="px-3 py-2">거리</th>
             </tr>
           </thead>
           <tbody>
             {items.map(([label, value]) => (
               <tr key={label} className="border-t border-border/70">
                 <td className="px-3 py-2 font-medium">{label}</td>
-                <td className="px-3 py-2 tabular-nums">{value ? formatDistance(value.distance) : "계산 불가"}</td>
-                <td className="px-3 py-2 tabular-nums">{value ? `${Math.round(value.score * 100)}점` : "축에서 제외"}</td>
+                <td className="px-3 py-2 tabular-nums">{value ? formatDistance(value.distance) : "정보 없음"}</td>
               </tr>
             ))}
           </tbody>
@@ -91,6 +89,21 @@ function DataMetricTable({
       </div>
     </div>
   );
+}
+
+/** 백분위(0~1)를 사용자가 이해할 수 있는 말로 바꿔준다. */
+function bustleLabel(percentile: number): string {
+  if (percentile >= 0.75) return "매우 번화해요";
+  if (percentile >= 0.5) return "적당히 번화해요";
+  if (percentile >= 0.25) return "한적한 편이에요";
+  return "매우 조용해요";
+}
+
+function quietLabel(noisePercentile: number): string {
+  if (noisePercentile >= 0.75) return "번잡할 수 있어요";
+  if (noisePercentile >= 0.5) return "보통이에요";
+  if (noisePercentile >= 0.25) return "조용한 편이에요";
+  return "매우 조용해요";
 }
 
 function MetricTerm({ label, value }: { label: string; value: string }) {
@@ -204,7 +217,7 @@ export default function HousingDetailPage() {
             className={cn(buttonVariants({ variant: "outline", size: "md" }))}
           >
             <MapPinned className="h-4 w-4" aria-hidden />
-            전체 지도에서 보기
+            갈붕 지도에서 보기
           </Link>
           <Button variant="outline" size="md" onClick={share}>
             <Share2 className="h-4 w-4" /> {copied ? "링크 복사됨" : "공유"}
@@ -336,7 +349,7 @@ export default function HousingDetailPage() {
                   </div>
                 ) : (
                   <InformationBanner tone="warning">
-                    원자료에 임대조건이 없는 건물이에요. 공식 공고에서 보증금과 월 임대료를 확인해 주세요.
+                    임대조건 정보가 없는 건물이에요. 공식 공고에서 보증금과 월 임대료를 확인해 주세요.
                   </InformationBanner>
                 )}
                 <p className="pt-3 text-xs text-muted">
@@ -356,15 +369,12 @@ export default function HousingDetailPage() {
                     ["임대 구분", sourceHead.rental_type ?? "미공개"],
                     ["건물 형태", unit.source.buildingForm ?? "미공개"],
                     ["준공연도", unit.source.completionYear ? `${unit.source.completionYear}년` : "미공개"],
-                    ["원자료 세대 수", sourceHead.household_count === null ? "미공개" : `${sourceHead.household_count}세대`],
-                    ["원자료 호실 수", sourceHead.unit_count === null ? "미공개" : `${sourceHead.unit_count}호`],
+                    ["세대 수", sourceHead.household_count === null ? "미공개" : `${sourceHead.household_count}세대`],
+                    ["호실 수", sourceHead.unit_count === null ? "미공개" : `${sourceHead.unit_count}호`],
                     ["엘리베이터", unit.source.elevator ?? "미공개"],
-                    ["주차면", unit.source.parkingCount === null ? "미공개" : `${unit.source.parkingCount}면`],
+                    ["주차", unit.source.parkingCount === null ? "미공개" : `${unit.source.parkingCount}면`],
                     ["난방 방식", unit.source.heatingType ?? "미공개"],
                     ["입주자격 요약", unit.source.eligibilitySummary ?? "미공개"],
-                    ["좌표 정밀도", unit.source.geocodePrecision ?? "미공개"],
-                    ["좌표 보정량", unit.source.geocodeShiftM === null ? "미공개" : `${unit.source.geocodeShiftM}m`],
-                    ["PNU", sourceHead.pnu ?? "미공개"],
                   ].map(([label, value]) => (
                     <div key={label} className="rounded-[var(--radius-input)] bg-surface-muted/70 p-3">
                       <dt className="text-xs text-muted">{label}</dt>
@@ -376,7 +386,7 @@ export default function HousingDetailPage() {
             </Card>
           </Section>
 
-          <Section title="생활권 점수">
+          <Section title="주변 생활 환경">
             <Card>
               <CardBody className="space-y-6">
                 <DataMetricTable
@@ -401,46 +411,41 @@ export default function HousingDetailPage() {
                   ]}
                 />
                 <div>
-                  <h3 className="mb-2 text-sm font-bold text-navy">반경 750m 취향 가게</h3>
+                  <h3 className="mb-2 text-sm font-bold text-navy">걸어서 갈 수 있는 가게 (반경 750m)</h3>
                   <div className="overflow-x-auto rounded-[var(--radius-input)] border border-border">
-                    <table className="w-full min-w-[520px] text-left text-sm">
+                    <table className="w-full min-w-[280px] text-left text-sm">
                       <thead className="bg-surface-muted text-xs text-muted">
                         <tr>
                           <th className="px-3 py-2">업종</th>
                           <th className="px-3 py-2">점포 수</th>
-                          <th className="px-3 py-2">건물 백분위 점수</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {Object.entries(unit.source.stores).map(([label, value]) => (
-                          <tr key={label} className="border-t border-border/70">
-                            <td className="px-3 py-2 font-medium">{label}</td>
-                            <td className="px-3 py-2 tabular-nums">{value ? `${value.count}곳` : "계산 불가"}</td>
-                            <td className="px-3 py-2 tabular-nums">{value ? `${Math.round(value.score * 100)}점` : "축에서 제외"}</td>
-                          </tr>
-                        ))}
+                        {Object.entries(unit.source.stores)
+                          .filter(([, value]) => value && value.count > 0)
+                          .map(([label, value]) => (
+                            <tr key={label} className="border-t border-border/70">
+                              <td className="px-3 py-2 font-medium">{label}</td>
+                              <td className="px-3 py-2 tabular-nums">{value!.count}곳</td>
+                            </tr>
+                          ))}
                       </tbody>
                     </table>
                   </div>
-                  <p className="mt-2 text-xs text-muted">
-                    동물병원은 원자료 안내에 따라 0점 처리하지 않고 추천 축에서 제외합니다. 약국은 값은 있으나
-                    원자료 설명상 변별력이 낮아 참고용으로 해석해야 합니다.
-                  </p>
                 </div>
-                <div className="rounded-[var(--radius-input)] bg-surface-muted/70 p-4 text-sm">
-                  <h3 className="font-bold text-navy">동네 분위기 사전계산값</h3>
-                  {unit.source.neighborhood ? (
-                    <dl className="mt-3 grid gap-3 sm:grid-cols-5">
-                      <MetricTerm label="전체 상가" value={`${unit.source.neighborhood.storeTotal}곳`} />
-                      <MetricTerm label="소음 업종" value={`${unit.source.neighborhood.noiseStoreCount}곳`} />
-                      <MetricTerm label="소음 구성비" value={`${Math.round(unit.source.neighborhood.noiseRatio * 100)}%`} />
-                      <MetricTerm label="번화도 백분위" value={`${Math.round(unit.source.neighborhood.bustlePercentile * 100)}점`} />
-                      <MetricTerm label="소음 백분위" value={`${Math.round(unit.source.neighborhood.noisePercentile * 100)}점`} />
+                {unit.source.neighborhood && (
+                  <div className="rounded-[var(--radius-input)] bg-surface-muted/70 p-4 text-sm">
+                    <h3 className="font-bold text-navy">동네 분위기</h3>
+                    <dl className="mt-3 grid gap-3 sm:grid-cols-3">
+                      <MetricTerm label="주변 상가" value={`${unit.source.neighborhood.storeTotal}곳`} />
+                      <MetricTerm
+                        label="번화한 정도"
+                        value={bustleLabel(unit.source.neighborhood.bustlePercentile)}
+                      />
+                      <MetricTerm label="조용한 정도" value={quietLabel(unit.source.neighborhood.noisePercentile)} />
                     </dl>
-                  ) : (
-                    <p className="mt-2 text-muted">상권 데이터가 없어 Q5·Q6 축을 제외합니다.</p>
-                  )}
-                </div>
+                  </div>
+                )}
               </CardBody>
             </Card>
           </Section>
@@ -504,7 +509,7 @@ export default function HousingDetailPage() {
 
       <Section title={`이용 후기 (${reviews.length})`}>
         <InformationBanner tone="warning" className="mb-3">
-          아래 후기는 화면 예시이며 실제 입주민 후기가 아니에요.
+          아래 후기는 서비스 화면 예시예요.
         </InformationBanner>
         <div className="grid gap-3 md:grid-cols-2">
           {reviews.length === 0 && <p className="text-sm text-muted">등록된 후기가 없어요.</p>}

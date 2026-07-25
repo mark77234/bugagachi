@@ -29,14 +29,48 @@ const WELCOME_MESSAGE: ChatMessage = {
 
 const REC_RE = /<<REC:([^>]*)>>/;
 
+/** 갈붕이가 먼저 보여주는 사용 예시. 누르면 그대로 질문이 전송된다. */
+const USAGE_EXAMPLES: { tag: string; prompt: string; hint: string }[] = [
+  {
+    tag: "예산으로 추천",
+    prompt: "신혼부부인데 예산 월 30만원으로 추천해줘",
+    hint: "가구 상황 + 예산을 말해주면 맞는 집을 골라드려요",
+  },
+  {
+    tag: "지역으로 추천",
+    prompt: "수영구에서 보증금 500만원 이하로 조용한 곳 추천해줘",
+    hint: "원하는 구·군과 보증금 한도를 함께 알려주세요",
+  },
+  {
+    tag: "생활권으로 추천",
+    prompt: "청년 1인 가구인데 지하철역 가까운 집 알려줘",
+    hint: "역세권·마트·공원 같은 생활 조건도 반영해요",
+  },
+  {
+    tag: "자격·서류 문의",
+    prompt: "공공임대 신청에 어떤 서류가 필요한가요?",
+    hint: "자격 조건과 준비 서류도 쉬운 말로 알려드려요",
+  },
+];
+
+/** 모델이 `rental-` 접두사를 빼먹어도 실제 주택 id로 맞춰준다. */
+function normalizeUnitId(raw: string): string | null {
+  const id = raw.trim();
+  if (!id) return null;
+  if (housingById(id)) return id;
+  const prefixed = id.startsWith("rental-") ? null : `rental-${id}`;
+  if (prefixed && housingById(prefixed)) return prefixed;
+  return null;
+}
+
 /** 응답 텍스트에서 추천 마커(<<REC:...>>)를 분리. 스트리밍 중 미완성 마커는 숨긴다. */
 function parseRec(text: string): { clean: string; ids: string[] } {
   const match = text.match(REC_RE);
   if (match) {
     const ids = match[1]
       .split(",")
-      .map((s) => s.trim())
-      .filter((id) => !!housingById(id));
+      .map((s) => normalizeUnitId(s))
+      .filter((id): id is string => !!id);
     return { clean: text.replace(REC_RE, "").trim(), ids: [...new Set(ids)].slice(0, 3) };
   }
   // 스트리밍 도중 아직 닫히지 않은 마커 조각 숨김
@@ -78,14 +112,15 @@ function ChatRecMap({ ids }: { ids: string[] }) {
     <div className="mt-3 overflow-hidden rounded-[var(--radius-card)] border border-border bg-surface shadow-[var(--shadow-sm)]">
       <div className="flex items-center gap-1.5 border-b border-border bg-primary-subtle px-3 py-2 text-xs font-bold text-primary">
         <MapPin className="h-3.5 w-3.5" aria-hidden />
-        추천 주택 {units.length}곳 · 지도
+        갈붕 지도 · 추천 {units.length}곳
       </div>
       <div className="h-[240px] w-full">
         <MapPanel
           markers={markers}
           selectedId={null}
           onSelect={(id) => router.push(`/map?selected=${id}`)}
-          ariaLabel="추천 주택 미니 지도"
+          ariaLabel="추천 주택 갈붕 미니 지도"
+          fullBleed
         />
       </div>
       <ul className="divide-y divide-border">
@@ -116,7 +151,7 @@ function ChatRecMap({ ids }: { ids: string[] }) {
         className="flex items-center justify-center gap-1.5 border-t border-border bg-primary py-2.5 text-sm font-bold text-white transition-colors hover:bg-primary-hover"
       >
         <MapPin className="h-4 w-4" aria-hidden />
-        전체 지도에서 자세히 보기
+        갈붕 지도에서 보기
       </Link>
     </div>
   );
@@ -157,7 +192,8 @@ export function DemoChat() {
       });
       if (!res.ok || !res.body) {
         const data = await res.json().catch(() => null);
-        throw new Error(data?.error ?? "응답을 불러오지 못했어요.");
+        const base = data?.error ?? "응답을 불러오지 못했어요.";
+        throw new Error(data?.detail ? `${base} (${data.detail})` : base);
       }
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -263,24 +299,62 @@ export function DemoChat() {
           <div ref={endRef} />
 
           {messages.length <= 2 && (
-            <section aria-labelledby="suggested-questions-title" className="mt-8 border-t border-border pt-5">
-              <h3 id="suggested-questions-title" className="flex items-center gap-2 text-sm font-bold text-navy">
-                <Sparkles className="h-4 w-4 text-primary" aria-hidden />
-                이런 질문을 해보세요
-              </h3>
-              <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                {DEMO_CHAT_TOPICS.map((topic) => (
+            <section aria-labelledby="usage-guide-title" className="mt-6 border-t border-border pt-5">
+              {/* 갈붕이가 먼저 사용법을 보여준다 */}
+              <div className="flex items-start gap-2.5 rounded-[var(--radius-card)] bg-primary-subtle/60 p-3.5">
+                <Mascot pose="pointUp" className="h-12 w-12 shrink-0" sizes="48px" />
+                <div className="min-w-0">
+                  <h3 id="usage-guide-title" className="text-sm font-bold text-navy">
+                    이렇게 물어보면 제가 잘 찾아드려요!
+                  </h3>
+                  <p className="mt-1 text-sm leading-relaxed text-muted">
+                    <b className="font-semibold text-fg">가구 상황</b> + <b className="font-semibold text-fg">예산</b> +{" "}
+                    <b className="font-semibold text-fg">원하는 지역·생활권</b>을 함께 말해주면 딱 맞는 집을 추천하고
+                    지도로 보여드려요.
+                  </p>
+                </div>
+              </div>
+
+              <p className="mt-4 flex items-center gap-1.5 text-xs font-bold text-primary">
+                <Sparkles className="h-3.5 w-3.5" aria-hidden />
+                아래 예시를 눌러 그대로 따라해 보세요
+              </p>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                {USAGE_EXAMPLES.map((example) => (
                   <button
-                    key={topic.key}
+                    key={example.prompt}
                     type="button"
                     disabled={streaming}
-                    onClick={() => sendQuestion(topic.question)}
-                    className="min-h-11 rounded-[var(--radius-input)] border border-border bg-surface px-4 py-2.5 text-left text-sm font-medium text-fg transition-colors hover:border-primary/40 hover:bg-primary-subtle focus-visible:outline focus-visible:outline-3 focus-visible:outline-[var(--color-ring)] disabled:opacity-50"
+                    onClick={() => sendQuestion(example.prompt)}
+                    className="group rounded-[var(--radius-card)] border border-border bg-surface p-3 text-left transition-colors hover:border-primary/50 hover:bg-primary-subtle/50 focus-visible:outline focus-visible:outline-3 focus-visible:outline-[var(--color-ring)] disabled:opacity-50"
                   >
-                    {topic.question}
+                    <span className="inline-flex rounded-full bg-primary-subtle px-2 py-0.5 text-[11px] font-bold text-primary">
+                      {example.tag}
+                    </span>
+                    <span className="mt-1.5 block text-sm font-semibold text-navy">“{example.prompt}”</span>
+                    <span className="mt-1 block text-xs text-muted">{example.hint}</span>
                   </button>
                 ))}
               </div>
+
+              <details className="mt-3">
+                <summary className="cursor-pointer text-xs font-semibold text-muted hover:text-fg">
+                  다른 질문도 보기
+                </summary>
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  {DEMO_CHAT_TOPICS.map((topic) => (
+                    <button
+                      key={topic.key}
+                      type="button"
+                      disabled={streaming}
+                      onClick={() => sendQuestion(topic.question)}
+                      className="min-h-11 rounded-[var(--radius-input)] border border-border bg-surface px-4 py-2.5 text-left text-sm font-medium text-fg transition-colors hover:border-primary/40 hover:bg-primary-subtle focus-visible:outline focus-visible:outline-3 focus-visible:outline-[var(--color-ring)] disabled:opacity-50"
+                    >
+                      {topic.question}
+                    </button>
+                  ))}
+                </div>
+              </details>
             </section>
           )}
         </div>

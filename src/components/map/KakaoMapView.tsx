@@ -115,6 +115,7 @@ export function KakaoMapView({
   onSelect,
   ariaLabel = "주택 위치 지도",
   onViewportChange,
+  fullBleed = false,
 }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
@@ -250,15 +251,20 @@ export function KakaoMapView({
         onSelect={onSelect}
         ariaLabel={`${ariaLabel} (모의)`}
         onViewportChange={onViewportChange}
+        fullBleed={fullBleed}
       />
     );
   }
 
   return (
-    <div className="relative h-full min-h-[300px] w-full">
+    <div className={fullBleed ? "relative h-full w-full" : "relative h-full min-h-[300px] w-full"}>
       <div
         ref={containerRef}
-        className="h-full min-h-[300px] w-full overflow-hidden rounded-[var(--radius-card)] border border-border"
+        className={
+          fullBleed
+            ? "h-full w-full"
+            : "h-full min-h-[300px] w-full overflow-hidden rounded-[var(--radius-card)] border border-border"
+        }
         role="group"
         aria-label={ariaLabel}
       />

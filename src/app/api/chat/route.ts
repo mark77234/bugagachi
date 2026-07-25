@@ -44,8 +44,9 @@ function systemPrompt(housingId?: string): string {
 - 법적 자격 확정처럼 단정하지 말고, 가능성/참고 관점으로 안내하세요.
 - 금액은 "만원" 단위로 말하세요.
 - 개인정보(주민번호 등)를 묻거나 저장하지 마세요.
-- 특정 주택을 추천했다면, 답변의 맨 마지막 줄에 반드시 아래 형식으로 추천한 주택의 id(위 목록의 대괄호 안 id)를 최대 3개까지 적으세요. 이 줄은 사용자에게 지도로 보여주는 용도입니다.
+- 특정 주택을 추천했다면, 답변의 맨 마지막 줄에 반드시 아래 형식으로 추천한 주택의 id를 최대 3개까지 적으세요. 이 줄은 사용자에게 지도로 보여주는 용도입니다.
   형식(정확히 이대로, 다른 말 붙이지 말 것): <<REC:id1,id2,id3>>
+  id는 위 목록의 대괄호 안에 있는 값을 **글자 하나도 바꾸지 않고 그대로** 적으세요. 반드시 "rental-"로 시작하는 전체 id를 쓰고, 접두사를 빼거나 줄이지 마세요.
   추천이 아니라 일반 안내만 했다면 이 줄을 넣지 마세요.
 
 [부산 공공임대 주택 목록 (${MOCK_HOUSING.length}개 건물)]
@@ -106,7 +107,31 @@ export async function POST(req: Request) {
         "Cache-Control": "no-store",
       },
     });
-  } catch {
-    return Response.json({ error: "AI 응답을 불러오지 못했어요. 잠시 후 다시 시도해 주세요." }, { status: 502 });
+  } catch (error) {
+    // OpenAI 호출 실패 원인을 로그와 응답에 남긴다 (키 값 등 비밀은 포함하지 않음).
+    const err = error as { status?: number; code?: string; type?: string; message?: string };
+    const detail = [err?.status && `status=${err.status}`, err?.code && `code=${err.code}`, err?.type && `type=${err.type}`]
+      .filter(Boolean)
+      .join(" ");
+    console.error("[api/chat] OpenAI 호출 실패", {
+      status: err?.status,
+      code: err?.code,
+      type: err?.type,
+      message: err?.message,
+      model: MODEL,
+      keyLength: apiKey.length,
+    });
+
+    // 원인별 사용자 안내
+    let message = "AI 응답을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.";
+    if (err?.status === 401) message = "AI 인증에 실패했어요. 서버의 API 키 설정을 확인해 주세요.";
+    else if (err?.status === 429) {
+      message =
+        err?.code === "insufficient_quota"
+          ? "AI 사용 한도(크레딧)가 부족해요. 결제·사용량 설정을 확인해 주세요."
+          : "요청이 많아 잠시 대기가 필요해요. 잠시 후 다시 시도해 주세요.";
+    } else if (err?.status === 404) message = "설정된 AI 모델을 사용할 수 없어요. 모델 이름을 확인해 주세요.";
+
+    return Response.json({ error: message, detail: detail || undefined }, { status: 502 });
   }
 }

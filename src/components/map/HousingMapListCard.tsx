@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Building2, CalendarDays, ChevronRight, LocateFixed, MapPin } from "lucide-react";
+import { Building2, ChevronRight, MapPin } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
 import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
 import { ELIGIBILITY_TYPE_LABEL } from "@/features/eligibility/eligibility.types";
 import { bestCondition, type HousingUnit } from "@/mocks/housing";
 import { formatManwon } from "@/lib/formatting";
@@ -16,6 +16,10 @@ const STATUS = {
   unknown: { tone: "neutral" as const, label: "공고 확인 필요" },
 };
 
+/**
+ * 지도 목록 카드. 카드 자체가 "지도에서 보기" 역할을 한다 (클릭 → 마커 선택 + 지도 이동).
+ * 상세 페이지는 우측 하단 링크로 분리해 카드 클릭과 겹치지 않게 한다.
+ */
 export function HousingMapListCard({
   unit,
   selected,
@@ -27,63 +31,65 @@ export function HousingMapListCard({
 }) {
   const condition = bestCondition(unit);
   const status = STATUS[unit.recruitStatus];
+  const reduceMotion = useReducedMotion();
 
   return (
-    <article
+    <motion.article
       data-map-unit={unit.id}
-      aria-current={selected ? "true" : undefined}
+      whileHover={reduceMotion ? undefined : { y: -2 }}
+      transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
       className={cn(
-        "scroll-mt-4 rounded-[var(--radius-card)] border bg-surface p-4 shadow-[var(--shadow-sm)] transition-colors",
+        "scroll-mt-4 overflow-hidden rounded-[var(--radius-card)] border bg-surface shadow-[var(--shadow-sm)] transition-colors",
         selected ? "border-primary ring-2 ring-primary/25" : "border-border hover:border-primary/40",
       )}
     >
-      <div className="flex flex-wrap items-center gap-1.5">
-        <Badge tone="neutral">{ELIGIBILITY_TYPE_LABEL[unit.type]}</Badge>
-        <Badge tone={status.tone}>{status.label}</Badge>
-      </div>
-      <h3 className="mt-2 text-lg font-bold">{unit.name}</h3>
-      <p className="mt-1 flex items-start gap-1.5 text-sm text-muted">
-        <MapPin className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-        <span>{unit.address}</span>
-      </p>
+      {/* 카드 본문 전체가 지도 이동 버튼 */}
+      <button
+        type="button"
+        onClick={onSelect}
+        aria-pressed={selected}
+        aria-label={`${unit.name} 지도에서 보기`}
+        className="w-full p-4 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[var(--color-ring)]"
+      >
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Badge tone="neutral">{ELIGIBILITY_TYPE_LABEL[unit.type]}</Badge>
+          <Badge tone={status.tone}>{status.label}</Badge>
+        </div>
+        <h3 className="mt-2 text-base font-bold text-navy sm:text-lg">{unit.name}</h3>
+        <p className="mt-1 flex items-start gap-1.5 text-sm text-muted">
+          <MapPin className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+          <span className="min-w-0">{unit.address}</span>
+        </p>
 
-      <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 rounded-[var(--radius-input)] bg-surface-muted/70 p-3 text-sm">
-        <div>
-          <dt className="text-xs text-muted">보증금</dt>
-          <dd className="font-semibold text-fg">
-            {condition ? formatManwon(condition.deposit) : "미공개"}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-xs text-muted">월 임대료</dt>
-          <dd className="font-semibold text-fg">
-            {condition ? formatManwon(condition.monthlyRent) : "미공개"}
-          </dd>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <Building2 className="h-4 w-4 text-primary" aria-hidden />
-          <span>{unit.supplyCount}세대</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <CalendarDays className="h-4 w-4 text-primary" aria-hidden />
-          <span>공식 공고 확인</span>
-        </div>
-      </dl>
+        <dl className="mt-3 flex flex-wrap items-end gap-x-4 gap-y-2 rounded-[var(--radius-input)] bg-surface-muted/70 px-3 py-2.5 text-sm">
+          <div>
+            <dt className="text-xs text-muted">보증금</dt>
+            <dd className="font-semibold tabular-nums text-fg">
+              {condition ? formatManwon(condition.deposit) : "미공개"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-muted">월 임대료</dt>
+            <dd className="font-bold tabular-nums text-primary">
+              {condition ? formatManwon(condition.monthlyRent) : "미공개"}
+            </dd>
+          </div>
+          <div className="ml-auto flex items-center gap-1.5 text-xs text-muted">
+            <Building2 className="h-3.5 w-3.5 text-primary" aria-hidden />
+            {unit.supplyCount}세대
+          </div>
+        </dl>
+      </button>
 
-      <div className="mt-3 flex flex-wrap justify-end gap-2">
-        <button
-          type="button"
-          onClick={onSelect}
-          aria-pressed={selected}
-          className={cn(buttonVariants({ variant: selected ? "secondary" : "outline", size: "sm" }))}
+      <div className="flex items-center justify-between border-t border-border px-4 py-2">
+        <span className="text-xs font-medium text-muted">{selected ? "지도에 표시 중" : "카드를 누르면 지도로 이동해요"}</span>
+        <Link
+          href={`/housing/${unit.id}`}
+          className="inline-flex items-center gap-0.5 rounded text-sm font-semibold text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-ring)]"
         >
-          <LocateFixed className="h-4 w-4" aria-hidden />
-          지도에서 보기
-        </button>
-        <Link href={`/housing/${unit.id}`} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
           상세 보기 <ChevronRight className="h-4 w-4" aria-hidden />
         </Link>
       </div>
-    </article>
+    </motion.article>
   );
 }

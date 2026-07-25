@@ -2,17 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, ChevronDown, ChevronUp, Filter, Layers, RotateCcw } from "lucide-react";
-import type { HousingUnit } from "@/mocks/housing";
-import { MapPanel } from "@/components/map/MapPanel";
+import { ArrowLeft, Layers, ListFilter, RotateCcw } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { MapExplorerShell, FLOATING_PANEL } from "@/components/map/MapExplorerShell";
 import type { MapMarker, MapViewportBounds } from "@/components/map/MapView";
 import { HousingMapListCard } from "@/components/map/HousingMapListCard";
 import { MapResultsSheet } from "@/components/map/MapResultsSheet";
 import { Select } from "@/components/ui/select";
-import { buttonVariants } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { ELIGIBILITY_TYPE_LABEL, type EligibilityTypeCode } from "@/features/eligibility/eligibility.types";
-import { MOCK_HOUSING, RENTAL_DATASET_STATS, bestCondition, housingById, type RecruitStatus } from "@/mocks/housing";
+import { MOCK_HOUSING, bestCondition, housingById, type HousingUnit, type RecruitStatus } from "@/mocks/housing";
 import { formatManwon } from "@/lib/formatting";
 import { cn } from "@/lib/utils";
 
@@ -29,11 +27,9 @@ const VALID_GUNGUS = new Set(MOCK_HOUSING.map((unit) => unit.gungu));
 function initialType(value: string | null): EligibilityTypeCode | "all" {
   return value && VALID_TYPES.has(value as EligibilityTypeCode) ? (value as EligibilityTypeCode) : "all";
 }
-
 function initialStatus(value: string | null): RecruitStatus | "all" {
   return value && VALID_STATUSES.has(value as RecruitStatus) ? (value as RecruitStatus) : "all";
 }
-
 function initialGungu(value: string | null): string {
   return value && VALID_GUNGUS.has(value) ? value : "all";
 }
@@ -43,7 +39,7 @@ function coordKey(unit: HousingUnit) {
   return `${unit.coord.lat.toFixed(5)},${unit.coord.lng.toFixed(5)}`;
 }
 
-function isInside(bounds: MapViewportBounds, unit: (typeof MOCK_HOUSING)[number]) {
+function isInside(bounds: MapViewportBounds, unit: HousingUnit) {
   return (
     unit.coord.lat <= bounds.north &&
     unit.coord.lat >= bounds.south &&
@@ -72,9 +68,10 @@ export function HousingMapExplorer() {
   const [status, setStatus] = useState<RecruitStatus | "all">(() => initialStatus(params.get("status")));
   const [gungu, setGungu] = useState(() => initialGungu(params.get("gungu")));
   const [viewport, setViewport] = useState<MapViewportBounds | null>(null);
-  const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
   const [groupKey, setGroupKey] = useState<string | null>(null);
-  const listRef = useRef<HTMLElement>(null);
+  const [listOpen, setListOpen] = useState(true);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const gungus = useMemo(() => [...new Set(MOCK_HOUSING.map((unit) => unit.gungu))].sort(), []);
   const types = useMemo(() => [...new Set(MOCK_HOUSING.map((unit) => unit.type))], []);
@@ -106,7 +103,6 @@ export function HousingMapExplorer() {
     return map;
   }, [filteredUnits]);
 
-  // 유닛 id → 그룹 대표 id (선택 시 마커 하이라이트 매핑)
   const unitToRep = useMemo(() => {
     const map = new Map<string, string>();
     for (const list of groups.values()) {
@@ -124,10 +120,7 @@ export function HousingMapExplorer() {
           .map((unit) => bestCondition(unit)?.monthlyRent)
           .filter((value): value is number => value != null);
         const minRent = rents.length ? Math.min(...rents) : null;
-        const caption =
-          minRent == null
-            ? "가격 미공개"
-            : `월 ${formatManwon(minRent)}${list.length > 1 ? "~" : ""}`;
+        const caption = minRent == null ? "가격 미공개" : `월 ${formatManwon(minRent)}${list.length > 1 ? "~" : ""}`;
         return { id: rep.id, coord: rep.coord, label: rep.name, caption, count: list.length };
       }),
     [groups],
@@ -135,7 +128,6 @@ export function HousingMapExplorer() {
 
   const mapSelectedId = activeId ? unitToRep.get(activeId) ?? activeId : null;
 
-  // 마커/카드 선택: 같은 위치가 여러 곳이면 그 그룹 목록으로 전환
   const handleSelect = useCallback(
     (id: string) => {
       setSelectedId(id);
@@ -144,14 +136,14 @@ export function HousingMapExplorer() {
       const key = coordKey(unit);
       const groupSize = groups.get(key)?.length ?? 1;
       setGroupKey(groupSize > 1 ? key : null);
+      setListOpen(true);
     },
     [groups],
   );
 
-  // 선택된 그룹(같은 상가) 목록, 없으면 현재 지도 영역 목록
   const listUnits = groupKey ? groups.get(groupKey) ?? visibleUnits : visibleUnits;
 
-  // 마커 선택 시 리스트에서 해당 카드로 스크롤
+  // 마커 선택 시 목록에서 해당 카드로 스크롤
   useEffect(() => {
     if (!activeId) return;
     const node = listRef.current?.querySelector<HTMLElement>(`[data-map-unit="${activeId}"]`);
@@ -169,6 +161,7 @@ export function HousingMapExplorer() {
   };
 
   const hasFilters = type !== "all" || status !== "all" || gungu !== "all";
+  const filterCount = [type !== "all", status !== "all", gungu !== "all"].filter(Boolean).length;
 
   useEffect(() => {
     const next = new URLSearchParams();
@@ -181,157 +174,153 @@ export function HousingMapExplorer() {
   }, [activeId, gungu, router, status, type]);
 
   return (
-    <div className="flex min-h-[calc(100dvh-5rem)] flex-col md:h-dvh md:min-h-0">
-      <header className="shrink-0 border-b border-border bg-surface px-4 py-3 sm:px-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-extrabold tracking-[-0.02em] text-navy sm:text-2xl">전체 주택 지도</h1>
-              <Badge tone="primary">{RENTAL_DATASET_STATS.buildings}개 건물</Badge>
-            </div>
-            <p className="mt-1 text-xs text-muted sm:text-sm">
-              부산 공공임대주택 {RENTAL_DATASET_STATS.validRows}호실을 건물 단위로 탐색해요. 모집 일정은 공식 공고 확인이 필요해요.
-            </p>
-          </div>
-          <p className="rounded-full bg-warning-subtle px-3 py-1.5 text-xs font-semibold text-warning">
-            실시간 모집공고 아님
-          </p>
-        </div>
-      </header>
-
-      <section
-        aria-labelledby="map-filter-title"
-        className="z-20 shrink-0 border-b border-border bg-surface/95 px-4 py-3 shadow-[var(--shadow-sm)] backdrop-blur sm:px-6"
-      >
-        <div className="flex flex-wrap items-center justify-between gap-2 sm:mb-2">
-          <h2 id="map-filter-title" className="flex items-center gap-2 text-base font-bold">
-            <Filter className="h-4 w-4 text-primary" aria-hidden />
-            주택 필터
-          </h2>
-          <div className="flex items-center gap-1">
-            {hasFilters && (
-              <button type="button" onClick={resetFilters} className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
-                <RotateCcw className="h-4 w-4" aria-hidden />
-                초기화
-              </button>
+    <MapExplorerShell
+      current="map"
+      listCount={listUnits.length}
+      listRef={listRef}
+      mapProps={{
+        markers,
+        selectedId: mapSelectedId,
+        onSelect: handleSelect,
+        onViewportChange: handleViewportChange,
+        ariaLabel: `부산 공공임대주택 ${filteredUnits.length}곳 갈붕 지도`,
+      }}
+      controls={
+        <>
+          <button
+            type="button"
+            onClick={() => setShowFilters((v) => !v)}
+            aria-expanded={showFilters}
+            aria-controls="map-filters"
+            className={cn(
+              FLOATING_PANEL,
+              "flex h-11 items-center gap-1.5 px-4 text-sm font-bold transition-colors hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-ring)]",
+              hasFilters ? "text-primary" : "text-fg",
             )}
+          >
+            <ListFilter className="h-4 w-4" aria-hidden />
+            필터
+            {filterCount > 0 && (
+              <span className="ml-0.5 rounded-full bg-primary px-1.5 py-0.5 text-[11px] font-bold text-white">
+                {filterCount}
+              </span>
+            )}
+          </button>
+          <span className={cn(FLOATING_PANEL, "flex h-11 items-center px-4 text-sm font-semibold text-navy")}>
+            <span className="text-primary">{filteredUnits.length}</span>곳
+          </span>
+          {hasFilters && (
             <button
               type="button"
-              onClick={() => setShowMobileFilters((value) => !value)}
-              aria-expanded={showMobileFilters}
-              aria-controls="map-filter-options"
-              className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "sm:hidden")}
+              onClick={resetFilters}
+              className={cn(
+                FLOATING_PANEL,
+                "flex h-11 items-center gap-1.5 px-4 text-sm font-semibold text-muted transition-colors hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-ring)]",
+              )}
             >
-              {showMobileFilters ? "접기" : "펼치기"}
-              {showMobileFilters ? <ChevronUp className="h-4 w-4" aria-hidden /> : <ChevronDown className="h-4 w-4" aria-hidden />}
+              <RotateCcw className="h-4 w-4" aria-hidden />
+              초기화
             </button>
-          </div>
-        </div>
-        <div id="map-filter-options" className={cn("gap-3 sm:grid sm:grid-cols-3", showMobileFilters ? "grid" : "hidden")}>
-          <label className="grid gap-1.5 text-sm font-semibold text-fg">
-            지역
-            <Select value={gungu} onChange={(event) => setGungu(event.target.value)} className="w-full">
-              <option value="all">부산 전체</option>
-              {gungus.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </Select>
-          </label>
-          <label className="grid gap-1.5 text-sm font-semibold text-fg">
-            임대 유형
-            <Select
-              value={type}
-              onChange={(event) => setType(event.target.value as EligibilityTypeCode | "all")}
-              className="w-full"
-            >
-              <option value="all">전체 유형</option>
-              {types.map((item) => (
-                <option key={item} value={item}>
-                  {ELIGIBILITY_TYPE_LABEL[item]}
-                </option>
-              ))}
-            </Select>
-          </label>
-          <label className="grid gap-1.5 text-sm font-semibold text-fg">
-            모집 상태
-            <Select
-              value={status}
-              onChange={(event) => setStatus(event.target.value as RecruitStatus | "all")}
-              className="w-full"
-            >
-              <option value="all">전체 상태</option>
-              {statuses.map((value) => (
-                <option key={value} value={value}>
-                  {STATUS_LABEL[value]}
-                </option>
-              ))}
-            </Select>
-          </label>
-        </div>
-      </section>
+          )}
 
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border bg-bg px-4 py-2 text-sm sm:px-6">
-        <p className="font-semibold text-navy">
-          필터 결과 <span className="text-primary">{filteredUnits.length}곳</span>
-        </p>
-        <p className="text-muted" aria-live="polite">
-          현재 지도 영역 {visibleUnits.length}곳
-        </p>
-      </div>
-
-      <div className="relative grid min-h-0 flex-1 lg:grid-cols-[420px_minmax(0,1fr)]">
-        <aside
-          ref={listRef}
-          className="hidden min-h-0 space-y-3 overflow-y-auto border-r border-border bg-surface p-4 lg:block"
-          aria-label={groupKey ? "선택한 위치의 주택 목록" : "현재 지도 영역의 주택 목록"}
-        >
-          {groupKey && listUnits.length > 1 && (
-            <div className="flex items-center justify-between gap-2 rounded-[var(--radius-input)] bg-primary-subtle px-3 py-2">
-              <span className="flex items-center gap-1.5 text-sm font-bold text-primary">
-                <Layers className="h-4 w-4" aria-hidden />
-                이 위치 {listUnits.length}곳
-              </span>
-              <button
-                type="button"
-                onClick={() => setGroupKey(null)}
-                className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
+          <AnimatePresence>
+            {showFilters && (
+              <motion.div
+                id="map-filters"
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.16 }}
+                className="w-[min(92vw,420px)] basis-full rounded-[var(--radius-cardlg)] border border-border bg-surface/97 p-3 shadow-[var(--shadow-sheet)] backdrop-blur"
               >
-                <ArrowLeft className="h-4 w-4" aria-hidden /> 전체 목록
-              </button>
-            </div>
-          )}
-          {listUnits.length > 0 ? (
-            listUnits.map((unit) => (
-              <HousingMapListCard
-                key={unit.id}
-                unit={unit}
-                selected={unit.id === activeId}
-                onSelect={() => handleSelect(unit.id)}
-              />
-            ))
-          ) : (
-            <div className="rounded-[var(--radius-card)] border border-border bg-surface p-8 text-center text-sm text-muted">
-              현재 지도 영역에 조건과 맞는 주택이 없어요.
-            </div>
-          )}
-        </aside>
-
-        <div className="relative min-h-[560px] lg:min-h-0">
-          <MapPanel
-            markers={markers}
-            selectedId={mapSelectedId}
-            onSelect={handleSelect}
-            onViewportChange={handleViewportChange}
-            ariaLabel={`부산 공공임대주택 ${filteredUnits.length}곳 지도`}
+                <div className="grid gap-2.5 sm:grid-cols-3">
+                  <label className="grid gap-1 text-xs font-bold text-muted">
+                    지역
+                    <Select value={gungu} onChange={(e) => setGungu(e.target.value)} className="h-11 w-full">
+                      <option value="all">부산 전체</option>
+                      {gungus.map((item) => (
+                        <option key={item} value={item}>
+                          {item}
+                        </option>
+                      ))}
+                    </Select>
+                  </label>
+                  <label className="grid gap-1 text-xs font-bold text-muted">
+                    임대 유형
+                    <Select
+                      value={type}
+                      onChange={(e) => setType(e.target.value as EligibilityTypeCode | "all")}
+                      className="h-11 w-full"
+                    >
+                      <option value="all">전체 유형</option>
+                      {types.map((item) => (
+                        <option key={item} value={item}>
+                          {ELIGIBILITY_TYPE_LABEL[item]}
+                        </option>
+                      ))}
+                    </Select>
+                  </label>
+                  <label className="grid gap-1 text-xs font-bold text-muted">
+                    모집 상태
+                    <Select
+                      value={status}
+                      onChange={(e) => setStatus(e.target.value as RecruitStatus | "all")}
+                      className="h-11 w-full"
+                    >
+                      <option value="all">전체 상태</option>
+                      {statuses.map((value) => (
+                        <option key={value} value={value}>
+                          {STATUS_LABEL[value]}
+                        </option>
+                      ))}
+                    </Select>
+                  </label>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </>
+      }
+      listTitle={
+        groupKey && listUnits.length > 1 ? (
+          <span className="flex items-center gap-2">
+            <span className="flex items-center gap-1.5 text-sm font-bold text-primary">
+              <Layers className="h-4 w-4" aria-hidden />
+              이 위치 {listUnits.length}곳
+            </span>
+            <button
+              type="button"
+              onClick={() => setGroupKey(null)}
+              className="inline-flex items-center gap-1 rounded text-sm font-semibold text-muted hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-ring)]"
+            >
+              <ArrowLeft className="h-4 w-4" aria-hidden /> 전체
+            </button>
+          </span>
+        ) : (
+          <span className="text-sm font-bold text-navy">
+            지도 영역 <span className="text-primary">{listUnits.length}곳</span>
+          </span>
+        )
+      }
+      sheet={<MapResultsSheet units={listUnits} selectedId={activeId} onSelect={handleSelect} />}
+    >
+      {listUnits.length > 0 ? (
+        listUnits.map((unit) => (
+          <HousingMapListCard
+            key={unit.id}
+            unit={unit}
+            selected={unit.id === activeId}
+            onSelect={() => handleSelect(unit.id)}
           />
-          <MapResultsSheet units={listUnits} selectedId={activeId} onSelect={handleSelect} />
-          <p className="sr-only" aria-live="polite">
-            {activeId ? `${housingById(activeId)?.name ?? "주택"} 선택됨` : ""}
-          </p>
-        </div>
-      </div>
-    </div>
+        ))
+      ) : (
+        <p className="p-8 text-center text-sm text-muted">
+          이 지도 영역에는 조건과 맞는 주택이 없어요. 지도를 움직여 보세요.
+        </p>
+      )}
+      <p className="sr-only" aria-live="polite">
+        {activeId ? `${housingById(activeId)?.name ?? "주택"} 선택됨` : ""}
+      </p>
+    </MapExplorerShell>
   );
 }

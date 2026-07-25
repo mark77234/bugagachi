@@ -178,7 +178,7 @@ export default function LandingPage() {
             eyebrow="부산 공공임대주택을 한눈에"
             title="지도에서 전체 주택 둘러보기"
             description={`부산 공공임대주택 ${RENTAL_DATASET_STATS.buildings}개 건물을 지도에서 한눈에 살펴보세요.`}
-            actionLabel="부산 공공임대 전체 지도 열기"
+            actionLabel="갈붕 지도 열기"
             tone="map"
             illustration={<MapIllustration />}
             illustrationFill

@@ -32,6 +32,8 @@ export interface MapViewProps {
   onSelect: (id: string) => void;
   ariaLabel?: string;
   onViewportChange?: (bounds: MapViewportBounds) => void;
+  /** 전체화면 지도: 테두리·라운드 없이 화면을 꽉 채운다. */
+  fullBleed?: boolean;
 }
 
 // 부산 대략 경계 (WGS84)
@@ -56,6 +58,7 @@ export function MockMapView({
   onSelect,
   ariaLabel = "주택 위치 지도 (모의)",
   onViewportChange,
+  fullBleed = false,
 }: MapViewProps) {
   useEffect(() => {
     onViewportChange?.(BUSAN_MOCK_VIEWPORT);
@@ -63,7 +66,10 @@ export function MockMapView({
 
   return (
     <div
-      className="relative h-full min-h-[320px] w-full overflow-hidden rounded-[var(--radius-card)] border border-border"
+      className={cn(
+        "relative h-full w-full overflow-hidden",
+        fullBleed ? "" : "min-h-[320px] rounded-[var(--radius-card)] border border-border",
+      )}
       style={{
         backgroundColor: "#e8eeec",
         backgroundImage:
