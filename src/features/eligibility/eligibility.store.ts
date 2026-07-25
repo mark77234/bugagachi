@@ -39,8 +39,9 @@ interface EligibilityState {
   // actions
   setStepA: (v: Partial<Pick<EligibilityState, "ownSelfHouse" | "ownMemberHouse" | "hasRestriction">>) => void;
   setBirth: (iso: string) => void;
-  addMember: (relation: MemberRelation) => void;
+  addMember: (relation: MemberRelation, detail?: string) => void;
   removeMember: (id: string) => void;
+  setMemberRelation: (id: string, relation: MemberRelation) => void;
   setStepC: (
     v: Partial<
       Pick<
@@ -81,9 +82,13 @@ export const useEligibilityStore = create<EligibilityState>()(
       ...initial,
       setStepA: (v) => set((s) => ({ ...s, ...v })),
       setBirth: (iso) => set({ birthISO: iso }),
-      addMember: (relation) =>
-        set((s) => ({ members: [...s.members, { id: `m${++memberSeq}-${s.members.length}`, relation }] })),
+      addMember: (relation, detail) =>
+        set((s) => ({ members: [...s.members, { id: `m${++memberSeq}-${s.members.length}`, relation, detail }] })),
       removeMember: (id) => set((s) => ({ members: s.members.filter((m) => m.id !== id || m.relation === "SELF") })),
+      setMemberRelation: (id, relation) =>
+        set((s) => ({
+          members: s.members.map((m) => (m.id === id && m.relation !== "SELF" ? { ...m, relation, detail: undefined } : m)),
+        })),
       setStepC: (v) => set((s) => ({ ...s, ...v })),
       setLivesInBusan: (v) => set({ livesInBusan: v }),
       setDetail: (detail) => set({ detail }),

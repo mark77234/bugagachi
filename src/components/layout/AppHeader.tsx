@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 
 const NAV = [
   { href: "/eligibility", label: "맞춤 추천" },
-  { href: "/chat", label: "AI 안내" },
+  { href: "/chat", label: "AI 갈붕이" },
   { href: "/map", label: "전체 지도" },
   { href: "/community", label: "커뮤니티" },
 ];
@@ -29,10 +29,10 @@ function Logo() {
       <Image
         src="/assets/logo/bugagachi_website_logo.png"
         alt=""
-        width={36}
-        height={36}
+        width={40}
+        height={40}
         priority
-        className="h-9 w-9 rounded-[10px] object-contain"
+        className="h-10 w-10 shrink-0 object-contain"
         aria-hidden
       />
       <span className="text-lg font-extrabold tracking-tight text-navy">부가가치</span>

@@ -33,11 +33,9 @@ export function HousingMapListCard({
       data-map-unit={unit.id}
       aria-current={selected ? "true" : undefined}
       className={cn(
-        "rounded-[var(--radius-card)] border bg-surface p-4 shadow-[var(--shadow-sm)] transition-colors",
-        selected ? "border-primary ring-1 ring-primary/20" : "border-border hover:border-primary/40",
+        "scroll-mt-4 rounded-[var(--radius-card)] border bg-surface p-4 shadow-[var(--shadow-sm)] transition-colors",
+        selected ? "border-primary ring-2 ring-primary/25" : "border-border hover:border-primary/40",
       )}
-      onMouseEnter={onSelect}
-      onFocus={onSelect}
     >
       <div className="flex flex-wrap items-center gap-1.5">
         <Badge tone="neutral">{ELIGIBILITY_TYPE_LABEL[unit.type]}</Badge>

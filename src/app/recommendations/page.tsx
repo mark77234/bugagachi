@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -51,6 +51,14 @@ function RecommendationsInner() {
   const [typeF, setTypeF] = useState<Set<string>>(new Set());
   const [gunguF, setGunguF] = useState<Set<string>>(new Set());
   const [activeId, setActiveId] = useState<string | null>(null);
+  const listRef = useRef<HTMLElement>(null);
+
+  // 지도 마커 선택 시 목록에서 해당 카드로 스크롤
+  useEffect(() => {
+    if (!activeId) return;
+    const node = listRef.current?.querySelector<HTMLElement>(`[data-rec-unit="${activeId}"]`);
+    node?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [activeId]);
 
   useEffect(() => {
     if (!fresh) return;
@@ -281,6 +289,7 @@ function RecommendationsInner() {
       ) : (
         <div className="grid min-h-0 flex-1 md:grid-cols-[430px_minmax(0,1fr)]">
           <section
+            ref={listRef}
             className={cn(
               "min-h-0 border-r border-border bg-surface md:block md:overflow-y-auto",
               view === "map" && "hidden",

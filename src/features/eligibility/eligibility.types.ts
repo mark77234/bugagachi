@@ -19,12 +19,14 @@ export type EligibilityStatus = "PASS" | "FAIL" | "NEEDS_MORE";
 export type IncomeStandard = "MEDIAN" | "URBAN";
 export type HouseholderDef = "self" | "household"; // 무주택자 / 무주택세대구성원
 export type CarBand = "NONE" | "UNDER_4542" | "OVER";
-export type MemberRelation = "SELF" | "SPOUSE" | "PARENT" | "CHILD" | "FETUS";
+export type MemberRelation = "SELF" | "SPOUSE" | "PARENT" | "CHILD" | "FETUS" | "SIBLING" | "OTHER";
 export type BaseYear = 2026 | 2025;
 
 export interface HouseholdMember {
   id: string;
   relation: MemberRelation;
+  /** 표시용 세부 관계 (예: 아버지, 배우자 어머니). 자격 판정에는 인원수만 사용. */
+  detail?: string;
 }
 
 /** 1-1 공통 입력 */

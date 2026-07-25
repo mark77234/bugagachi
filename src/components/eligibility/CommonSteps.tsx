@@ -1,15 +1,17 @@
 "use client";
 
-import { Plus, X } from "lucide-react";
-import type { CSSProperties } from "react";
+import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
 import { useEligibilityStore } from "@/features/eligibility/eligibility.store";
 import { ASSET_BRACKETS, CAR_OPTIONS, incomeBrackets } from "@/features/eligibility/eligibility.brackets";
 import type { CarBand, MemberRelation } from "@/features/eligibility/eligibility.types";
 import { RadioCards } from "@/components/ui/selectable";
 import { InfoAccordion } from "@/components/ui/accordion";
 import { Input } from "@/components/ui/input";
-import { InformationBanner } from "@/components/common/banners";
-import { calcKoreanAge, withThousands } from "@/lib/formatting";
+import { Select } from "@/components/ui/select";
+import { Toggle } from "@/components/ui/toggle";
+import { calcKoreanAge } from "@/lib/formatting";
+import { cn } from "@/lib/utils";
 import type { Bracket } from "@/features/eligibility/eligibility.brackets";
 
 const YESNO = (yesLabel: string, noLabel: string) => [
@@ -71,31 +73,31 @@ export function StepA() {
   );
 }
 
-const RELATIONS: { value: MemberRelation; label: string }[] = [
+const MAX_HOUSEHOLD = 8;
+
+/** 추가 가구원 관계 옵션 (본인·태아 제외). 자격 판정에는 인원수만 사용. */
+const ADD_RELATIONS: { value: MemberRelation; label: string }[] = [
   { value: "SPOUSE", label: "배우자" },
   { value: "PARENT", label: "부모" },
   { value: "CHILD", label: "자녀" },
-  { value: "FETUS", label: "태아" },
+  { value: "SIBLING", label: "형제자매" },
+  { value: "OTHER", label: "기타" },
 ];
-const RELATION_LABEL: Record<MemberRelation, string> = {
-  SELF: "본인",
-  SPOUSE: "배우자",
-  PARENT: "부모",
-  CHILD: "자녀",
-  FETUS: "태아",
-};
 
 /** 스텝 B — 가구·나이 */
 export function StepB() {
-  const { birthISO, setBirth, members, addMember, removeMember } = useEligibilityStore();
+  const { birthISO, setBirth, members, addMember, removeMember, setMemberRelation } = useEligibilityStore();
   const age = calcKoreanAge(birthISO);
+
+  const total = members.length;
+  const atMax = total >= MAX_HOUSEHOLD;
+  const rows = members.filter((m) => m.relation !== "FETUS"); // 본인 + 추가 가구원
+  const fetus = members.find((m) => m.relation === "FETUS");
+  const hasFetus = !!fetus;
+
   return (
     <div>
-      <InformationBanner tone="primary" className="mb-6" title="가구원은 주민등록상 관계를 기준으로 입력해요">
-        본인·배우자·직계존속(부모·조부모, 배우자 부모 포함)·미성년 자녀·성년 자녀·태아를 포함하고,
-        형제자매와 단순 동거인은 제외해요.
-      </InformationBanner>
-      <Field legend="생년월일을 입력해 주세요" help="만 나이는 자동으로 계산돼요.">
+      <Field legend="생년월일" help="만 나이는 자동으로 계산돼요.">
         <div className="flex flex-wrap items-center gap-3">
           <Input
             type="date"
@@ -113,47 +115,79 @@ export function StepB() {
         </div>
       </Field>
 
-      <Field
-        legend="주민등록상 세대구성원을 관계별로 알려주세요"
-        help="본인은 기본 포함돼요. 같은 관계가 여러 명이면 필요한 만큼 추가하세요."
-      >
-        <ul className="mb-3 flex flex-wrap gap-2">
-          {members.map((m) => (
-            <li
-              key={m.id}
-              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-sm"
-            >
-              {RELATION_LABEL[m.relation]}
-              {m.relation !== "SELF" && (
+      <fieldset className="mb-6 last:mb-0">
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-x-3 gap-y-1">
+          <legend className="font-semibold text-fg">가구원 구성</legend>
+          <span className="text-sm text-muted">
+            함께 거주하는 가구원을 추가해 주세요 · 총 <b className="font-bold text-primary">{total}명</b>
+          </span>
+        </div>
+
+        <div className="space-y-2">
+          {rows.map((m) =>
+            m.relation === "SELF" ? (
+              <div
+                key={m.id}
+                className="flex h-12 items-center rounded-[var(--radius-input)] border border-border bg-surface-muted px-4 font-semibold text-fg"
+              >
+                본인
+              </div>
+            ) : (
+              <div key={m.id} className="flex items-center gap-2">
+                <Select
+                  value={m.relation}
+                  onChange={(e) => setMemberRelation(m.id, e.target.value as MemberRelation)}
+                  aria-label="가구원 관계"
+                  className="h-12 flex-1"
+                >
+                  {ADD_RELATIONS.map((r) => (
+                    <option key={r.value} value={r.value}>
+                      {r.label}
+                    </option>
+                  ))}
+                </Select>
                 <button
                   type="button"
-                  aria-label={`${RELATION_LABEL[m.relation]} 삭제`}
                   onClick={() => removeMember(m.id)}
-                  className="rounded-full p-0.5 text-muted hover:bg-surface-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-ring)]"
+                  aria-label="가구원 삭제"
+                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[var(--radius-input)] border border-border text-muted transition-colors hover:border-error/40 hover:bg-error-subtle hover:text-error focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-ring)]"
                 >
-                  <X className="h-3.5 w-3.5" />
+                  <Trash2 className="h-4 w-4" aria-hidden />
                 </button>
-              )}
-            </li>
-          ))}
-        </ul>
-        <div className="flex flex-wrap gap-2">
-          {RELATIONS.map((r) => (
-            <button
-              key={r.value}
-              type="button"
-              onClick={() => addMember(r.value)}
-              className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-primary/40 bg-surface px-4 text-sm font-medium text-primary hover:bg-primary-subtle focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-ring)]"
-            >
-              <Plus className="h-4 w-4" /> {r.label}
-            </button>
-          ))}
+              </div>
+            ),
+          )}
         </div>
-        <InfoAccordion summary="태아도 가구원에 포함되나요?" className="mt-4">
-          네. 임신 중인 태아는 가구원 수와 일부 유형의 완화 기준에 포함될 수 있어요. 실제 인정 여부는 모집공고 기준으로
-          확인해요.
-        </InfoAccordion>
-      </Field>
+
+        <button
+          type="button"
+          onClick={() => !atMax && addMember("CHILD", "자녀")}
+          disabled={atMax}
+          className="mt-2 flex min-h-12 w-full items-center justify-center gap-1.5 rounded-[var(--radius-input)] border-2 border-dashed border-border text-sm font-semibold text-primary transition-colors hover:enabled:border-primary/50 hover:enabled:bg-primary-subtle disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-ring)]"
+        >
+          <Plus className="h-4 w-4" aria-hidden />
+          {atMax ? `최대 ${MAX_HOUSEHOLD}명까지 추가할 수 있어요` : "가구원 추가"}
+        </button>
+
+        <div className="mt-3 flex items-center justify-between gap-3 rounded-[var(--radius-input)] border border-border bg-surface px-4 py-3">
+          <div className="min-w-0">
+            <p className="font-semibold text-fg">태아 포함</p>
+            <p className="mt-0.5 text-sm text-muted">임신 중이면 태아도 가구원에 포함돼요.</p>
+          </div>
+          <Toggle
+            checked={hasFetus}
+            onChange={() => {
+              if (hasFetus && fetus) removeMember(fetus.id);
+              else if (!atMax) addMember("FETUS", "태아");
+            }}
+            label="태아 포함"
+          />
+        </div>
+
+        <p className="mt-3 text-sm text-muted">
+          본인은 기본 포함돼요. 자격 판정에는 인원수만 사용하고, 개인정보는 저장하지 않아요.
+        </p>
+      </fieldset>
     </div>
   );
 }
@@ -163,62 +197,72 @@ function bracketIndexForValue(value: number, brackets: Bracket[]): number {
   return index === -1 ? brackets.length - 1 : index;
 }
 
-function AmountRange({
-  label,
-  value,
-  max,
-  step,
-  marks,
-  onChange,
+/** 금액 직접 입력(주 입력) + '금액을 모르면 범위로 선택' 접이식 구간 카드. */
+function AmountField({
+  ariaLabel,
+  placeholder,
+  exact,
+  brackets,
+  bracketIndex,
+  columns = 2,
+  onExact,
+  onBracket,
 }: {
-  label: string;
-  value: number | null;
-  max: number;
-  step: number;
-  marks: { value: number; label: string }[];
-  onChange: (value: number) => void;
+  ariaLabel: string;
+  placeholder: string;
+  exact: number | null;
+  brackets: Bracket[];
+  bracketIndex: number | null;
+  columns?: number;
+  onExact: (v: number) => void;
+  onBracket: (i: number) => void;
 }) {
-  const current = Math.min(value ?? 0, max);
+  const [open, setOpen] = useState(false);
+  const selectedRange = exact == null ? bracketIndex : null;
   return (
     <div>
-      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <p className="text-sm text-muted">슬라이더를 움직이거나 금액을 직접 입력하세요.</p>
-        <label className="flex items-center gap-2">
-          <span className="sr-only">{label}</span>
-          <Input
-            type="number"
-            inputMode="numeric"
-            min={0}
-            value={value ?? ""}
-            onChange={(event) => onChange(Math.max(0, Number(event.target.value) || 0))}
-            aria-label={`${label}, 만원 단위 직접 입력`}
-            className="w-full sm:w-44"
-          />
-          <span className="shrink-0 text-sm text-muted">만원</span>
-        </label>
+      <div className="relative">
+        <Input
+          type="number"
+          inputMode="numeric"
+          min={0}
+          value={exact ?? ""}
+          placeholder={placeholder}
+          onChange={(event) => onExact(Math.max(0, Number(event.target.value) || 0))}
+          aria-label={ariaLabel}
+          className="h-14 pr-16 text-lg font-bold tabular-nums"
+        />
+        <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-muted">만원</span>
       </div>
-      <input
-        type="range"
-        min={0}
-        max={max}
-        step={step}
-        value={current}
-        onChange={(event) => onChange(Number(event.target.value))}
-        aria-label={`${label}, 슬라이더`}
-        className="preference-range w-full"
-        style={{ "--range-progress": `${(current / max) * 100}%` } as CSSProperties}
-      />
-      <div className="mt-3 flex justify-between gap-2 text-xs text-muted" aria-hidden>
-        {marks.map((mark) => (
-          <span key={mark.value} className="text-center">
-            {mark.label}
-          </span>
-        ))}
-      </div>
-      {value !== null && (
-        <p className="mt-3 rounded-[var(--radius-input)] bg-surface-muted px-4 py-3 text-sm text-fg">
-          입력 금액 <b>{withThousands(value)}만원</b>
-        </p>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="mt-2.5 inline-flex items-center gap-1 rounded text-sm font-semibold text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-ring)]"
+      >
+        금액을 모르면 범위로 선택
+        {open ? <ChevronUp className="h-4 w-4" aria-hidden /> : <ChevronDown className="h-4 w-4" aria-hidden />}
+      </button>
+      {open && (
+        <div className={cn("mt-3 grid gap-2", columns === 2 && "sm:grid-cols-2")}>
+          {brackets.map((b) => {
+            const on = selectedRange === b.index;
+            return (
+              <button
+                key={b.index}
+                type="button"
+                aria-pressed={on}
+                onClick={() => onBracket(b.index)}
+                className={cn(
+                  "min-h-12 rounded-[var(--radius-choice)] border-2 px-3 text-sm font-semibold transition-colors",
+                  on ? "border-primary bg-primary-subtle text-primary" : "border-border bg-surface text-fg hover:border-primary/50",
+                )}
+              >
+                {b.label}
+              </button>
+            );
+          })}
+        </div>
       )}
     </div>
   );
@@ -237,76 +281,45 @@ export function StepC() {
   } = useEligibilityStore();
   const size = Math.min(Math.max(members.length, 1), 8);
   const incomeOptions = incomeBrackets(size);
-  const finiteIncome = incomeOptions.filter((bracket) => Number.isFinite(bracket.repManwon));
-  const incomeMax = Math.ceil((finiteIncome.at(-1)?.repManwon ?? 1000) * 1.25 / 10) * 10;
-  const incomeValue =
-    incomeManwonExact ??
-    (incomeBracketIndex !== null && Number.isFinite(incomeOptions[incomeBracketIndex].repManwon)
-      ? incomeOptions[incomeBracketIndex].repManwon
-      : null);
-  const assetValue =
-    assetManwonExact ??
-    (assetBracketIndex !== null && Number.isFinite(ASSET_BRACKETS[assetBracketIndex].repManwon)
-      ? ASSET_BRACKETS[assetBracketIndex].repManwon
-      : null);
+  const income100 = incomeOptions[2]?.repManwon ?? 0;
   const carOpts = CAR_OPTIONS.map((o) => ({ value: o.value, label: o.label }));
-  const incomeLegend =
-    size === 1
-      ? "본인의 월평균 소득(세전)은 얼마인가요?"
-      : "본인 포함 세대구성원 전원의 월소득 합계는 얼마인가요?";
-  const assetLegend =
-    size === 1 ? "본인이 보유한 총자산은 얼마인가요?" : "세대구성원 전원의 총자산 합계는 얼마인가요?";
+  const incomeLegend = size === 1 ? "본인 월평균 소득이 얼마인가요?" : "세대 월평균 소득이 얼마인가요?";
+  const assetLegend = "가구의 총자산이 얼마인가요?";
 
   return (
     <div>
-      <InformationBanner tone="primary" className="mb-6" title={`${size}인 가구 기준으로 확인해요`}>
-        청년은 본인 기준, 그 외는 세대 기준을 적용할 수 있어요. 세대 소득 합산 시 미성년 자녀 소득은 제외하고,
-        총자산은 세대원 전원을 포함해요.
-      </InformationBanner>
       <Field
         legend={incomeLegend}
-        help={size === 1 ? "월 기준 세전 금액을 입력하세요." : "미성년 자녀 소득은 제외한 월 기준 세전 합계예요."}
+        help={`${size}인 가구 · 도시근로자 월평균소득 100% = ${income100.toLocaleString("ko-KR")}만원`}
       >
-        <AmountRange
-          label={incomeLegend}
-          value={incomeValue}
-          max={incomeMax}
-          step={1}
-          marks={[
-            { value: 0, label: "0" },
-            { value: Math.round(incomeMax / 2), label: `${withThousands(Math.round(incomeMax / 2))}만원` },
-            { value: incomeMax, label: `${withThousands(incomeMax)}만원+` },
-          ]}
-          onChange={(value) =>
-            setStepC({
-              incomeManwonExact: value,
-              incomeBracketIndex: bracketIndexForValue(value, incomeOptions),
-            })
+        <AmountField
+          ariaLabel={incomeLegend}
+          placeholder="예: 280"
+          exact={incomeManwonExact}
+          brackets={incomeOptions}
+          bracketIndex={incomeBracketIndex}
+          onExact={(value) =>
+            setStepC({ incomeManwonExact: value, incomeBracketIndex: bracketIndexForValue(value, incomeOptions) })
           }
+          onBracket={(index) => setStepC({ incomeBracketIndex: index, incomeManwonExact: null })}
         />
       </Field>
 
-      <Field legend={assetLegend} help="부동산 + 자동차 + 금융 + 기타 − 부채 기준이에요.">
-        <AmountRange
-          label={assetLegend}
-          value={assetValue}
-          max={50_000}
-          step={100}
-          marks={[
-            { value: 0, label: "0" },
-            { value: 25_000, label: "2억 5,000만원" },
-            { value: 50_000, label: "5억원+" },
-          ]}
-          onChange={(value) =>
-            setStepC({
-              assetManwonExact: value,
-              assetBracketIndex: bracketIndexForValue(value, ASSET_BRACKETS),
-            })
+      <Field legend={assetLegend} help="부동산+자동차+금융+기타 − 부채 로 계산한 금액이에요.">
+        <AmountField
+          ariaLabel={assetLegend}
+          placeholder="예: 15,000"
+          exact={assetManwonExact}
+          brackets={ASSET_BRACKETS}
+          bracketIndex={assetBracketIndex}
+          onExact={(value) =>
+            setStepC({ assetManwonExact: value, assetBracketIndex: bracketIndexForValue(value, ASSET_BRACKETS) })
           }
+          onBracket={(index) => setStepC({ assetBracketIndex: index, assetManwonExact: null })}
         />
       </Field>
 
-      <Field legend="세대원이 보유한 차량 중 가장 비싼 차의 가액은?">
+      <Field legend="가구가 소유한 차량 상태는?" help="자동차 가액 4,542만원이 기준이에요.">
         <RadioCards
           name="car"
           columns={3}

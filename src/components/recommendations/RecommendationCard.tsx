@@ -47,11 +47,13 @@ export function RecommendationCard({
   );
 
   return (
-    <motion.article layout whileHover={{ y: -2 }} transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}>
+    <motion.article layout whileHover={{ y: -2 }} transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }} data-rec-unit={unit.id}>
       <Card
-        className={cn("transition-colors", active ? "border-primary ring-1 ring-primary/30" : "hover:border-primary/40")}
-        onMouseEnter={onActivate}
-        onFocus={onActivate}
+        className={cn(
+          "scroll-mt-4 cursor-pointer transition-colors",
+          active ? "border-primary ring-2 ring-primary/30" : "hover:border-primary/40",
+        )}
+        onClick={onActivate}
       >
         <CardBody className="space-y-3 p-4">
         <div className="flex items-start gap-3">

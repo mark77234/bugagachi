@@ -63,9 +63,9 @@ const VIDEO_FEATURES: {
   {
     video: "question",
     poster: "readDocument",
-    eyebrow: "03 · AI 안내",
-    title: "궁금한 점은 언제든 물어보세요",
-    desc: "임대 유형, 자격 조건, 준비 서류와 신청 절차를 쉬운 말로 안내해요. 헷갈리는 부분을 바로 확인할 수 있어요.",
+    eyebrow: "03 · AI 갈붕이",
+    title: "AI 갈붕이에게 언제든 물어보세요",
+    desc: "공공임대 안내부터 예산·생활 취향 맞춤 추천까지, AI 갈붕이가 대화로 도와드려요.",
   },
   {
     video: "onTheMap",
@@ -163,10 +163,10 @@ export default function LandingPage() {
           />
           <ServiceEntryCard
             href="/chat"
-            eyebrow="복잡한 공공임대 정보를 쉽게"
-            title="궁금한 점, AI에게 물어보기"
-            description="임대 유형, 자격 조건, 준비 서류와 신청 절차를 쉬운 말로 안내받아보세요."
-            actionLabel="AI 안내 시작하기"
+            eyebrow="AI 갈붕이"
+            title="AI 갈붕이에게 물어보기"
+            description="공공임대 안내부터 예산·생활 취향 맞춤 주택 추천까지, AI 갈붕이가 도와드려요."
+            actionLabel="AI 갈붕이 시작하기"
             tone="warm"
             illustration={<ChatIllustration />}
             illustrationFill

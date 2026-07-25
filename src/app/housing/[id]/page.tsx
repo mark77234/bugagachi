@@ -197,7 +197,7 @@ export default function HousingDetailPage() {
             className={cn(buttonVariants({ variant: "outline", size: "md" }))}
           >
             <MessageCircleQuestion className="h-4 w-4" aria-hidden />
-            AI에게 물어보기
+            AI 갈붕이에게 물어보기
           </Link>
           <Link
             href={`/map?selected=${unit.id}`}

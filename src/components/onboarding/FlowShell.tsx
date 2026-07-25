@@ -37,7 +37,7 @@ export function FlowShell({
               alt=""
               width={32}
               height={32}
-              className="h-8 w-8 rounded-[10px] object-contain"
+              className="h-8 w-8 shrink-0 object-contain"
               aria-hidden
             />
             <span className="text-lg font-extrabold tracking-[-0.03em]">부가가치</span>

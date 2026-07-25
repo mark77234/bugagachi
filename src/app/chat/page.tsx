@@ -8,18 +8,18 @@ import { Badge } from "@/components/ui/badge";
 import { DemoChat } from "@/components/chat/DemoChat";
 
 export const metadata: Metadata = {
-  title: "공공임대 AI 안내 · 부가가치",
-  description: "공공임대 유형, 자격 조건, 준비 서류와 신청 절차를 쉬운 말로 안내해요.",
+  title: "AI 갈붕이 · 부산 공공임대 추천·안내",
+  description: "AI 갈붕이가 공공임대 유형, 자격 조건, 준비 서류와 신청 절차를 안내하고 맞춤 주택을 추천해요.",
 };
 
 export default function ChatPage() {
   return (
     <PageContainer size="wide" className="py-6">
       <PageIntro
-        eyebrow="공공임대 정보 안내"
-        title="궁금한 점을 편하게 물어보세요"
-        description="임대 유형, 자격 조건, 준비 서류와 신청 절차에 관한 기본 질문을 쉬운 말로 안내해요."
-        badge={<Badge tone="warning">AI 안내</Badge>}
+        eyebrow="AI 갈붕이"
+        title="AI 갈붕이에게 물어보고 추천받으세요"
+        description="공공임대 유형·자격·서류·절차 안내부터 예산·생활 취향에 맞는 맞춤 주택 추천까지 도와드려요."
+        badge={<Badge tone="primary">AI 임대주택 도우미</Badge>}
         compact
       />
       <InformationBanner tone="warning" className="mb-4 py-3" title="AI 답변은 참고용이에요">
@@ -28,7 +28,7 @@ export default function ChatPage() {
       <Suspense
         fallback={
           <div className="py-12">
-            <LoadingState title="안내 도우미를 준비하고 있어요" />
+            <LoadingState title="AI 갈붕이를 준비하고 있어요" />
           </div>
         }
       >

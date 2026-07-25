@@ -1,11 +1,12 @@
 /** Zod 스키마 — 1단계 입력 검증. RHF resolver 및 store 복구 검증에 사용. */
 import { z } from "zod";
 
-export const memberRelationSchema = z.enum(["SELF", "SPOUSE", "PARENT", "CHILD", "FETUS"]);
+export const memberRelationSchema = z.enum(["SELF", "SPOUSE", "PARENT", "CHILD", "FETUS", "SIBLING", "OTHER"]);
 
 export const householdMemberSchema = z.object({
   id: z.string(),
   relation: memberRelationSchema,
+  detail: z.string().optional(),
 });
 
 export const carBandSchema = z.enum(["NONE", "UNDER_4542", "OVER"]);

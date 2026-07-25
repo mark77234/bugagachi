@@ -183,6 +183,7 @@ export default function EligibilityPage() {
                 )}
                 <QuestionCard
                   title={stepTitle(step)}
+                  eyebrow={`STEP ${step} · ${STEPS.findIndex((s) => s.key === step) + 1}/${STEPS.length}`}
                   headingRef={questionHeadingRef}
                   description={stepDesc(step)}
                   onPrev={step === "A" ? undefined : handleStepPrev}
@@ -260,8 +261,8 @@ function stepTitle(step: StepKey): string {
 function stepDesc(step: StepKey): string {
   return {
     A: "무주택 세대만 공공임대를 신청할 수 있어요. 세 가지만 확인해 주세요.",
-    B: "가구원 수와 만 나이는 소득·자산 기준의 축이 돼요.",
-    C: "슬라이더를 움직이거나 만원 단위 금액을 직접 입력할 수 있어요.",
+    B: "가구원수와 만 나이는 소득·자산 기준을 정하는 축이 돼요.",
+    C: "정확한 금액이 어려우면 범위로 선택해도 괜찮아요.",
     D: "부산 거주 여부에 따라 신청 가능한 유형이 달라져요.",
   }[step];
 }

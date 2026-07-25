@@ -217,6 +217,7 @@ export default function PreferencesPage() {
             ) : (
               <QuestionCard
                 title={meta!.title}
+                eyebrow={`생활 취향 · ${idx}/${ORDER.length - 1}`}
                 headingRef={questionHeadingRef}
                 description={meta!.desc}
                 onPrev={() => setIdx((i) => i - 1)}

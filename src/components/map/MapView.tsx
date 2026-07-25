@@ -1,6 +1,6 @@
 "use client";
 
-import { MapPin } from "lucide-react";
+import Image from "next/image";
 import { useEffect } from "react";
 import type { LatLng } from "@/lib/coordinates";
 import { cn } from "@/lib/utils";
@@ -12,7 +12,12 @@ export interface MapMarker {
   coord: LatLng;
   label: string;
   caption?: string;
+  /** 같은 위치(건물/상가)에 묶인 주택 수. 1보다 크면 클러스터 마커. */
+  count?: number;
 }
+
+/** 지도 마커에 함께 노출하는 브랜드 로고. */
+export const MAP_MARKER_LOGO = "/assets/logo/bugagachi_website_logo.png";
 
 export interface MapViewportBounds {
   north: number;
@@ -89,12 +94,19 @@ export function MockMapView({
           >
             <span
               className={cn(
-                "flex items-center gap-1 rounded-full border px-2 py-1 text-xs font-semibold shadow-[var(--shadow-sm)]",
+                "flex items-center gap-1 rounded-full border py-1 pl-1 pr-2.5 text-xs font-bold shadow-[var(--shadow-card)]",
                 active ? "border-primary bg-primary text-white" : "border-border bg-surface text-fg",
               )}
             >
-              <MapPin className="h-3.5 w-3.5" aria-hidden />
+              <span className="flex h-5 w-5 items-center justify-center overflow-hidden rounded-full bg-white">
+                <Image src={MAP_MARKER_LOGO} alt="" width={20} height={20} className="h-5 w-5 object-contain" />
+              </span>
               {m.caption ?? m.label}
+              {m.count && m.count > 1 ? (
+                <span className={cn("ml-0.5 rounded-full px-1.5 py-0.5 text-[10px]", active ? "bg-white/25" : "bg-primary-subtle text-primary")}>
+                  {m.count}
+                </span>
+              ) : null}
             </span>
           </button>
         );

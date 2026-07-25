@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ChevronDown, ChevronUp, Filter, RotateCcw } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronUp, Filter, Layers, RotateCcw } from "lucide-react";
+import type { HousingUnit } from "@/mocks/housing";
 import { MapPanel } from "@/components/map/MapPanel";
 import type { MapMarker, MapViewportBounds } from "@/components/map/MapView";
 import { HousingMapListCard } from "@/components/map/HousingMapListCard";
@@ -37,6 +38,11 @@ function initialGungu(value: string | null): string {
   return value && VALID_GUNGUS.has(value) ? value : "all";
 }
 
+/** 같은 위치(건물/상가)를 하나의 마커로 묶기 위한 좌표 키. */
+function coordKey(unit: HousingUnit) {
+  return `${unit.coord.lat.toFixed(5)},${unit.coord.lng.toFixed(5)}`;
+}
+
 function isInside(bounds: MapViewportBounds, unit: (typeof MOCK_HOUSING)[number]) {
   return (
     unit.coord.lat <= bounds.north &&
@@ -67,6 +73,8 @@ export function HousingMapExplorer() {
   const [gungu, setGungu] = useState(() => initialGungu(params.get("gungu")));
   const [viewport, setViewport] = useState<MapViewportBounds | null>(null);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [groupKey, setGroupKey] = useState<string | null>(null);
+  const listRef = useRef<HTMLElement>(null);
 
   const gungus = useMemo(() => [...new Set(MOCK_HOUSING.map((unit) => unit.gungu))].sort(), []);
   const types = useMemo(() => [...new Set(MOCK_HOUSING.map((unit) => unit.type))], []);
@@ -85,15 +93,70 @@ export function HousingMapExplorer() {
 
   const activeId = filteredUnits.some((unit) => unit.id === selectedId) ? selectedId : null;
   const visibleUnits = viewport ? filteredUnits.filter((unit) => isInside(viewport, unit)) : filteredUnits;
-  const markers: MapMarker[] = filteredUnits.map((unit) => {
-    const condition = bestCondition(unit);
-    return {
-      id: unit.id,
-      coord: unit.coord,
-      label: unit.name,
-      caption: condition ? `월 ${formatManwon(condition.monthlyRent)}` : "가격 미공개",
-    };
-  });
+
+  // 같은 위치(건물/상가)로 묶기
+  const groups = useMemo(() => {
+    const map = new Map<string, HousingUnit[]>();
+    for (const unit of filteredUnits) {
+      const key = coordKey(unit);
+      const list = map.get(key);
+      if (list) list.push(unit);
+      else map.set(key, [unit]);
+    }
+    return map;
+  }, [filteredUnits]);
+
+  // 유닛 id → 그룹 대표 id (선택 시 마커 하이라이트 매핑)
+  const unitToRep = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const list of groups.values()) {
+      const rep = list[0].id;
+      for (const unit of list) map.set(unit.id, rep);
+    }
+    return map;
+  }, [groups]);
+
+  const markers: MapMarker[] = useMemo(
+    () =>
+      [...groups.values()].map((list) => {
+        const rep = list[0];
+        const rents = list
+          .map((unit) => bestCondition(unit)?.monthlyRent)
+          .filter((value): value is number => value != null);
+        const minRent = rents.length ? Math.min(...rents) : null;
+        const caption =
+          minRent == null
+            ? "가격 미공개"
+            : `월 ${formatManwon(minRent)}${list.length > 1 ? "~" : ""}`;
+        return { id: rep.id, coord: rep.coord, label: rep.name, caption, count: list.length };
+      }),
+    [groups],
+  );
+
+  const mapSelectedId = activeId ? unitToRep.get(activeId) ?? activeId : null;
+
+  // 마커/카드 선택: 같은 위치가 여러 곳이면 그 그룹 목록으로 전환
+  const handleSelect = useCallback(
+    (id: string) => {
+      setSelectedId(id);
+      const unit = housingById(id);
+      if (!unit) return;
+      const key = coordKey(unit);
+      const groupSize = groups.get(key)?.length ?? 1;
+      setGroupKey(groupSize > 1 ? key : null);
+    },
+    [groups],
+  );
+
+  // 선택된 그룹(같은 상가) 목록, 없으면 현재 지도 영역 목록
+  const listUnits = groupKey ? groups.get(groupKey) ?? visibleUnits : visibleUnits;
+
+  // 마커 선택 시 리스트에서 해당 카드로 스크롤
+  useEffect(() => {
+    if (!activeId) return;
+    const node = listRef.current?.querySelector<HTMLElement>(`[data-map-unit="${activeId}"]`);
+    node?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [activeId, groupKey]);
 
   const handleViewportChange = useCallback((next: MapViewportBounds) => {
     setViewport((current) => (sameBounds(current, next) ? current : next));
@@ -220,16 +283,32 @@ export function HousingMapExplorer() {
 
       <div className="relative grid min-h-0 flex-1 lg:grid-cols-[420px_minmax(0,1fr)]">
         <aside
+          ref={listRef}
           className="hidden min-h-0 space-y-3 overflow-y-auto border-r border-border bg-surface p-4 lg:block"
-          aria-label="현재 지도 영역의 주택 목록"
+          aria-label={groupKey ? "선택한 위치의 주택 목록" : "현재 지도 영역의 주택 목록"}
         >
-          {visibleUnits.length > 0 ? (
-            visibleUnits.map((unit) => (
+          {groupKey && listUnits.length > 1 && (
+            <div className="flex items-center justify-between gap-2 rounded-[var(--radius-input)] bg-primary-subtle px-3 py-2">
+              <span className="flex items-center gap-1.5 text-sm font-bold text-primary">
+                <Layers className="h-4 w-4" aria-hidden />
+                이 위치 {listUnits.length}곳
+              </span>
+              <button
+                type="button"
+                onClick={() => setGroupKey(null)}
+                className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
+              >
+                <ArrowLeft className="h-4 w-4" aria-hidden /> 전체 목록
+              </button>
+            </div>
+          )}
+          {listUnits.length > 0 ? (
+            listUnits.map((unit) => (
               <HousingMapListCard
                 key={unit.id}
                 unit={unit}
                 selected={unit.id === activeId}
-                onSelect={() => setSelectedId(unit.id)}
+                onSelect={() => handleSelect(unit.id)}
               />
             ))
           ) : (
@@ -242,12 +321,12 @@ export function HousingMapExplorer() {
         <div className="relative min-h-[560px] lg:min-h-0">
           <MapPanel
             markers={markers}
-            selectedId={activeId}
-            onSelect={setSelectedId}
+            selectedId={mapSelectedId}
+            onSelect={handleSelect}
             onViewportChange={handleViewportChange}
             ariaLabel={`부산 공공임대주택 ${filteredUnits.length}곳 지도`}
           />
-          <MapResultsSheet units={visibleUnits} selectedId={activeId} onSelect={setSelectedId} />
+          <MapResultsSheet units={listUnits} selectedId={activeId} onSelect={handleSelect} />
           <p className="sr-only" aria-live="polite">
             {activeId ? `${housingById(activeId)?.name ?? "주택"} 선택됨` : ""}
           </p>
