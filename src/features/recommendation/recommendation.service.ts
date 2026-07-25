@@ -6,8 +6,10 @@ import {
   MOCK_HOUSING,
   bestCondition,
   matchingConditions,
+  type HousingMetric,
   type HousingUnit,
 } from "@/mocks/housing";
+import { EDUCATION_LABEL, REQUIRED_LABEL, parkEdgeMetricOf } from "@/features/infra/nearby-infra";
 import type { EligibilityTypeCode } from "@/features/eligibility/eligibility.types";
 import {
   AXIS_LABEL,
@@ -55,33 +57,54 @@ const EDU_PROFILE_KEY: Record<EduCategory, keyof HousingUnit["source"]["educatio
   HIGH: "high",
 };
 
+/**
+ * 공원은 원주거리 특례를 적용한 사전계산 값으로 교체한다 (docs/score_logic.md §7).
+ * 중심점 거리 기준이면 대형 공원이 대표점 하나로 과소평가된다.
+ */
+function infraMetricOf(unit: HousingUnit, category: InfraCategory): HousingMetric | null {
+  if (category === "PARK") {
+    const edge = parkEdgeMetricOf(unit.id);
+    if (edge) return { distance: edge.distance, score: edge.score };
+  }
+  return unit.source.infra[INFRA_PROFILE_KEY[category]];
+}
+
 function scoreInfra(unit: HousingUnit, s: PreferenceSurveyInput): AxisResult | null {
-  const metrics = s.infra.categories
-    .map((category) => unit.source.infra[INFRA_PROFILE_KEY[category]])
-    .filter((value): value is NonNullable<typeof value> => value !== null);
+  const picked = s.infra.categories.map((category) => ({
+    category,
+    metric: infraMetricOf(unit, category),
+  }));
+  // 값이 있는 항목만 평균에 넣는다. 열 자체가 없는 항목(=계산 불가)은 0점이 아니라 제외한다.
+  const metrics = picked
+    .map((item) => item.metric)
+    .filter((value): value is HousingMetric => value !== null);
   if (metrics.length === 0) return null;
-  const close = metrics.filter(({ score }) => score >= 0.6).length;
-  const nearest = metrics.reduce((best, item) =>
-    item.distance < best.distance ? item : best,
-  );
+  const nearest = metrics.reduce((best, item) => (item.distance < best.distance ? item : best));
+  const weakest = picked
+    .filter((item): item is { category: InfraCategory; metric: HousingMetric } => item.metric !== null)
+    .reduce((worst, item) => (item.metric.score < worst.metric.score ? item : worst));
   return {
     score: equalMean(metrics.map(({ score }) => score)),
-    raw: `계산 가능한 ${metrics.length}개 중 ${close}개가 가까운 편 · 최근접 ${formatDistance(nearest.distance)}`,
+    raw: `최근접 ${formatDistance(nearest.distance)} · 가장 먼 항목 ${REQUIRED_LABEL[weakest.category]} ${formatDistance(weakest.metric.distance)}`,
   };
 }
 
 function scoreEducation(unit: HousingUnit, s: PreferenceSurveyInput): AxisResult | null {
-  const metrics = s.education.categories
-    .map((category) => unit.source.education[EDU_PROFILE_KEY[category]])
-    .filter((value): value is NonNullable<typeof value> => value !== null);
+  const picked = s.education.categories.map((category) => ({
+    category,
+    metric: unit.source.education[EDU_PROFILE_KEY[category]],
+  }));
+  const metrics = picked
+    .map((item) => item.metric)
+    .filter((value): value is HousingMetric => value !== null);
   if (metrics.length === 0) return null;
-  const close = metrics.filter(({ score }) => score >= 0.6).length;
-  const nearest = metrics.reduce((best, item) =>
-    item.distance < best.distance ? item : best,
-  );
+  const nearest = metrics.reduce((best, item) => (item.distance < best.distance ? item : best));
+  const weakest = picked
+    .filter((item): item is { category: EduCategory; metric: HousingMetric } => item.metric !== null)
+    .reduce((worst, item) => (item.metric.score < worst.metric.score ? item : worst));
   return {
     score: equalMean(metrics.map(({ score }) => score)),
-    raw: `계산 가능한 ${metrics.length}개 중 ${close}개가 가까운 편 · 최근접 ${formatDistance(nearest.distance)}`,
+    raw: `최근접 ${formatDistance(nearest.distance)} · 가장 먼 항목 ${EDUCATION_LABEL[weakest.category]} ${formatDistance(weakest.metric.distance)}`,
   };
 }
 
@@ -94,10 +117,16 @@ function scoreStore(unit: HousingUnit, s: PreferenceSurveyInput): AxisResult | n
     );
   if (densities.length === 0) return null;
   const mean = equalMean(densities.map((item) => item.density.score));
-  const strongest = [...densities].sort((a, b) => b.density.score - a.density.score)[0];
+  // 문서 §12 출력 요건: 칩별 개수·백분위를 "카페 37곳 · 상위 9%" 형태로 남긴다.
+  const detail = [...densities]
+    .sort((a, b) => b.density.score - a.density.score)
+    .slice(0, 3)
+    .map((item) => `${item.chip} ${item.density.count}곳 ${formatPercentileTop(item.density.score)}`)
+    .join(" · ");
+  const unavailable = s.store.chips.length - densities.length;
   return {
     score: mean,
-    raw: `${strongest.chip} ${strongest.density.count}곳 · 평균 밀도 ${formatPercentileTop(mean)} (건물 기준)`,
+    raw: `${detail}${unavailable > 0 ? ` · ${unavailable}개 업종은 원자료 미보유로 제외` : ""}`,
   };
 }
 

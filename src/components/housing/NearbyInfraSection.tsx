@@ -30,6 +30,8 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { INFRA_COLOR, INFRA_MARKER_ICON, type MapInfraPoi } from "@/components/map/MapView";
 import { MapPanel } from "@/components/map/MapPanel";
+import { INFRA_GLYPH_MARKUP } from "@/components/map/infra-glyph-markup";
+import { Select } from "@/components/ui/select";
 import {
   RADIUS_BANDS,
   bandOf,
@@ -76,15 +78,16 @@ const PREFERENCE_ICON: Record<string, LucideIcon> = {
   "독서실/스터디카페": Library,
 };
 
-/** 카테고리에 맞는 lucide 아이콘 엘리먼트. (컴포넌트를 렌더 중에 새로 만들지 않도록 createElement 로 만든다) */
+/** 카테고리에 맞는 lucide 아이콘 컴포넌트. */
+function iconOf(poi: NearbyPoi): LucideIcon {
+  if (poi.tier === "required") return REQUIRED_ICON[poi.category as InfraCategory] ?? Store;
+  if (poi.tier === "education") return EDUCATION_ICON[poi.category as EduCategory] ?? School;
+  return PREFERENCE_ICON[poi.category] ?? Store;
+}
+
+/** 아이콘 엘리먼트. (컴포넌트를 렌더 중에 새로 만들지 않도록 createElement 로 만든다) */
 function poiIcon(poi: NearbyPoi, className: string) {
-  const icon: LucideIcon =
-    poi.tier === "required"
-      ? REQUIRED_ICON[poi.category as InfraCategory] ?? Store
-      : poi.tier === "education"
-        ? EDUCATION_ICON[poi.category as EduCategory] ?? School
-        : PREFERENCE_ICON[poi.category] ?? Store;
-  return createElement(icon, { className, "aria-hidden": true });
+  return createElement(iconOf(poi), { className, "aria-hidden": true });
 }
 
 const TIER_LABEL: Record<MapInfraPoi["tier"], string> = {
@@ -220,12 +223,28 @@ export function NearbyInfraSection({
 }) {
   const reduceMotion = useReducedMotion();
   const [tierFilter, setTierFilter] = useState<TierFilter>("all");
+  const [bandFilter, setBandFilter] = useState<RadiusBandKey | "all">("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const infra = useMemo(() => detailInfraFor(unitId, { includeEducation }), [unitId, includeEducation]);
-  const list = useMemo(
+  /** 분류 필터만 적용한 목록 — 반경 드롭다운의 구간별 개수 계산에 쓴다. */
+  const byTier = useMemo(
     () => (tierFilter === "all" ? infra.all : infra.all.filter((poi) => poi.tier === tierFilter)),
     [infra.all, tierFilter],
+  );
+
+  const bandCounts = useMemo(() => {
+    const counts = new Map<RadiusBandKey, number>();
+    for (const poi of byTier) {
+      const key = bandOf(poi.distance);
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    return counts;
+  }, [byTier]);
+
+  const list = useMemo(
+    () => (bandFilter === "all" ? byTier : byTier.filter((poi) => bandOf(poi.distance) === bandFilter)),
+    [byTier, bandFilter],
   );
 
   const byBand = useMemo(() => {
@@ -249,6 +268,8 @@ export function NearbyInfraSection({
         categoryLabel: infraCategoryLabel(poi),
         tier: poi.tier,
         distance: poi.distance,
+        // 이 지도만 업종별 글리프를 쓴다. 지도 탭은 기존 전용 핀 이미지를 그대로 유지.
+        iconSvg: INFRA_GLYPH_MARKUP[`${poi.tier}:${poi.category}`],
       })),
     [list],
   );
@@ -274,8 +295,8 @@ export function NearbyInfraSection({
 
   return (
     <div className="space-y-4">
-      {/* 티어 필터 */}
-      <div className="flex flex-wrap gap-2">
+      {/* 필터 — 분류(칩) + 반경 구간(드롭다운) */}
+      <div className="flex flex-wrap items-center gap-2">
         {FILTERS.map((filter) => {
           const active = tierFilter === filter.key;
           return (
@@ -297,6 +318,26 @@ export function NearbyInfraSection({
             </button>
           );
         })}
+
+        <label className="ml-auto flex items-center gap-2 text-xs font-bold text-muted">
+          거리
+          <Select
+            value={bandFilter}
+            onChange={(event) => setBandFilter(event.target.value as RadiusBandKey | "all")}
+            className="h-9 w-auto text-sm font-semibold"
+            aria-label="반경 구간 선택"
+          >
+            <option value="all">전체 거리</option>
+            {RADIUS_BANDS.map((band) => {
+              const count = bandCounts.get(band.key) ?? 0;
+              return (
+                <option key={band.key} value={band.key} disabled={count === 0}>
+                  {band.label} ({count})
+                </option>
+              );
+            })}
+          </Select>
+        </label>
       </div>
 
       {/* 주택 위치 + 주변 인프라를 한 지도에 펼친다. 핀을 누르면 지도 안 바텀 카드로 설명이 뜬다. */}

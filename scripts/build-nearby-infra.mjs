@@ -48,7 +48,7 @@ const num = (value) => {
 };
 
 /** 위경도 컬럼을 그대로 가진 소스(1순위·교육). */
-function fromLatLngRows(rows, { name, detail, filter }) {
+function fromLatLngRows(rows, { name, detail, filter, extra }) {
   const out = [];
   for (const row of rows) {
     if (filter && !filter(row)) continue;
@@ -57,7 +57,7 @@ function fromLatLngRows(rows, { name, detail, filter }) {
     if (lat === null || lng === null) continue;
     const label = (typeof name === "function" ? name(row) : row[name])?.toString().trim();
     if (!label) continue;
-    out.push({ name: label, detail: detail ? detail(row) : undefined, lat, lng });
+    out.push({ name: label, detail: detail ? detail(row) : undefined, lat, lng, ...(extra ? extra(row) : {}) });
   }
   return out;
 }
@@ -93,6 +93,11 @@ const REQUIRED = {
   PARK: fromLatLngRows(readJson("required_infra/park.json"), {
     name: "공원명",
     detail: (r) => r["공원종류"] ?? undefined,
+    // 원주거리 특례(docs/score_logic.md §7)에 쓸 등가반경 r = √(면적/π)
+    extra: (r) => {
+      const area = num(r["공원면적(m)"]);
+      return area && area > 0 ? { equivalentRadius: Math.sqrt(area / Math.PI) } : undefined;
+    },
   }),
   LIBRARY: fromLatLngRows(readJson("required_infra/library.json"), {
     name: "시설명",
@@ -209,10 +214,51 @@ function nearestFor(origin, projectedGroup, { radius, perCategory }) {
   }));
 }
 
+/**
+ * 공원 원주거리 특례 (docs/score_logic.md §7).
+ *
+ * 공원은 경계에 닿는 순간부터 이용이 시작되므로 중심점 거리가 아니라
+ * 등가원 원주까지의 거리를 쓴다. 등가반경 r = √(면적/π), 거리 = max(중심거리 − r, 0).
+ * 원주 기준에서는 최근접 공원이 중심점 기준과 달라지므로 최근접 1곳만 보지 않고 전 공원을 훑는다.
+ */
+const PARK_KNOTS = [750, 1500, 3000, 6000];
+const PARK_VALUES = [1.0, 0.6, 0.2, 0.0];
+
+/** 매듭 + 선형보간. 최상·최하 구간은 평탄(포화). */
+function knotScore(distance, knots, values) {
+  if (distance <= knots[0]) return values[0];
+  for (let i = 0; i < knots.length - 1; i += 1) {
+    if (distance <= knots[i + 1]) {
+      const t = (distance - knots[i]) / (knots[i + 1] - knots[i]);
+      return values[i] + t * (values[i + 1] - values[i]);
+    }
+  }
+  return values[values.length - 1];
+}
+
+function parkEdgeMetric(origin) {
+  let best = null;
+  for (const park of PROJECTED.required.PARK) {
+    const center = planarMeters(origin, park);
+    const radius = park.equivalentRadius ?? 0;
+    // 공원 내부면 0m
+    const edge = Math.max(center - radius, 0) * DETOUR;
+    if (!best || edge < best.distance) best = { distance: edge, name: park.name, radius };
+  }
+  if (!best) return null;
+  return {
+    d: Math.round(best.distance),
+    s: Number(knotScore(best.distance, PARK_KNOTS, PARK_VALUES).toFixed(4)),
+    n: best.name,
+    r: Math.round(best.radius),
+  };
+}
+
 const output = {};
 for (const [addressNorm, coord] of buildings) {
   const origin = toEpsg5186(coord);
   output[stableId(addressNorm)] = {
+    parkEdge: parkEdgeMetric(origin),
     required: nearestFor(origin, PROJECTED.required, LIMITS.required),
     preference: nearestFor(origin, PROJECTED.preference, LIMITS.preference),
     education: nearestFor(origin, PROJECTED.education, LIMITS.education),

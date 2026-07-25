@@ -33,7 +33,20 @@ interface RawPoi {
   lng: number;
   d: number;
 }
+/** 공원 원주거리 특례 결과 (docs/score_logic.md §7). */
+interface RawParkEdge {
+  /** 원주까지의 보정거리(m) */
+  d: number;
+  /** 매듭 점수 0~1 */
+  s: number;
+  /** 최근접 공원 이름 */
+  n: string;
+  /** 등가반경(m) */
+  r: number;
+}
+
 interface RawBuilding {
+  parkEdge: RawParkEdge | null;
   required: RawPoi[];
   preference: RawPoi[];
   education: RawPoi[];
@@ -91,6 +104,26 @@ export interface NearbyInfra {
 }
 
 const EMPTY: NearbyInfra = { required: [], preference: [], education: [] };
+
+export interface ParkEdgeMetric {
+  /** 공원 경계(등가원 원주)까지의 보정거리(m) */
+  distance: number;
+  score: number;
+  parkName: string;
+  /** 등가반경(m) — 0이면 사실상 점 좌표와 같다. */
+  equivalentRadius: number;
+}
+
+/**
+ * 공원 점수용 원주거리 지표.
+ * 공원은 경계에 닿는 순간부터 이용이 시작되므로 중심점 거리 대신 등가원 원주까지의 거리를 쓴다.
+ * (전처리에서 전 공원 거리행렬로 계산 — 최근접 공원이 중심점 기준과 달라질 수 있어 단일 최근접 조회로는 안 된다)
+ */
+export function parkEdgeMetricOf(unitId: string): ParkEdgeMetric | null {
+  const raw = BUILDINGS[unitId]?.parkEdge;
+  if (!raw) return null;
+  return { distance: raw.d, score: raw.s, parkName: raw.n, equivalentRadius: raw.r };
+}
 
 /** 건물 id 로 사전계산된 주변 인프라 전체를 가져온다. 각 배열은 거리 오름차순. */
 export function nearbyInfraOf(unitId: string): NearbyInfra {

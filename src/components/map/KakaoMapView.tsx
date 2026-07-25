@@ -337,16 +337,26 @@ function buildInfraPin(
   el.setAttribute("aria-label", `${poi.categoryLabel} ${poi.label}, ${poi.distance}m`);
   el.title = `${poi.categoryLabel} · ${poi.label} · ${poi.distance}m`;
 
-  const img = document.createElement("img");
-  img.src = INFRA_MARKER_ICON[poi.tier];
-  img.alt = "";
-  Object.assign(img.style, {
+  // 상세 페이지는 업종별 글리프(SVG)를, 지도 탭은 전용 핀 이미지를 쓴다.
+  const iconBox = document.createElement("span");
+  Object.assign(iconBox.style, {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
     width: emphasized ? "16px" : "15px",
     height: emphasized ? "16px" : "15px",
-    objectFit: "contain",
     flexShrink: "0",
   } as CSSStyleDeclaration);
-  el.appendChild(img);
+  if (poi.iconSvg) {
+    iconBox.innerHTML = poi.iconSvg;
+  } else {
+    const img = document.createElement("img");
+    img.src = INFRA_MARKER_ICON[poi.tier];
+    img.alt = "";
+    Object.assign(img.style, { width: "100%", height: "100%", objectFit: "contain" } as CSSStyleDeclaration);
+    iconBox.appendChild(img);
+  }
+  el.appendChild(iconBox);
 
   if (emphasized) {
     const label = document.createElement("span");

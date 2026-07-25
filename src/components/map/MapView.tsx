@@ -35,6 +35,8 @@ export interface MapInfraPoi {
   /** required 는 강조, preference 는 약하게, education 은 설문에서 필요할 때만. */
   tier: "required" | "preference" | "education";
   distance: number;
+  /** 있으면 핀 아이콘으로 이 SVG 마크업을 쓴다(상세 페이지 전용). 없으면 기본 핀 이미지. */
+  iconSvg?: string;
 }
 
 /** 지도 마커에 사용하는 전용 핀 에셋. */
@@ -159,13 +161,21 @@ export function MockMapView({
             className="absolute z-[5] flex -translate-x-1/2 -translate-y-1/2 items-center gap-0.5 whitespace-nowrap rounded-full border py-0.5 pl-0.5 pr-1.5 text-[10px] font-semibold shadow-sm"
             style={{ ...pos, background: color.bg, color: color.fg, borderColor: color.border }}
           >
-            <Image
-              src={INFRA_MARKER_ICON[poi.tier]}
-              alt=""
-              width={64}
-              height={64}
-              className="h-3.5 w-3.5 object-contain"
-            />
+            {poi.iconSvg ? (
+              <span
+                className="flex h-3.5 w-3.5 items-center justify-center"
+                aria-hidden
+                dangerouslySetInnerHTML={{ __html: poi.iconSvg }}
+              />
+            ) : (
+              <Image
+                src={INFRA_MARKER_ICON[poi.tier]}
+                alt=""
+                width={64}
+                height={64}
+                className="h-3.5 w-3.5 object-contain"
+              />
+            )}
             {poi.tier !== "preference" && poi.categoryLabel}
           </span>
         );
