@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { Building2, ChevronRight, MapPin, Sparkles, Star } from "lucide-react";
+import Image from "next/image";
+import { Building2, ChevronRight, MapPin } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { Badge } from "@/components/ui/badge";
 import { ELIGIBILITY_TYPE_LABEL } from "@/features/eligibility/eligibility.types";
 import { bestCondition, type HousingUnit } from "@/mocks/housing";
-import type { MarkerTier } from "@/components/map/MapView";
+import { TIER_MARKER_ICON, type MarkerTier } from "@/components/map/MapView";
 import { formatManwon } from "@/lib/formatting";
 import { cn } from "@/lib/utils";
 
@@ -17,17 +18,15 @@ const STATUS = {
   unknown: { tone: "neutral" as const, label: "공고 확인 필요" },
 };
 
-/** 지도 마커 색상과 같은 기준으로 카드에도 구분 표시를 남긴다. */
-const TIER_STYLE: Record<Exclude<MarkerTier, "normal">, { ring: string; chip: string; icon: typeof Star }> = {
+/** 지도 마커와 같은 핀 아이콘·색을 카드에도 그대로 쓴다. */
+const TIER_STYLE: Record<Exclude<MarkerTier, "normal">, { ring: string; chip: string }> = {
   recommend: {
-    ring: "border-primary/45",
-    chip: "bg-primary-subtle text-primary",
-    icon: Star,
+    ring: "border-[#e85c8a]/45",
+    chip: "bg-[#fdeef3] text-[#c9376a]",
   },
   ai: {
-    ring: "border-[#7c3aed]/45",
-    chip: "bg-[#f3ebff] text-[#6d28d9]",
-    icon: Sparkles,
+    ring: "border-[#7c56d4]/45",
+    chip: "bg-[#f1ecfd] text-[#6941c6]",
   },
 };
 
@@ -59,7 +58,6 @@ export function HousingMapListCard({
   const status = STATUS[unit.recruitStatus];
   const reduceMotion = useReducedMotion();
   const tierStyle = tier === "normal" ? null : TIER_STYLE[tier];
-  const TierIcon = tierStyle?.icon;
 
   return (
     <motion.article
@@ -88,14 +86,20 @@ export function HousingMapListCard({
         className="w-full p-4 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[var(--color-ring)]"
       >
         <div className="flex flex-wrap items-center gap-1.5">
-          {tierStyle && TierIcon && (
+          {tierStyle && (
             <span
               className={cn(
-                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold",
+                "inline-flex items-center gap-1 rounded-full py-0.5 pl-1 pr-2 text-[11px] font-bold",
                 tierStyle.chip,
               )}
             >
-              <TierIcon className="h-3 w-3" aria-hidden />
+              <Image
+                src={TIER_MARKER_ICON[tier]}
+                alt=""
+                width={64}
+                height={64}
+                className="h-3.5 w-3.5 shrink-0 object-contain"
+              />
               {tier === "ai" ? "AI 갈붕 추천" : rank ? `취향 추천 ${rank}위` : "취향 추천"}
             </span>
           )}

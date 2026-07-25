@@ -126,53 +126,56 @@ export interface InfraSelectOptions {
 }
 
 /**
- * 지도에서 마커를 선택했을 때 함께 띄울 주변 인프라를 고른다.
- * 필수 인프라를 먼저 채우고(카테고리당 1곳), 교육 → 취향 순으로 남은 자리를 메운다.
+ * 지도에서 마커를 선택했을 때 함께 띄울 주변 인프라.
+ * 가까운 순으로 최대한 많이 보여주되, 한 업종이 목록을 독점하지 않도록 카테고리당 개수만 제한한다.
  */
 export function mapInfraFor(unitId: string, options: InfraSelectOptions = {}): NearbyPoi[] {
-  const { includeEducation = false, preferredChips = [], limit = 10 } = options;
+  const { includeEducation = false, preferredChips = [], limit = 40 } = options;
   const infra = nearbyInfraOf(unitId);
-
-  // 1순위 — 카테고리당 가장 가까운 1곳
-  const picked: NearbyPoi[] = capPerCategory(infra.required, 1);
-
-  // 교육 — 자녀가 있다고 답한 경우에만, 카테고리당 1곳
-  if (includeEducation) {
-    picked.push(...capPerCategory(infra.education, 1).slice(0, 3));
-  }
-
-  // 2순위 — 선택한 칩을 앞에 두고 남은 자리를 채운다
   const chips = new Set(preferredChips);
-  const preference = capPerCategory(
-    [...infra.preference].sort((a, b) => {
-      const rank = Number(chips.has(b.category)) - Number(chips.has(a.category));
-      return rank !== 0 ? rank : a.distance - b.distance;
-    }),
-    1,
-  );
-  picked.push(...preference.slice(0, Math.max(0, limit - picked.length)));
 
-  return picked.slice(0, limit).sort((a, b) => a.distance - b.distance);
+  const picked: NearbyPoi[] = [
+    ...capPerCategory(infra.required, 2),
+    ...(includeEducation ? capPerCategory(infra.education, 2) : []),
+    // 선택한 취향 칩은 조금 더 넉넉히 보여준다.
+    ...capPerCategory(infra.preference, 3).filter((poi) => chips.size === 0 || chips.has(poi.category)),
+    ...(chips.size > 0 ? capPerCategory(infra.preference, 1).filter((poi) => !chips.has(poi.category)) : []),
+  ];
+
+  return picked.sort((a, b) => a.distance - b.distance).slice(0, limit);
+}
+
+/** 상세 페이지 반경 구간. 가까운 것부터 단계별로 나눠 보여준다. */
+export const RADIUS_BANDS = [
+  { key: "walk5", label: "도보 5분", max: 400 },
+  { key: "walk10", label: "도보 10분", max: 800 },
+  { key: "walk20", label: "도보 20분", max: 1500 },
+  { key: "near", label: "3km 이내", max: 3000 },
+  { key: "far", label: "3km 밖", max: Infinity },
+] as const;
+
+export type RadiusBandKey = (typeof RADIUS_BANDS)[number]["key"];
+
+export function bandOf(distance: number): RadiusBandKey {
+  return (RADIUS_BANDS.find((band) => distance <= band.max) ?? RADIUS_BANDS[RADIUS_BANDS.length - 1]).key;
 }
 
 /**
- * 상세 페이지용. 티어별로 개수를 제한해 돌려준다
- * (반경 안 점포가 수십 곳인 건물에서 목록이 폭주하지 않도록).
+ * 상세 페이지용 — 사전계산해 둔 주변 인프라를 그대로(가까운 순) 돌려준다.
+ * 화면에서 반경 구간·카테고리로 나눠 보여주므로 여기서는 자르지 않는다.
  */
 export function detailInfraFor(
   unitId: string,
   options: { includeEducation?: boolean } = {},
-): NearbyInfra & { hasAny: boolean } {
+): NearbyInfra & { hasAny: boolean; all: NearbyPoi[] } {
   const infra = nearbyInfraOf(unitId);
-  // 카테고리당 1곳만 남기므로 총 개수는 필수 6 · 교육 5 · 취향 8 이하로 자연히 제한된다.
-  // (거리순으로 자르면 먼 카테고리가 통째로 빠져 목록에서 사라지므로 자르지 않는다.)
-  const required = capPerCategory(infra.required, 1);
-  const preference = capPerCategory(infra.preference, 1).slice(0, 8);
-  const education = options.includeEducation ? capPerCategory(infra.education, 1) : [];
+  const education = options.includeEducation ? infra.education : [];
+  const all = [...infra.required, ...education, ...infra.preference].sort((a, b) => a.distance - b.distance);
   return {
-    required,
-    preference,
+    required: infra.required,
+    preference: infra.preference,
     education,
-    hasAny: required.length + preference.length + education.length > 0,
+    all,
+    hasAny: all.length > 0,
   };
 }

@@ -5,7 +5,8 @@ import { useEffect, useRef, useState } from "react";
 import { Minus, Plus, Maximize2 } from "lucide-react";
 import {
   MockMapView,
-  MAP_MARKER_ICON,
+  TIER_MARKER_ICON,
+  INFRA_MARKER_ICON,
   TIER_COLOR,
   INFRA_COLOR,
   type MapInfraPoi,
@@ -125,12 +126,12 @@ function buildPin(marker: MapMarker, onClick: () => void, onHover: (hovering: bo
   const icon = document.createElement("span");
   Object.assign(icon.style, {
     display: "inline-flex", alignItems: "center", justifyContent: "center",
-    width: "18px", height: "24px", overflow: "hidden", flexShrink: "0",
+    width: "20px", height: "24px", overflow: "hidden", flexShrink: "0",
   } as CSSStyleDeclaration);
   const img = document.createElement("img");
-  img.src = MAP_MARKER_ICON;
+  img.src = TIER_MARKER_ICON[marker.tier ?? "normal"];
   img.alt = "";
-  Object.assign(img.style, { width: "18px", height: "24px", objectFit: "contain" } as CSSStyleDeclaration);
+  Object.assign(img.style, { width: "20px", height: "24px", objectFit: "contain" } as CSSStyleDeclaration);
   icon.appendChild(img);
 
   const price = document.createElement("span");
@@ -162,44 +163,81 @@ function buildPin(marker: MapMarker, onClick: () => void, onHover: (hovering: bo
 
 function stylePin(el: HTMLButtonElement, tier: MarkerTier, active: boolean, hovered: boolean) {
   const color = TIER_COLOR[tier];
-  const focused = active || hovered;
   el.setAttribute("aria-pressed", String(active));
+  // 선택된 마커는 색을 티어 색으로 채우고 굵은 링을 둘러 한눈에 구분되게 한다.
+  const selectedBg = tier === "normal" ? "var(--color-primary)" : color.bg;
+  const selectedFg = tier === "normal" ? "#ffffff" : color.fg;
+  const selectedRing = tier === "normal" ? "rgba(15,124,123,0.35)" : color.ring;
   Object.assign(el.style, {
     display: "inline-flex",
     alignItems: "center",
     gap: "5px",
-    padding: "3px 9px 3px 3px",
+    padding: active ? "5px 12px 5px 4px" : "3px 9px 3px 3px",
     borderRadius: "9999px",
-    fontSize: "12px",
-    fontWeight: "700",
+    fontSize: active ? "13px" : "12px",
+    fontWeight: active ? "800" : "700",
     lineHeight: "1",
     whiteSpace: "nowrap",
     cursor: "pointer",
-    transform: focused ? `translateY(-6px) scale(${active ? 1.12 : 1.07})` : "translateY(-6px)",
-    border: "1.5px solid",
-    boxShadow: focused ? `0 8px 20px ${color.ring}` : "0 2px 6px rgba(15,23,42,0.18)",
+    transform: active ? "translateY(-10px) scale(1.16)" : hovered ? "translateY(-8px) scale(1.07)" : "translateY(-6px)",
+    border: active ? "2.5px solid #ffffff" : "1.5px solid",
+    boxShadow: active
+      ? `0 0 0 3px ${selectedRing}, 0 10px 24px rgba(15,23,42,0.3)`
+      : hovered
+        ? `0 8px 20px ${color.ring}`
+        : "0 2px 6px rgba(15,23,42,0.18)",
     outline: hovered && !active ? `2px solid ${color.border}` : "none",
     outlineOffset: "2px",
-    transition: "transform .15s ease, box-shadow .15s ease",
-    borderColor: color.border,
-    background: color.bg,
-    color: color.fg,
-    zIndex: active ? "30" : hovered ? "25" : tier === "normal" ? "1" : "10",
+    transition: "transform .18s cubic-bezier(.22,1,.36,1), box-shadow .18s ease, padding .18s ease",
+    borderColor: active ? "#ffffff" : color.border,
+    background: active ? selectedBg : color.bg,
+    color: active ? selectedFg : color.fg,
+    zIndex: active ? "40" : hovered ? "25" : tier === "normal" ? "1" : "10",
   } as CSSStyleDeclaration);
   const badge = el.querySelector<HTMLElement>('[data-badge="1"]');
   if (badge) {
-    const onColor = tier !== "normal";
+    const onColor = tier !== "normal" || active;
     badge.style.background = onColor ? "rgba(255,255,255,0.25)" : "var(--color-primary-subtle)";
     badge.style.color = onColor ? "#ffffff" : "var(--color-primary)";
   }
+  // 선택 표시용 펄스 링 (선택 시에만 붙인다)
+  let pulse = el.querySelector<HTMLElement>('[data-pulse="1"]');
+  if (active && !pulse) {
+    pulse = document.createElement("span");
+    pulse.dataset.pulse = "1";
+    Object.assign(pulse.style, {
+      position: "absolute",
+      inset: "-10px",
+      borderRadius: "9999px",
+      border: `2px solid ${selectedBg}`,
+      opacity: "0.55",
+      pointerEvents: "none",
+      animation: "bgc-pin-pulse 1.6s ease-out infinite",
+    } as CSSStyleDeclaration);
+    el.style.position = "relative";
+    el.appendChild(pulse);
+  } else if (!active && pulse) {
+    pulse.remove();
+  }
 }
 
-/** 클러스터 버블 — 묶인 개수를 원형으로 표시하고, 누르면 그 영역으로 확대한다. */
+/** 클러스터 버블 — 개수 + "곳" 라벨을 2줄로 두고, 누르면 그 지점으로 확대한다. */
 function buildCluster(cluster: Cluster, onClick: () => void, onHover: (hovering: boolean) => void): HTMLButtonElement {
   const el = document.createElement("button");
   el.type = "button";
-  el.textContent = String(cluster.members.length);
   el.setAttribute("aria-label", `주택 ${cluster.members.length}곳 묶음, 확대해서 보기`);
+
+  const count = document.createElement("span");
+  count.dataset.count = "1";
+  count.textContent = String(cluster.members.length);
+
+  const unit = document.createElement("span");
+  unit.dataset.unit = "1";
+  unit.textContent = "곳";
+
+  el.appendChild(count);
+  el.appendChild(unit);
+
   el.addEventListener("click", (event) => {
     event.stopPropagation();
     onClick();
@@ -213,43 +251,96 @@ function buildCluster(cluster: Cluster, onClick: () => void, onHover: (hovering:
 
 function styleCluster(el: HTMLButtonElement, cluster: Cluster, hovered: boolean) {
   const color = TIER_COLOR[cluster.tier];
-  const size = Math.min(58, 36 + Math.log2(cluster.members.length + 1) * 7);
+  const total = cluster.members.length;
+  const size = Math.round(Math.min(66, 40 + Math.log2(total + 1) * 6.5));
+  const solid = cluster.tier !== "normal";
+
   Object.assign(el.style, {
-    display: "inline-flex",
+    display: "flex",
+    flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
+    gap: "0",
     width: `${size}px`,
     height: `${size}px`,
     borderRadius: "9999px",
-    fontSize: "13px",
-    fontWeight: "800",
     cursor: "pointer",
-    border: "2px solid",
-    borderColor: color.border,
-    background: cluster.tier === "normal" ? "var(--color-surface)" : color.bg,
-    color: cluster.tier === "normal" ? "var(--color-primary)" : color.fg,
-    boxShadow: hovered ? `0 0 0 6px ${color.ring}` : `0 0 0 4px ${color.ring}`,
-    transform: hovered ? "scale(1.08)" : "scale(1)",
-    transition: "transform .15s ease, box-shadow .15s ease",
-    zIndex: cluster.tier === "normal" ? "2" : "12",
+    border: "2.5px solid #ffffff",
+    // 안쪽은 티어 색, 바깥은 흰 테두리 + 반투명 후광으로 지도 위에서 뜨게 한다.
+    background: solid
+      ? `radial-gradient(circle at 50% 32%, ${color.bg} 0%, ${color.border} 100%)`
+      : "linear-gradient(180deg, #ffffff 0%, var(--color-surface-muted) 100%)",
+    color: solid ? color.fg : "var(--color-primary)",
+    boxShadow: hovered
+      ? `0 0 0 8px ${color.ring}, 0 10px 24px rgba(15,23,42,0.28)`
+      : `0 0 0 5px ${color.ring}, 0 4px 14px rgba(15,23,42,0.2)`,
+    transform: hovered ? "scale(1.1)" : "scale(1)",
+    transition: "transform .18s cubic-bezier(.22,1,.36,1), box-shadow .18s ease",
+    zIndex: solid ? "12" : "2",
   } as CSSStyleDeclaration);
+
+  const count = el.querySelector<HTMLElement>('[data-count="1"]');
+  if (count) {
+    Object.assign(count.style, {
+      fontSize: `${Math.max(13, Math.round(size * 0.34))}px`,
+      fontWeight: "800",
+      lineHeight: "1",
+      letterSpacing: "-0.02em",
+    } as CSSStyleDeclaration);
+  }
+  const unit = el.querySelector<HTMLElement>('[data-unit="1"]');
+  if (unit) {
+    Object.assign(unit.style, {
+      fontSize: "9px",
+      fontWeight: "700",
+      lineHeight: "1",
+      marginTop: "2px",
+      opacity: solid ? "0.85" : "0.7",
+    } as CSSStyleDeclaration);
+  }
+  // 테두리가 배경색을 뚫지 않도록 안쪽 링을 별도로 그린다.
+  el.style.outline = `1px solid ${solid ? color.border : "var(--color-border)"}`;
+  el.style.outlineOffset = "-2.5px";
 }
 
-/** 인프라 핀 — 1순위는 진한 색·큰 글씨, 2순위는 옅게. */
+/**
+ * 인프라 핀 — 전용 마커 아이콘 + 짧은 분류 라벨.
+ * 시설 이름까지 넣으면 핀이 가로로 길어져 지도를 가리므로, 이름은 title/aria-label 로만 남긴다.
+ * 2순위(취향)는 아이콘만 찍어 더 가볍게 보이게 한다.
+ */
 function buildInfraPin(poi: MapInfraPoi): HTMLDivElement {
   const color = INFRA_COLOR[poi.tier];
   const emphasized = poi.tier !== "preference";
   const el = document.createElement("div");
   el.setAttribute("role", "img");
   el.setAttribute("aria-label", `${poi.categoryLabel} ${poi.label}, ${poi.distance}m`);
-  el.textContent = emphasized ? `${poi.categoryLabel} · ${poi.label}` : poi.categoryLabel;
+  el.title = `${poi.categoryLabel} · ${poi.label} · ${poi.distance}m`;
+
+  const img = document.createElement("img");
+  img.src = INFRA_MARKER_ICON[poi.tier];
+  img.alt = "";
+  Object.assign(img.style, {
+    width: emphasized ? "16px" : "15px",
+    height: emphasized ? "16px" : "15px",
+    objectFit: "contain",
+    flexShrink: "0",
+  } as CSSStyleDeclaration);
+  el.appendChild(img);
+
+  if (emphasized) {
+    const label = document.createElement("span");
+    label.textContent = poi.categoryLabel;
+    el.appendChild(label);
+  }
+
   Object.assign(el.style, {
     display: "inline-flex",
     alignItems: "center",
-    padding: emphasized ? "3px 8px" : "2px 6px",
+    gap: "2px",
+    padding: emphasized ? "2px 7px 2px 3px" : "2px",
     borderRadius: "9999px",
-    fontSize: emphasized ? "11px" : "10px",
-    fontWeight: emphasized ? "700" : "600",
+    fontSize: "10px",
+    fontWeight: "700",
     lineHeight: "1.1",
     whiteSpace: "nowrap",
     pointerEvents: "none",
@@ -257,8 +348,7 @@ function buildInfraPin(poi: MapInfraPoi): HTMLDivElement {
     borderColor: color.border,
     background: color.bg,
     color: color.fg,
-    opacity: emphasized ? "1" : "0.9",
-    boxShadow: emphasized ? "0 2px 8px rgba(15,23,42,0.22)" : "0 1px 4px rgba(15,23,42,0.14)",
+    boxShadow: emphasized ? "0 2px 8px rgba(15,23,42,0.2)" : "0 1px 4px rgba(15,23,42,0.14)",
   } as CSSStyleDeclaration);
   return el;
 }
@@ -339,16 +429,18 @@ export function KakaoMapView({
     map.setLevel(map.getLevel() + delta, { animate: true });
   };
 
-  /** 클러스터를 눌렀을 때 그 지점을 중심으로 단계적으로 확대한다.
+  /** 클러스터를 눌렀을 때 그 지점을 기준으로 부드럽게 단계 확대한다.
    *  격자 클러스터링이 화면 픽셀 기준이라, 확대할수록 묶음이 알아서 풀린다.
-   *  (setBounds 로 한 번에 맞추면 여전히 겹치는 레벨에 착지해 핀이 서로 가려진다.) */
+   *  (setBounds 로 한 번에 맞추면 여전히 겹치는 레벨에 착지해 핀이 서로 가려진다.)
+   *  anchor 를 클러스터 좌표로 주면 그 지점이 고정된 채 확대돼 별도 이동이 필요 없다. */
   const zoomToCluster = (cluster: Cluster) => {
     const kakao = window.kakao;
     const map = mapRef.current;
     if (!kakao?.maps || !map) return;
     const center = new kakao.maps.LatLng(cluster.coord.lat, cluster.coord.lng);
-    map.setCenter(center);
-    map.setLevel(Math.max(1, map.getLevel() - CLUSTER_ZOOM_STEP));
+    const next = Math.max(1, map.getLevel() - CLUSTER_ZOOM_STEP);
+    if (next === map.getLevel()) return;
+    map.setLevel(next, { animate: { duration: 350 }, anchor: center });
   };
 
   const handleHover = (id: string | null) => {

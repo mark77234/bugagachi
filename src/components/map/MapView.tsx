@@ -40,18 +40,33 @@ export interface MapInfraPoi {
 /** 지도 마커에 사용하는 전용 핀 에셋. */
 export const MAP_MARKER_ICON = "/assets/markers/ic_marker.png";
 
-/** 티어별 마커 색상. 지도·범례·목록에서 같은 값을 쓴다. */
-export const TIER_COLOR: Record<MarkerTier, { bg: string; border: string; fg: string; ring: string }> = {
-  normal: { bg: "var(--color-surface)", border: "var(--color-border)", fg: "var(--color-fg)", ring: "rgba(15,23,42,0.18)" },
-  recommend: { bg: "var(--color-primary)", border: "var(--color-primary)", fg: "#ffffff", ring: "rgba(15,124,123,0.35)" },
-  ai: { bg: "#7c3aed", border: "#7c3aed", fg: "#ffffff", ring: "rgba(124,58,237,0.38)" },
+/** 주택 마커 아이콘 — 티어마다 글리프가 다른 전용 핀을 쓴다.
+ *  일반: 기본 핀 / 취향 추천: 엄지척(핑크) / AI 추천: 스파클(바이올렛) */
+export const TIER_MARKER_ICON: Record<MarkerTier, string> = {
+  normal: MAP_MARKER_ICON,
+  recommend: "/assets/markers/preference_marker.png",
+  ai: "/assets/markers/ai_recommend_marker.png",
 };
 
-/** 인프라 핀 색상 — 1순위는 진하게, 2순위는 옅게. */
+/** 인프라 핀 아이콘 — 필수: 별(딥블루) / 취향: 하트(코랄) / 교육: 학사모(그린) */
+export const INFRA_MARKER_ICON: Record<MapInfraPoi["tier"], string> = {
+  required: "/assets/markers/required_infra_marker.png",
+  preference: "/assets/markers/preference_infra_marker.png",
+  education: "/assets/markers/education_marker_infra.png",
+};
+
+/** 티어별 마커 색상 — 위 핀 에셋의 팔레트와 맞춘다. 지도·범례·목록에서 같은 값을 쓴다. */
+export const TIER_COLOR: Record<MarkerTier, { bg: string; border: string; fg: string; ring: string }> = {
+  normal: { bg: "var(--color-surface)", border: "var(--color-border)", fg: "var(--color-fg)", ring: "rgba(15,23,42,0.18)" },
+  recommend: { bg: "#e85c8a", border: "#e85c8a", fg: "#ffffff", ring: "rgba(232,92,138,0.38)" },
+  ai: { bg: "#7c56d4", border: "#7c56d4", fg: "#ffffff", ring: "rgba(124,86,212,0.38)" },
+};
+
+/** 인프라 핀 색상 — 핀 에셋 팔레트와 동일. 1순위·교육은 진하게, 2순위는 옅게. */
 export const INFRA_COLOR: Record<MapInfraPoi["tier"], { bg: string; fg: string; border: string }> = {
-  required: { bg: "#0f7c7b", fg: "#ffffff", border: "#0f7c7b" },
-  education: { bg: "#2563eb", fg: "#ffffff", border: "#2563eb" },
-  preference: { bg: "rgba(255,255,255,0.94)", fg: "#5b6b68", border: "rgba(91,107,104,0.45)" },
+  required: { bg: "#ffffff", fg: "#1544f0", border: "#1544f0" },
+  education: { bg: "#ffffff", fg: "#1f7a3d", border: "#1f7a3d" },
+  preference: { bg: "rgba(255,255,255,0.95)", fg: "#d2542f", border: "rgba(250,112,81,0.55)" },
 };
 
 export interface MapViewportBounds {
@@ -134,10 +149,18 @@ export function MockMapView({
         return (
           <span
             key={poi.id}
-            className="absolute z-[5] -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-semibold shadow-sm"
+            title={`${poi.categoryLabel} · ${poi.label}`}
+            className="absolute z-[5] flex -translate-x-1/2 -translate-y-1/2 items-center gap-0.5 whitespace-nowrap rounded-full border py-0.5 pl-0.5 pr-1.5 text-[10px] font-semibold shadow-sm"
             style={{ ...pos, background: color.bg, color: color.fg, borderColor: color.border }}
           >
-            {poi.categoryLabel}
+            <Image
+              src={INFRA_MARKER_ICON[poi.tier]}
+              alt=""
+              width={64}
+              height={64}
+              className="h-3.5 w-3.5 object-contain"
+            />
+            {poi.tier !== "preference" && poi.categoryLabel}
           </span>
         );
       })}
@@ -169,7 +192,13 @@ export function MockMapView({
               style={{ background: color.bg, color: color.fg, borderColor: color.border }}
             >
               <span className="flex h-7 w-5 shrink-0 items-center justify-center">
-                <Image src={MAP_MARKER_ICON} alt="" width={400} height={529} className="h-6 w-auto object-contain" />
+                <Image
+                  src={TIER_MARKER_ICON[m.tier ?? "normal"]}
+                  alt=""
+                  width={400}
+                  height={529}
+                  className="h-6 w-auto object-contain"
+                />
               </span>
               {m.caption ?? m.label}
               {m.count && m.count > 1 ? (

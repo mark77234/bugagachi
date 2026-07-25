@@ -3,12 +3,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Layers, ListFilter, RotateCcw, Sparkles, Star } from "lucide-react";
+import Image from "next/image";
+import { ArrowLeft, Layers, ListFilter, RotateCcw } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { MapExplorerShell, FLOATING_PANEL } from "@/components/map/MapExplorerShell";
 import { MapAssistantPanel } from "@/components/map/MapAssistantPanel";
 import { NearbyInfraLegend } from "@/components/map/NearbyInfraLegend";
-import type { MapInfraPoi, MapMarker, MapViewportBounds, MarkerTier } from "@/components/map/MapView";
+import {
+  TIER_MARKER_ICON,
+  type MapInfraPoi,
+  type MapMarker,
+  type MapViewportBounds,
+  type MarkerTier,
+} from "@/components/map/MapView";
 import { HousingMapListCard } from "@/components/map/HousingMapListCard";
 import { MapResultsSheet } from "@/components/map/MapResultsSheet";
 import { Select } from "@/components/ui/select";
@@ -208,7 +215,7 @@ export function UnifiedMapExplorer() {
       // 1·2단계 설문에서 자녀·돌봄이 필요하다고 답했을 때만 교육 인프라를 함께 띄운다.
       includeEducation: pref.eduEnabled === true,
       preferredChips: pref.storeChips,
-      limit: 10,
+      limit: 40,
     }).map((poi) => ({
       id: poi.id,
       coord: poi.coord,
@@ -338,10 +345,16 @@ export function UnifiedMapExplorer() {
                 className={cn(
                   FLOATING_PANEL,
                   "flex h-11 items-center gap-1.5 px-4 text-sm font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-ring)]",
-                  onlyRecommended ? "bg-primary text-white" : "text-fg hover:bg-surface",
+                  onlyRecommended ? "bg-[#e85c8a] text-white" : "text-fg hover:bg-surface",
                 )}
               >
-                <Star className="h-4 w-4" aria-hidden />
+                <Image
+                  src={TIER_MARKER_ICON.recommend}
+                  alt=""
+                  width={64}
+                  height={64}
+                  className="h-4 w-4 shrink-0 object-contain"
+                />
                 추천만
               </button>
             </>
@@ -370,14 +383,26 @@ export function UnifiedMapExplorer() {
               <span className="text-primary">{filteredUnits.length}</span>곳
             </span>
             {recommendCount > 0 && (
-              <span className="flex items-center gap-1 border-l border-border pl-2 text-xs font-bold text-primary">
-                <Star className="h-3 w-3" aria-hidden />
+              <span className="flex items-center gap-1 border-l border-border pl-2 text-xs font-bold text-[#c9376a]">
+                <Image
+                  src={TIER_MARKER_ICON.recommend}
+                  alt=""
+                  width={64}
+                  height={64}
+                  className="h-3.5 w-3.5 shrink-0 object-contain"
+                />
                 추천 {recommendCount}
               </span>
             )}
             {aiIds.length > 0 && (
-              <span className="flex items-center gap-1 border-l border-border pl-2 text-xs font-bold text-[#6d28d9]">
-                <Sparkles className="h-3 w-3" aria-hidden />
+              <span className="flex items-center gap-1 border-l border-border pl-2 text-xs font-bold text-[#6941c6]">
+                <Image
+                  src={TIER_MARKER_ICON.ai}
+                  alt=""
+                  width={64}
+                  height={64}
+                  className="h-3.5 w-3.5 shrink-0 object-contain"
+                />
                 AI {aiIds.length}
               </span>
             )}

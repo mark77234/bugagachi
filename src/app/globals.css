@@ -169,6 +169,22 @@
   }
 }
 
+/* 지도에서 선택된 마커를 강조하는 펄스 링. KakaoMapView 가 인라인 스타일로 참조한다. */
+@keyframes bgc-pin-pulse {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.55;
+  }
+  70% {
+    transform: scale(1.25);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.25);
+    opacity: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

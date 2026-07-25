@@ -10,6 +10,7 @@ import {
   CircleAlert,
   ExternalLink,
   ImageOff,
+  Landmark,
   MessageCircleQuestion,
   MapPin,
   MapPinned,
@@ -37,6 +38,7 @@ import {
 } from "@/components/housing/HousingDetailParts";
 import { MapPanel } from "@/components/map/MapPanel";
 import { NearbyInfraSection } from "@/components/housing/NearbyInfraSection";
+import { DetailTabs, type DetailTabKey } from "@/components/housing/DetailTabs";
 import { bestCondition, housingById, type HousingMetric, type HousingUnit } from "@/mocks/housing";
 import { reviewsByHousing } from "@/mocks/reviews";
 import { useUserStore } from "@/features/user/user.store";
@@ -120,6 +122,7 @@ export default function HousingDetailPage() {
   const savedResults = useEligibilityStore((s) => s.savedResults);
   const pref = usePreferencesStore();
   const [copied, setCopied] = useState(false);
+  const [tab, setTab] = useState<DetailTabKey>("price");
 
   useEffect(() => {
     if (unit) addRecent(unit.id);
@@ -259,26 +262,11 @@ export default function HousingDetailPage() {
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_360px]">
         <div className="min-w-0">
-          {/* S1 — 주택 이미지 (외부 사진·내부 설계도 미보유 → 지도 폴백) */}
-          <Section id="s1" title="주택 이미지">
-            <Card>
-              <CardBody className="space-y-3">
-                <div className="h-56 overflow-hidden rounded-[var(--radius-input)] sm:h-72">
-                  <MapPanel
-                    markers={[{ id: unit.id, coord: unit.coord, label: displayTitle }]}
-                    selectedId={unit.id}
-                    onSelect={() => {}}
-                    ariaLabel={`${displayTitle} 위치 지도 (사진 대체 이미지)`}
-                  />
-                </div>
-                <p className="flex items-start gap-2 text-sm text-muted">
-                  <ImageOff className="mt-0.5 h-4 w-4 shrink-0 text-muted" aria-hidden />
-                  외부 촬영 사진과 내부 설계도는 아직 수집하지 않은 항목이라, 위치 지도로 대체해 보여드려요.
-                </p>
-              </CardBody>
-            </Card>
-          </Section>
+          {/* 내용이 많아 탭으로 나눠 보여준다. 각 탭은 원래 S1~S8 섹션 묶음이다. */}
+          <DetailTabs value={tab} onChange={setTab} />
 
+          {tab === "price" && (
+            <>
           {/* S2 — 임대조건 (최우선) */}
           <Section id="s2" title="임대조건">
             <Card>
@@ -297,6 +285,25 @@ export default function HousingDetailPage() {
                     </p>
                   </div>
                 </div>
+
+                {/* 보증금 마련 수단 안내 — 외부 대출 비교 서비스로 연결한다. */}
+                <a
+                  href="https://www.allcredit.co.kr/screen/sc8846733730"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 rounded-[var(--radius-input)] border border-primary/25 bg-primary-subtle/60 p-3.5 transition-colors hover:border-primary hover:bg-primary-subtle focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-ring)]"
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface text-primary">
+                    <Landmark className="h-5 w-5" aria-hidden />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-bold text-navy">보증금이 부담되나요? 전세자금대출 알아보기</span>
+                    <span className="mt-0.5 block text-xs text-muted">
+                      올크레딧에서 조건에 맞는 대출 상품을 비교해 볼 수 있어요. (외부 사이트)
+                    </span>
+                  </span>
+                  <ExternalLink className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+                </a>
 
                 {unpricedCount > 0 && (
                   <InformationBanner tone="warning">
@@ -356,7 +363,11 @@ export default function HousingDetailPage() {
               </CardBody>
             </Card>
           </Section>
+            </>
+          )}
 
+          {tab === "eligibility" && (
+            <>
           {/* S3 — 입주자격 (공통 + 유형별 조건부) */}
           <Section id="s3" title="입주자격">
             <Card>
@@ -440,6 +451,30 @@ export default function HousingDetailPage() {
               </CardBody>
             </Card>
           </Section>
+            </>
+          )}
+
+          {tab === "house" && (
+            <>
+          {/* S1 — 주택 이미지 (외부 사진·내부 설계도 미보유 → 지도 폴백) */}
+          <Section id="s1" title="주택 이미지">
+            <Card>
+              <CardBody className="space-y-3">
+                <div className="h-56 overflow-hidden rounded-[var(--radius-input)] sm:h-72">
+                  <MapPanel
+                    markers={[{ id: unit.id, coord: unit.coord, label: displayTitle }]}
+                    selectedId={unit.id}
+                    onSelect={() => {}}
+                    ariaLabel={`${displayTitle} 위치 지도 (사진 대체 이미지)`}
+                  />
+                </div>
+                <p className="flex items-start gap-2 text-sm text-muted">
+                  <ImageOff className="mt-0.5 h-4 w-4 shrink-0 text-muted" aria-hidden />
+                  외부 촬영 사진과 내부 설계도는 아직 수집하지 않은 항목이라, 위치 지도로 대체해 보여드려요.
+                </p>
+              </CardBody>
+            </Card>
+          </Section>
 
           {/* S4 — 주택 사양 */}
           <Section id="s4" title="주택 사양">
@@ -491,7 +526,11 @@ export default function HousingDetailPage() {
               </CardBody>
             </Card>
           </Section>
+            </>
+          )}
 
+          {tab === "area" && (
+            <>
           {/* S6 — 위치·주변환경 (2단계 점수 연계) */}
           <Section id="s6" title="위치 · 주변환경" description="2단계에서 매긴 추천 순서의 근거가 되는 항목이에요.">
             <Card>
@@ -534,9 +573,8 @@ export default function HousingDetailPage() {
 
                 <NearbyInfraSection
                   unitId={unit.id}
+                  origin={unit.coord}
                   includeEducation={pref.eduEnabled !== false}
-                  infraFallback={unit.source.infra}
-                  educationFallback={unit.source.education}
                 />
                 <div>
                   <h3 className="mb-2 text-sm font-bold text-navy">걸어서 갈 수 있는 가게 (반경 750m)</h3>
@@ -574,7 +612,11 @@ export default function HousingDetailPage() {
               </CardBody>
             </Card>
           </Section>
+            </>
+          )}
 
+          {tab === "trust" && (
+            <>
           {/* S7 — 데이터 신뢰성 */}
           <Section id="s7" title="데이터 신뢰성">
             <Card>
@@ -630,6 +672,8 @@ export default function HousingDetailPage() {
               ))}
             </div>
           </Section>
+            </>
+          )}
 
           {/* S9 — 신청하러 가기 */}
           <Section id="s9" title="신청하러 가기">

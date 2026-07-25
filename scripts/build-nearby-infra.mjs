@@ -22,11 +22,12 @@ const DATA = join(ROOT, "data");
 /** 부산 우회계수 — src/lib/coordinates.ts 와 동일 기준. */
 const DETOUR = 1.291;
 
-/** 티어별 기본 수집 반경(보정거리 m)과 건물당 카테고리별 최대 개수. */
+/** 티어별 기본 수집 반경(보정거리 m)과 건물당 카테고리별 최대 개수.
+ *  지도·상세에서 "가까운 순으로 최대한 많이" 보여줄 수 있도록 넉넉히 담는다. */
 const LIMITS = {
-  required: { radius: 3000, perCategory: 2 },
-  preference: { radius: 1000, perCategory: 2 },
-  education: { radius: 3000, perCategory: 2 },
+  required: { radius: 5000, perCategory: 6 },
+  preference: { radius: 1500, perCategory: 10 },
+  education: { radius: 4000, perCategory: 6 },
 };
 
 /**
@@ -36,8 +37,8 @@ const LIMITS = {
  * 이름을 보여주려면 반경을 넓혀야 한다.
  */
 const CATEGORY_RADIUS = {
-  HOSPITAL: 8000,
-  LIBRARY: 8000,
+  HOSPITAL: 12000,
+  LIBRARY: 12000,
 };
 
 const readJson = (path) => JSON.parse(readFileSync(join(DATA, path), "utf8"));

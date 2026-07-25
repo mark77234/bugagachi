@@ -56,7 +56,8 @@ export function MapAssistantPanel({
   onRecommend: (ids: string[]) => void;
   onSelectUnit: (id: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  // 기본은 열린 상태. 사용자가 닫으면 동그란 플로팅 버튼으로 접힌다.
+  const [open, setOpen] = useState(true);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
@@ -129,16 +130,20 @@ export function MapAssistantPanel({
     }
   };
 
+  // 닫으면 동그란 플로팅 버튼만 남는다.
   if (!open) {
     return (
-      <button
+      <motion.button
         type="button"
         onClick={() => setOpen(true)}
-        className="pointer-events-auto flex h-12 items-center gap-2 rounded-full border border-[#7c3aed]/30 bg-surface/95 pl-2 pr-4 text-sm font-bold text-[#6d28d9] shadow-[var(--shadow-card)] backdrop-blur transition-colors hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-ring)]"
+        initial={reduceMotion ? false : { opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+        aria-label="AI 갈붕 열기"
+        className="pointer-events-auto flex h-16 w-16 items-center justify-center rounded-full border-2 border-[#7c56d4]/35 bg-surface/95 shadow-[var(--shadow-card)] backdrop-blur transition-transform hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-ring)]"
       >
-        <Mascot pose="wave" className="h-9 w-9 shrink-0" sizes="36px" />
-        AI 갈붕에게 물어보기
-      </button>
+        <Mascot pose="wave" className="h-12 w-12 shrink-0" sizes="48px" />
+      </motion.button>
     );
   }
 
@@ -148,13 +153,20 @@ export function MapAssistantPanel({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
       aria-label="AI 갈붕 지도 도우미"
-      className="pointer-events-auto flex max-h-[min(70vh,560px)] w-[min(92vw,380px)] flex-col overflow-hidden rounded-[var(--radius-cardlg)] border border-[#7c3aed]/25 bg-surface/97 shadow-[var(--shadow-sheet)] backdrop-blur"
+      className="pointer-events-auto flex max-h-[min(70vh,560px)] w-[min(92vw,380px)] flex-col overflow-hidden rounded-[var(--radius-cardlg)] border border-[#7c56d4]/25 bg-surface/97 shadow-[var(--shadow-sheet)] backdrop-blur"
     >
-      <header className="flex items-center gap-2 border-b border-border bg-[#f7f3ff] px-3 py-2.5">
-        <Mascot pose="wave" className="h-9 w-9 shrink-0" sizes="36px" />
+      <header className="flex items-center gap-2.5 border-b border-[#7c56d4]/15 bg-gradient-to-r from-[#f3ecff] to-[#faf7ff] px-3.5 py-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/80 shadow-[0_1px_4px_rgba(124,86,212,0.2)]">
+          <Mascot pose="wave" className="h-8 w-8" sizes="32px" />
+        </span>
         <div className="min-w-0 flex-1">
-          <h2 className="text-sm font-extrabold text-navy">AI 갈붕</h2>
-          <p className="truncate text-xs text-muted">
+          <h2 className="flex items-center gap-1.5 text-sm font-extrabold leading-tight text-navy">
+            AI 갈붕
+            <span className="rounded-full bg-[#7c56d4] px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">
+              지도 도우미
+            </span>
+          </h2>
+          <p className="mt-0.5 truncate text-xs leading-tight text-muted">
             {focusedUnit ? `${focusedUnit.name} 보는 중` : "마커를 고르면 그 집을 기준으로 답해요"}
           </p>
         </div>
@@ -162,7 +174,7 @@ export function MapAssistantPanel({
           type="button"
           onClick={() => setOpen(false)}
           aria-label="AI 갈붕 닫기"
-          className="shrink-0 rounded p-1 text-muted transition-colors hover:bg-surface-muted hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-ring)]"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-white/70 hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-ring)]"
         >
           <X className="h-4 w-4" aria-hidden />
         </button>
@@ -170,10 +182,12 @@ export function MapAssistantPanel({
 
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
         {messages.length === 0 ? (
-          <div className="rounded-[var(--radius-card)] bg-[#f7f3ff] p-3 text-sm leading-relaxed text-fg">
-            <p>
-              지도를 보면서 물어보세요. 마커를 선택하면 <b className="font-semibold">그 주택을 기준</b>으로 답하고,
-              조건을 말하면 맞는 집을 <b className="font-semibold text-[#6d28d9]">보라색 마커</b>로 표시해 드려요.
+          <div className="flex flex-col items-center gap-2.5 rounded-[var(--radius-card)] bg-gradient-to-b from-[#f7f3ff] to-transparent px-3 py-5 text-center">
+            <Mascot pose="pointUp" className="h-14 w-14" sizes="56px" />
+            <p className="text-sm font-bold text-navy">무엇이든 물어보세요</p>
+            <p className="max-w-[17rem] text-xs leading-relaxed text-muted">
+              마커를 선택하면 <b className="font-semibold text-fg">그 주택을 기준</b>으로 답하고, 조건을 말하면 맞는 집을{" "}
+              <b className="font-semibold text-[#6941c6]">보라색 마커</b>로 표시해 드려요.
             </p>
           </div>
         ) : (
@@ -233,7 +247,7 @@ export function MapAssistantPanel({
         {messages.length === 0 && (
           <motion.div
             exit={{ opacity: 0, height: 0 }}
-            className="flex flex-wrap gap-1.5 border-t border-border px-3 py-2"
+            className="flex flex-wrap justify-center gap-1.5 border-t border-border px-3 py-2.5"
           >
             {HINTS.map((hint) => (
               <button
@@ -254,7 +268,7 @@ export function MapAssistantPanel({
         <label htmlFor="map-ai-input" className="sr-only">
           AI 갈붕에게 질문
         </label>
-        <div className="flex items-end gap-1.5 rounded-[var(--radius-cardlg)] border border-border bg-surface p-1 focus-within:border-[#7c3aed]/50 focus-within:ring-2 focus-within:ring-[#7c3aed]/15">
+        <div className="flex items-end gap-1.5 rounded-[var(--radius-cardlg)] border border-border bg-surface p-1 focus-within:border-[#7c56d4]/50 focus-within:ring-2 focus-within:ring-[#7c56d4]/15">
           <textarea
             id="map-ai-input"
             value={input}
@@ -269,12 +283,12 @@ export function MapAssistantPanel({
             type="submit"
             disabled={!input.trim() || streaming}
             aria-label="질문 보내기"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-input)] bg-[#7c3aed] text-white transition-opacity hover:opacity-90 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-ring)]"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-input)] bg-[#7c56d4] text-white transition-opacity hover:opacity-90 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-ring)]"
           >
             <Send className="h-4 w-4" aria-hidden />
           </button>
         </div>
-        <p className="mt-1.5 flex items-center gap-1 px-1 text-[11px] text-muted">
+        <p className="mt-1.5 flex items-center justify-center gap-1 text-[11px] text-muted">
           <Sparkles className="h-3 w-3 shrink-0" aria-hidden />
           AI 답변은 참고용이에요
         </p>

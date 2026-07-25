@@ -1,16 +1,38 @@
 "use client";
 
-import { Baby, Hospital, ShoppingCart, Store, Train, Trees, BookOpen, Dumbbell, School } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { createElement, useMemo, useState } from "react";
+import Image from "next/image";
 import {
+  Baby,
+  BookOpen,
+  ChevronDown,
+  ChevronUp,
+  Dumbbell,
+  ExternalLink,
+  Hospital,
+  MapPin,
+  School,
+  ShoppingCart,
+  Store,
+  Train,
+  Trees,
+  X,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { INFRA_COLOR, INFRA_MARKER_ICON, type MapInfraPoi } from "@/components/map/MapView";
+import { MapPanel } from "@/components/map/MapPanel";
+import {
+  RADIUS_BANDS,
+  bandOf,
   detailInfraFor,
   infraCategoryLabel,
   REQUIRED_LABEL,
   EDUCATION_LABEL,
   type NearbyPoi,
+  type RadiusBandKey,
 } from "@/features/infra/nearby-infra";
 import type { EduCategory, InfraCategory } from "@/features/recommendation/recommendation.types";
-import type { HousingMetric } from "@/mocks/housing";
+import type { LatLng } from "@/lib/coordinates";
 import { formatDistance } from "@/lib/formatting";
 import { cn } from "@/lib/utils";
 
@@ -31,159 +53,290 @@ const EDUCATION_ICON: Record<EduCategory, LucideIcon> = {
   HIGH: School,
 };
 
-const REQUIRED_ORDER: InfraCategory[] = ["SUBWAY", "MART", "HOSPITAL", "PARK", "LIBRARY", "SPORTS"];
-const EDUCATION_ORDER: EduCategory[] = ["DAYCARE", "KINDER", "ELEM", "MIDDLE", "HIGH"];
-
-/** 카테고리별 가장 가까운 POI 1곳. */
-function firstByCategory(list: NearbyPoi[]): Map<string, NearbyPoi> {
-  const map = new Map<string, NearbyPoi>();
-  for (const poi of list) if (!map.has(poi.category)) map.set(poi.category, poi);
-  return map;
+/** 카테고리에 맞는 lucide 아이콘 엘리먼트. (컴포넌트를 렌더 중에 새로 만들지 않도록 createElement 로 만든다) */
+function poiIcon(poi: NearbyPoi, className: string) {
+  const icon: LucideIcon =
+    poi.tier === "required"
+      ? REQUIRED_ICON[poi.category as InfraCategory] ?? Store
+      : poi.tier === "education"
+        ? EDUCATION_ICON[poi.category as EduCategory] ?? School
+        : Store;
+  return createElement(icon, { className, "aria-hidden": true });
 }
 
-function InfraRow({
-  icon: Icon,
-  label,
-  poi,
-  fallback,
-  emphasized,
-}: {
-  icon: LucideIcon;
-  label: string;
-  poi?: NearbyPoi;
-  /** 수집 반경 밖이라 이름이 없을 때 쓰는 사전계산 거리. */
-  fallback?: HousingMetric | null;
-  emphasized: boolean;
-}) {
-  const distance = poi?.distance ?? fallback?.distance ?? null;
+const TIER_LABEL: Record<MapInfraPoi["tier"], string> = {
+  required: "필수 인프라",
+  education: "돌봄·교육",
+  preference: "취향 가게",
+};
+
+type TierFilter = "all" | MapInfraPoi["tier"];
+
+/** 반경 구간마다 처음에 보여줄 개수. 나머지는 "더 보기"로 펼친다. */
+const BAND_PREVIEW = 12;
+
+/** 지도 마커와 같은 핀 아이콘. */
+function TierPin({ tier, className = "h-5 w-5" }: { tier: MapInfraPoi["tier"]; className?: string }) {
   return (
-    <li
-      className={cn(
-        "flex items-center gap-3 px-3 py-2.5",
-        emphasized ? "bg-surface" : "bg-surface-muted/40",
-      )}
-    >
-      <span
+    <Image src={INFRA_MARKER_ICON[tier]} alt="" width={64} height={64} className={cn("shrink-0 object-contain", className)} />
+  );
+}
+
+/** 선택한 인프라 한 곳의 상세 카드 — 지도 위치·거리·업종을 보여준다. */
+function PoiDetailCard({ poi, origin, onClose }: { poi: NearbyPoi; origin: LatLng; onClose: () => void }) {
+  const color = INFRA_COLOR[poi.tier];
+  return (
+    <div className="overflow-hidden rounded-[var(--radius-card)] border-2 bg-surface" style={{ borderColor: color.border }}>
+      <div className="flex items-start gap-3 p-3.5">
+        <span
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
+          style={{ background: `${color.border}14`, color: color.fg }}
+        >
+          {poiIcon(poi, "h-5 w-5")}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="flex items-center gap-1.5 text-xs font-bold" style={{ color: color.fg }}>
+            <TierPin tier={poi.tier} className="h-4 w-4" />
+            {infraCategoryLabel(poi)}
+            <span className="font-medium text-muted">· {TIER_LABEL[poi.tier]}</span>
+          </p>
+          <h4 className="mt-1 text-base font-bold text-navy">{poi.name}</h4>
+          {poi.detail && <p className="mt-0.5 text-sm text-muted">{poi.detail}</p>}
+          <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+            <span className="font-semibold tabular-nums text-fg">
+              집에서 {formatDistance(poi.distance)}
+            </span>
+            <span className="text-muted">걸어서 약 {Math.max(1, Math.round(poi.distance / 67))}분</span>
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="선택 해제"
+          className="shrink-0 rounded-full p-1 text-muted transition-colors hover:bg-surface-muted hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-ring)]"
+        >
+          <X className="h-4 w-4" aria-hidden />
+        </button>
+      </div>
+      <div className="h-[200px] w-full border-t border-border">
+        <MapPanel
+          markers={[{ id: "home", coord: origin, label: "이 주택", caption: "이 주택", tier: "recommend" }]}
+          selectedId="home"
+          onSelect={() => {}}
+          ariaLabel={`${poi.name} 위치 지도`}
+          infra={[
+            {
+              id: poi.id,
+              coord: poi.coord,
+              label: poi.name,
+              categoryLabel: infraCategoryLabel(poi),
+              tier: poi.tier,
+              distance: poi.distance,
+            },
+          ]}
+          fullBleed
+        />
+      </div>
+      <a
+        href={`https://map.kakao.com/link/to/${encodeURIComponent(poi.name)},${poi.coord.lat},${poi.coord.lng}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex items-center justify-center gap-1.5 border-t border-border py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-primary-subtle focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-ring)]"
+      >
+        <MapPin className="h-4 w-4" aria-hidden />
+        카카오맵에서 길찾기
+        <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+      </a>
+    </div>
+  );
+}
+
+function PoiRow({
+  poi,
+  selected,
+  onSelect,
+}: {
+  poi: NearbyPoi;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const color = INFRA_COLOR[poi.tier];
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onSelect}
+        aria-pressed={selected}
         className={cn(
-          "flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
-          emphasized ? "bg-primary-subtle text-primary" : "bg-surface text-muted",
+          "flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--color-ring)]",
+          selected ? "bg-primary-subtle/60" : "hover:bg-surface-muted/70",
         )}
       >
-        <Icon className="h-4 w-4" aria-hidden />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className={cn("block text-xs", emphasized ? "font-bold text-primary" : "text-muted")}>{label}</span>
-        <span className="block truncate text-sm font-semibold text-fg">
-          {poi ? poi.name : distance != null ? "가장 가까운 곳" : "반경 안에 없어요"}
-          {poi?.detail && <span className="ml-1 text-xs font-normal text-muted">{poi.detail}</span>}
+        <span
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
+          style={{ background: `${color.border}14`, color: color.fg }}
+        >
+          {poiIcon(poi, "h-4 w-4")}
         </span>
-      </span>
-      <span className="shrink-0 text-sm font-semibold tabular-nums text-fg">
-        {distance != null ? formatDistance(distance) : "—"}
-      </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-xs font-bold" style={{ color: color.fg }}>
+            {infraCategoryLabel(poi)}
+          </span>
+          <span className="block truncate text-sm font-semibold text-fg">
+            {poi.name}
+            {poi.detail && <span className="ml-1 text-xs font-normal text-muted">{poi.detail}</span>}
+          </span>
+        </span>
+        <span className="shrink-0 text-sm font-semibold tabular-nums text-muted">{formatDistance(poi.distance)}</span>
+      </button>
     </li>
   );
 }
 
 /**
- * 상세 페이지 주변 인프라.
- * 원본 인프라는 16만 건이라 건물별 근접 POI만 사전계산해 쓰고, 목록은 티어별로 개수를 제한한다.
- *  · 1순위(필수 인프라) — 강조
- *  · 돌봄·교육 — 설문에서 필요하다고 답했을 때만
- *  · 2순위(취향 가게) — 약하게
+ * 상세 페이지 주변 인프라 탐색기.
+ *  · 반경 구간(도보 5분 → 3km 밖)별로 나눠 가까운 순으로 전부 보여준다.
+ *  · 티어(필수/돌봄교육/취향) 필터를 제공한다.
+ *  · 항목을 누르면 그 시설만 찍은 미니 지도와 설명이 열린다.
  */
 export function NearbyInfraSection({
   unitId,
+  origin,
   includeEducation,
-  infraFallback,
-  educationFallback,
 }: {
   unitId: string;
+  origin: LatLng;
   includeEducation: boolean;
-  infraFallback: Record<string, HousingMetric | null>;
-  educationFallback: Record<string, HousingMetric | null>;
 }) {
-  const infra = detailInfraFor(unitId, { includeEducation });
-  const required = firstByCategory(infra.required);
-  const education = firstByCategory(infra.education);
+  const [tierFilter, setTierFilter] = useState<TierFilter>("all");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  /** 반경 구간별로 펼친 상태. 구간 안 항목이 많아도 처음엔 일부만 보여준다. */
+  const [expanded, setExpanded] = useState<Partial<Record<RadiusBandKey, boolean>>>({});
 
-  const FALLBACK_KEY: Record<InfraCategory, string> = {
-    HOSPITAL: "hospital",
-    MART: "mart",
-    PARK: "park",
-    LIBRARY: "library",
-    SPORTS: "sports",
-    SUBWAY: "subway",
-  };
-  const EDU_FALLBACK_KEY: Record<EduCategory, string> = {
-    DAYCARE: "daycare",
-    KINDER: "kindergarten",
-    ELEM: "elementary",
-    MIDDLE: "middle",
-    HIGH: "high",
-  };
+  const infra = useMemo(() => detailInfraFor(unitId, { includeEducation }), [unitId, includeEducation]);
+  const list = useMemo(
+    () => (tierFilter === "all" ? infra.all : infra.all.filter((poi) => poi.tier === tierFilter)),
+    [infra.all, tierFilter],
+  );
+
+  const byBand = useMemo(() => {
+    const map = new Map<RadiusBandKey, NearbyPoi[]>();
+    for (const poi of list) {
+      const key = bandOf(poi.distance);
+      const bucket = map.get(key);
+      if (bucket) bucket.push(poi);
+      else map.set(key, [poi]);
+    }
+    return map;
+  }, [list]);
+
+  const selected = selectedId ? infra.all.find((poi) => poi.id === selectedId) ?? null : null;
+
+  const tierCounts = useMemo(() => {
+    const counts: Record<MapInfraPoi["tier"], number> = { required: 0, education: 0, preference: 0 };
+    for (const poi of infra.all) counts[poi.tier] += 1;
+    return counts;
+  }, [infra.all]);
+
+  if (!infra.hasAny) {
+    return <p className="text-sm text-muted">주변 인프라 데이터를 아직 확보하지 못했어요.</p>;
+  }
+
+  const FILTERS: { key: TierFilter; label: string; count: number }[] = [
+    { key: "all", label: "전체", count: infra.all.length },
+    { key: "required", label: TIER_LABEL.required, count: tierCounts.required },
+    ...(includeEducation ? [{ key: "education" as const, label: TIER_LABEL.education, count: tierCounts.education }] : []),
+    { key: "preference", label: TIER_LABEL.preference, count: tierCounts.preference },
+  ];
 
   return (
-    <div className="space-y-5">
-      <div>
-        <h3 className="mb-2 flex items-center gap-2 text-sm font-bold text-navy">
-          필수 인프라
-          <span className="rounded-full bg-primary-subtle px-2 py-0.5 text-[11px] font-bold text-primary">1순위</span>
-        </h3>
-        <ul className="divide-y divide-border overflow-hidden rounded-[var(--radius-input)] border border-border">
-          {REQUIRED_ORDER.map((category) => (
-            <InfraRow
-              key={category}
-              icon={REQUIRED_ICON[category]}
-              label={REQUIRED_LABEL[category]}
-              poi={required.get(category)}
-              fallback={infraFallback[FALLBACK_KEY[category]]}
-              emphasized
-            />
-          ))}
-        </ul>
+    <div className="space-y-4">
+      {/* 티어 필터 */}
+      <div className="flex flex-wrap gap-2">
+        {FILTERS.map((filter) => {
+          const active = tierFilter === filter.key;
+          return (
+            <button
+              key={filter.key}
+              type="button"
+              onClick={() => setTierFilter(filter.key)}
+              aria-pressed={active}
+              className={cn(
+                "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-ring)]",
+                active
+                  ? "border-primary bg-primary text-white"
+                  : "border-border bg-surface text-fg hover:border-primary/40 hover:bg-primary-subtle/50",
+              )}
+            >
+              {filter.key !== "all" && <TierPin tier={filter.key} className="h-4 w-4" />}
+              {filter.label}
+              <span className={cn("text-xs font-bold", active ? "text-white/80" : "text-muted")}>{filter.count}</span>
+            </button>
+          );
+        })}
       </div>
 
-      {includeEducation && (
-        <div>
-          <h3 className="mb-2 text-sm font-bold text-navy">돌봄 · 교육</h3>
-          <ul className="divide-y divide-border overflow-hidden rounded-[var(--radius-input)] border border-border">
-            {EDUCATION_ORDER.map((category) => (
-              <InfraRow
-                key={category}
-                icon={EDUCATION_ICON[category]}
-                label={EDUCATION_LABEL[category]}
-                poi={education.get(category)}
-                fallback={educationFallback[EDU_FALLBACK_KEY[category]]}
-                emphasized
-              />
-            ))}
-          </ul>
-        </div>
+      {selected && (
+        <PoiDetailCard poi={selected} origin={origin} onClose={() => setSelectedId(null)} />
       )}
 
-      {infra.preference.length > 0 && (
-        <div>
-          <h3 className="mb-2 flex items-center gap-2 text-sm font-bold text-navy">
-            걸어서 갈 수 있는 가게
-            <span className="rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-bold text-muted">2순위</span>
-          </h3>
-          <ul className="divide-y divide-border overflow-hidden rounded-[var(--radius-input)] border border-border">
-            {infra.preference.map((poi) => (
-              <InfraRow
-                key={poi.id}
-                icon={Store}
-                label={infraCategoryLabel(poi)}
-                poi={poi}
-                emphasized={false}
-              />
-            ))}
-          </ul>
-          <p className="mt-2 text-xs text-muted">
-            업종별로 가장 가까운 한 곳만 보여드려요. 실제 점포 수는 아래 표를 참고하세요.
-          </p>
-        </div>
-      )}
+      <p className="text-xs text-muted">
+        항목을 누르면 위치와 거리를 지도에서 확인할 수 있어요. 거리는 직선거리에 부산 평균 우회계수를 적용한 예상
+        이동거리예요.
+      </p>
+
+      {/* 반경 구간별 목록 */}
+      <div className="space-y-3">
+        {RADIUS_BANDS.map((band) => {
+          const items = byBand.get(band.key);
+          if (!items || items.length === 0) return null;
+          const open = expanded[band.key] ?? false;
+          const shown = open ? items : items.slice(0, BAND_PREVIEW);
+          const hidden = items.length - shown.length;
+          return (
+            <section key={band.key}>
+              <h4 className="mb-1.5 flex items-center gap-2 text-sm font-bold text-navy">
+                <span className="rounded-full bg-primary-subtle px-2 py-0.5 text-[11px] font-bold text-primary">
+                  {band.label}
+                </span>
+                <span className="text-xs font-semibold text-muted">{items.length}곳</span>
+              </h4>
+              <ul className="divide-y divide-border overflow-hidden rounded-[var(--radius-input)] border border-border bg-surface">
+                {shown.map((poi) => (
+                  <PoiRow
+                    key={poi.id}
+                    poi={poi}
+                    selected={poi.id === selectedId}
+                    onSelect={() => setSelectedId((current) => (current === poi.id ? null : poi.id))}
+                  />
+                ))}
+                {(hidden > 0 || open) && (
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => setExpanded((current) => ({ ...current, [band.key]: !open }))}
+                      aria-expanded={open}
+                      className="flex w-full items-center justify-center gap-1 py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-primary-subtle/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--color-ring)]"
+                    >
+                      {open ? (
+                        <>
+                          접기 <ChevronUp className="h-4 w-4" aria-hidden />
+                        </>
+                      ) : (
+                        <>
+                          {hidden}곳 더 보기 <ChevronDown className="h-4 w-4" aria-hidden />
+                        </>
+                      )}
+                    </button>
+                  </li>
+                )}
+              </ul>
+            </section>
+          );
+        })}
+      </div>
     </div>
   );
 }
+
+export { REQUIRED_LABEL, EDUCATION_LABEL };

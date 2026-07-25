@@ -259,7 +259,9 @@ function renderQuestions(
   return (
     <div className="space-y-6">
       <fieldset>
-        <legend className="mb-3 font-semibold">수급·한부모·차상위에 해당하나요? (1순위)</legend>
+        <legend className="mb-3 font-semibold">
+          본인(또는 같은 세대 부모)이 생계·의료·주거급여 수급자, 한부모가족, 차상위계층에 해당하나요?
+        </legend>
         <RadioCards
           name="chung-rank1"
           columns={2}
@@ -273,7 +275,7 @@ function renderQuestions(
       </fieldset>
       {d?.isRank1 === false && (
         <fieldset>
-          <legend className="mb-3 font-semibold">부모 소득·자산 정보를 입력할 수 있나요?</legend>
+          <legend className="mb-3 font-semibold">부모님의 소득·자산 정보를 입력할 수 있나요?</legend>
           <RadioCards
             name="chung-rank"
             columns={2}
