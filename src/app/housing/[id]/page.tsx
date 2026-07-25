@@ -9,7 +9,6 @@ import {
   Building2,
   CircleAlert,
   ExternalLink,
-  ImageOff,
   Landmark,
   MessageCircleQuestion,
   MapPin,
@@ -36,10 +35,9 @@ import {
   parkingLabel,
   roomLabel,
 } from "@/components/housing/HousingDetailParts";
-import { MapPanel } from "@/components/map/MapPanel";
 import { NearbyInfraSection } from "@/components/housing/NearbyInfraSection";
 import { DetailTabs, type DetailTabKey } from "@/components/housing/DetailTabs";
-import { bestCondition, housingById, type HousingMetric, type HousingUnit } from "@/mocks/housing";
+import { bestCondition, housingById, type HousingUnit } from "@/mocks/housing";
 import { reviewsByHousing } from "@/mocks/reviews";
 import { useUserStore } from "@/features/user/user.store";
 import { useEligibilityStore } from "@/features/eligibility/eligibility.store";
@@ -48,7 +46,7 @@ import { useHydrated } from "@/lib/use-hydrated";
 import { recommend, matchLevel } from "@/features/recommendation/recommendation.service";
 import { ApplicationChecklist } from "@/components/housing/ApplicationChecklist";
 import { ELIGIBILITY_TYPE_LABEL } from "@/features/eligibility/eligibility.types";
-import { formatManwon, formatDistance } from "@/lib/formatting";
+import { formatManwon } from "@/lib/formatting";
 import { cn } from "@/lib/utils";
 
 const STATUS = {
@@ -456,26 +454,6 @@ export default function HousingDetailPage() {
 
           {tab === "house" && (
             <>
-          {/* S1 — 주택 이미지 (외부 사진·내부 설계도 미보유 → 지도 폴백) */}
-          <Section id="s1" title="주택 이미지">
-            <Card>
-              <CardBody className="space-y-3">
-                <div className="h-56 overflow-hidden rounded-[var(--radius-input)] sm:h-72">
-                  <MapPanel
-                    markers={[{ id: unit.id, coord: unit.coord, label: displayTitle }]}
-                    selectedId={unit.id}
-                    onSelect={() => {}}
-                    ariaLabel={`${displayTitle} 위치 지도 (사진 대체 이미지)`}
-                  />
-                </div>
-                <p className="flex items-start gap-2 text-sm text-muted">
-                  <ImageOff className="mt-0.5 h-4 w-4 shrink-0 text-muted" aria-hidden />
-                  외부 촬영 사진과 내부 설계도는 아직 수집하지 않은 항목이라, 위치 지도로 대체해 보여드려요.
-                </p>
-              </CardBody>
-            </Card>
-          </Section>
-
           {/* S4 — 주택 사양 */}
           <Section id="s4" title="주택 사양">
             <Card>
@@ -525,6 +503,61 @@ export default function HousingDetailPage() {
                 </p>
               </CardBody>
             </Card>
+          </Section>
+          {/* S7 — 데이터 신뢰성 */}
+          <Section id="s7" title="데이터 신뢰성">
+            <Card>
+              <CardBody className="space-y-4">
+                <dl className="grid gap-3 text-sm sm:grid-cols-2">
+                  <SpecItem label="출처" value={sourceHead.rental_type ? `${sourceHead.rental_type} 재고 데이터` : null} />
+                  <SpecItem label="좌표 정밀도" value={unit.source.geocodePrecision} />
+                </dl>
+                <MissingNote>
+                  최종 갱신일과 가격 기준일(가격등록일)은 현재 데이터셋에 없어요. 확정 정보는 아래 원문 공고에서 확인해
+                  주세요.
+                </MissingNote>
+                <a
+                  href={unit.officialUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-sm font-semibold text-primary underline"
+                >
+                  원문 공고 보기 (LH청약플러스 · 부산도시공사)
+                  <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                </a>
+              </CardBody>
+            </Card>
+          </Section>
+
+          {/* S8 — 주택 리뷰 */}
+          <Section id="s8" title={`주택 리뷰 (${reviews.length})`}>
+            <InformationBanner tone="warning" className="mb-3">
+              아래 후기는 서비스 화면 예시예요.
+            </InformationBanner>
+            <div className="grid gap-3 md:grid-cols-2">
+              {reviews.length === 0 && <p className="text-sm text-muted">등록된 후기가 없어요.</p>}
+              {reviews.map((rv) => (
+                <Card key={rv.id}>
+                  <CardBody className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-1 text-sm font-medium">
+                        <Star className="h-4 w-4 fill-warning text-warning" aria-hidden /> {rv.rating.toFixed(1)}
+                        <span className="ml-2 text-muted">{rv.author}</span>
+                      </span>
+                      <span className="text-xs text-muted">{rv.createdAt}</span>
+                    </div>
+                    <p className="text-sm text-fg">{rv.body}</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {rv.tags.map((t) => (
+                        <Badge key={t} tone="neutral">
+                          #{t}
+                        </Badge>
+                      ))}
+                    </div>
+                  </CardBody>
+                </Card>
+              ))}
+            </div>
           </Section>
             </>
           )}
@@ -615,66 +648,6 @@ export default function HousingDetailPage() {
             </>
           )}
 
-          {tab === "trust" && (
-            <>
-          {/* S7 — 데이터 신뢰성 */}
-          <Section id="s7" title="데이터 신뢰성">
-            <Card>
-              <CardBody className="space-y-4">
-                <dl className="grid gap-3 text-sm sm:grid-cols-2">
-                  <SpecItem label="출처" value={sourceHead.rental_type ? `${sourceHead.rental_type} 재고 데이터` : null} />
-                  <SpecItem label="좌표 정밀도" value={unit.source.geocodePrecision} />
-                </dl>
-                <MissingNote>
-                  최종 갱신일과 가격 기준일(가격등록일)은 현재 데이터셋에 없어요. 확정 정보는 아래 원문 공고에서 확인해
-                  주세요.
-                </MissingNote>
-                <a
-                  href={unit.officialUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-sm font-semibold text-primary underline"
-                >
-                  원문 공고 보기 (LH청약플러스 · 부산도시공사)
-                  <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-                </a>
-              </CardBody>
-            </Card>
-          </Section>
-
-          {/* S8 — 주택 리뷰 */}
-          <Section id="s8" title={`주택 리뷰 (${reviews.length})`}>
-            <InformationBanner tone="warning" className="mb-3">
-              아래 후기는 서비스 화면 예시예요.
-            </InformationBanner>
-            <div className="grid gap-3 md:grid-cols-2">
-              {reviews.length === 0 && <p className="text-sm text-muted">등록된 후기가 없어요.</p>}
-              {reviews.map((rv) => (
-                <Card key={rv.id}>
-                  <CardBody className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="flex items-center gap-1 text-sm font-medium">
-                        <Star className="h-4 w-4 fill-warning text-warning" aria-hidden /> {rv.rating.toFixed(1)}
-                        <span className="ml-2 text-muted">{rv.author}</span>
-                      </span>
-                      <span className="text-xs text-muted">{rv.createdAt}</span>
-                    </div>
-                    <p className="text-sm text-fg">{rv.body}</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {rv.tags.map((t) => (
-                        <Badge key={t} tone="neutral">
-                          #{t}
-                        </Badge>
-                      ))}
-                    </div>
-                  </CardBody>
-                </Card>
-              ))}
-            </div>
-          </Section>
-            </>
-          )}
-
           {/* S9 — 신청하러 가기 */}
           <Section id="s9" title="신청하러 가기">
             <Card>
@@ -696,30 +669,8 @@ export default function HousingDetailPage() {
           </Section>
         </div>
 
-        {/* 사이드: 주변시설 요약 + 신청 CTA (지도는 S1에 한 번만 띄운다) */}
-        <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
-          <Card>
-            <CardBody>
-              <h2 className="mb-3 text-sm font-bold text-navy">주변시설 · 예상 정보</h2>
-              <ul className="space-y-2 text-sm">
-                {(
-                  [
-                    ["지하철역", unit.source.infra.subway],
-                    ["대형마트", unit.source.infra.mart],
-                    ["종합병원(차량)", unit.source.infra.hospital],
-                    ["공원", unit.source.infra.park],
-                  ] as [string, HousingMetric | null][]
-                ).map(([label, value]) => (
-                  <li key={label} className="flex items-center justify-between">
-                    <span className="text-muted">{label}</span>
-                    <span className="font-medium text-fg">
-                      {value ? formatDistance(value.distance) : "데이터 없음"}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </CardBody>
-          </Card>
+        {/* 사이드: 신청 CTA (상세 정보는 본문 탭에서 본다) */}
+        <aside className="lg:sticky lg:top-24 lg:self-start">
           <a
             href={unit.officialUrl}
             target="_blank"

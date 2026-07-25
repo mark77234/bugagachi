@@ -90,6 +90,12 @@ export interface MapViewProps {
   onHoverChange?: (id: string | null) => void;
   /** 목록에서 호버 중인 주택 — 지도 마커도 함께 포커스한다. */
   hoveredId?: string | null;
+  /** 인프라 핀을 누를 수 있게 한다. 넘기지 않으면 핀은 장식(비대화형)으로 렌더된다. */
+  onInfraSelect?: (id: string) => void;
+  /** 선택된 인프라 핀 — 이름까지 펼쳐 보여준다. */
+  selectedInfraId?: string | null;
+  /** 지도를 드래그하면 선택을 해제한다. */
+  onMapMove?: () => void;
 }
 
 // 부산 대략 경계 (WGS84)

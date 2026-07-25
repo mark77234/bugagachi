@@ -74,6 +74,8 @@ type TierFilter = "all" | MapInfraPoi["tier"];
 
 /** 반경 구간마다 처음에 보여줄 개수. 나머지는 "더 보기"로 펼친다. */
 const BAND_PREVIEW = 12;
+/** 지도에 동시에 찍을 인프라 핀 상한 (가까운 순). */
+const MAP_PIN_LIMIT = 60;
 
 /** 지도 마커와 같은 핀 아이콘. */
 function TierPin({ tier, className = "h-5 w-5" }: { tier: MapInfraPoi["tier"]; className?: string }) {
@@ -83,7 +85,7 @@ function TierPin({ tier, className = "h-5 w-5" }: { tier: MapInfraPoi["tier"]; c
 }
 
 /** 선택한 인프라 한 곳의 상세 카드 — 지도 위치·거리·업종을 보여준다. */
-function PoiDetailCard({ poi, origin, onClose }: { poi: NearbyPoi; origin: LatLng; onClose: () => void }) {
+function PoiDetailCard({ poi, onClose }: { poi: NearbyPoi; onClose: () => void }) {
   const color = INFRA_COLOR[poi.tier];
   return (
     <div className="overflow-hidden rounded-[var(--radius-card)] border-2 bg-surface" style={{ borderColor: color.border }}>
@@ -117,25 +119,6 @@ function PoiDetailCard({ poi, origin, onClose }: { poi: NearbyPoi; origin: LatLn
         >
           <X className="h-4 w-4" aria-hidden />
         </button>
-      </div>
-      <div className="h-[200px] w-full border-t border-border">
-        <MapPanel
-          markers={[{ id: "home", coord: origin, label: "이 주택", caption: "이 주택", tier: "recommend" }]}
-          selectedId="home"
-          onSelect={() => {}}
-          ariaLabel={`${poi.name} 위치 지도`}
-          infra={[
-            {
-              id: poi.id,
-              coord: poi.coord,
-              label: poi.name,
-              categoryLabel: infraCategoryLabel(poi),
-              tier: poi.tier,
-              distance: poi.distance,
-            },
-          ]}
-          fullBleed
-        />
       </div>
       <a
         href={`https://map.kakao.com/link/to/${encodeURIComponent(poi.name)},${poi.coord.lat},${poi.coord.lng}`}
@@ -230,6 +213,20 @@ export function NearbyInfraSection({
     return map;
   }, [list]);
 
+  /** 지도에 찍을 핀. 필터를 반영하고, 너무 빽빽해지지 않게 가까운 순으로 제한한다. */
+  const mapPois = useMemo(
+    () =>
+      list.slice(0, MAP_PIN_LIMIT).map((poi) => ({
+        id: poi.id,
+        coord: poi.coord,
+        label: poi.name,
+        categoryLabel: infraCategoryLabel(poi),
+        tier: poi.tier,
+        distance: poi.distance,
+      })),
+    [list],
+  );
+
   const selected = selectedId ? infra.all.find((poi) => poi.id === selectedId) ?? null : null;
 
   const tierCounts = useMemo(() => {
@@ -276,12 +273,26 @@ export function NearbyInfraSection({
         })}
       </div>
 
-      {selected && (
-        <PoiDetailCard poi={selected} origin={origin} onClose={() => setSelectedId(null)} />
-      )}
+      {/* 주택 위치 + 주변 인프라를 한 지도에 펼친다. 핀을 누르면 아래 카드에 설명이 뜬다. */}
+      <div className="overflow-hidden rounded-[var(--radius-card)] border border-border">
+        <div className="h-[420px] w-full sm:h-[520px]">
+          <MapPanel
+            markers={[{ id: "home", coord: origin, label: "이 주택", caption: "이 주택", tier: "recommend" }]}
+            selectedId="home"
+            onSelect={() => {}}
+            ariaLabel="주택 위치와 주변 인프라 지도"
+            infra={mapPois}
+            onInfraSelect={(id) => setSelectedId((current) => (current === id ? null : id))}
+            selectedInfraId={selectedId}
+            fullBleed
+          />
+        </div>
+      </div>
+
+      {selected && <PoiDetailCard poi={selected} onClose={() => setSelectedId(null)} />}
 
       <p className="text-xs text-muted">
-        항목을 누르면 위치와 거리를 지도에서 확인할 수 있어요. 거리는 직선거리에 부산 평균 우회계수를 적용한 예상
+        지도 핀이나 아래 목록을 누르면 해당 시설 설명이 열려요. 거리는 직선거리에 부산 평균 우회계수를 적용한 예상
         이동거리예요.
       </p>
 

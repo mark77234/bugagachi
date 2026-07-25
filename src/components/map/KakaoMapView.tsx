@@ -25,6 +25,13 @@ const BUSAN_CENTER = { lat: 35.16, lng: 129.07 };
 const CLUSTER_CELL_PX = 120;
 /** 클러스터를 누를 때 한 번에 확대할 레벨 수. */
 const CLUSTER_ZOOM_STEP = 2;
+/** 이 레벨 이하(=충분히 확대)로 들어가면 클러스터링을 끄고 모든 마커를 개별로 보여준다.
+ *  같은 좌표의 주택은 이미 상위에서 하나로 묶여 있으므로, 여기서 더 묶으면
+ *  아무리 확대해도 열리지 않는 클러스터가 생겨 마커가 영영 가려진다. */
+const CLUSTER_MIN_LEVEL = 2;
+/** 목록에서 주택을 고를 때 확대할 최대 레벨.
+ *  클러스터 격자가 120px 이므로 이 레벨이면 250m 이상 떨어진 주택끼리는 묶이지 않는다. */
+const FOCUS_LEVEL = 4;
 
 declare global {
   interface Window {
@@ -79,7 +86,7 @@ function strongestTier(markers: MapMarker[]): MarkerTier {
  * 선택된 마커는 항상 단독으로 남겨 강조가 묻히지 않게 한다.
  */
 function clusterMarkers(kakao: any, map: any, markers: MapMarker[], selectedId: string | null): Cluster[] {
-  if (!map) {
+  if (!map || map.getLevel() <= CLUSTER_MIN_LEVEL) {
     return markers.map((m) => ({ key: m.id, coord: m.coord, members: [m], tier: m.tier ?? "normal" }));
   }
   const projection = map.getProjection();
@@ -308,11 +315,25 @@ function styleCluster(el: HTMLButtonElement, cluster: Cluster, hovered: boolean)
  * 시설 이름까지 넣으면 핀이 가로로 길어져 지도를 가리므로, 이름은 title/aria-label 로만 남긴다.
  * 2순위(취향)는 아이콘만 찍어 더 가볍게 보이게 한다.
  */
-function buildInfraPin(poi: MapInfraPoi): HTMLDivElement {
+function buildInfraPin(
+  poi: MapInfraPoi,
+  selected: boolean,
+  onClick?: () => void,
+): HTMLElement {
   const color = INFRA_COLOR[poi.tier];
-  const emphasized = poi.tier !== "preference";
-  const el = document.createElement("div");
-  el.setAttribute("role", "img");
+  // 선택했거나 1순위·교육이면 라벨을 함께 보여준다. 선택 시에는 시설 이름까지.
+  const emphasized = selected || poi.tier !== "preference";
+  const el = document.createElement(onClick ? "button" : "div");
+  if (onClick) {
+    (el as HTMLButtonElement).type = "button";
+    el.setAttribute("aria-pressed", String(selected));
+    el.addEventListener("click", (event) => {
+      event.stopPropagation();
+      onClick();
+    });
+  } else {
+    el.setAttribute("role", "img");
+  }
   el.setAttribute("aria-label", `${poi.categoryLabel} ${poi.label}, ${poi.distance}m`);
   el.title = `${poi.categoryLabel} · ${poi.label} · ${poi.distance}m`;
 
@@ -329,7 +350,7 @@ function buildInfraPin(poi: MapInfraPoi): HTMLDivElement {
 
   if (emphasized) {
     const label = document.createElement("span");
-    label.textContent = poi.categoryLabel;
+    label.textContent = selected ? `${poi.categoryLabel} · ${poi.label}` : poi.categoryLabel;
     el.appendChild(label);
   }
 
@@ -339,16 +360,23 @@ function buildInfraPin(poi: MapInfraPoi): HTMLDivElement {
     gap: "2px",
     padding: emphasized ? "2px 7px 2px 3px" : "2px",
     borderRadius: "9999px",
-    fontSize: "10px",
-    fontWeight: "700",
+    fontSize: selected ? "11px" : "10px",
+    fontWeight: selected ? "800" : "700",
     lineHeight: "1.1",
     whiteSpace: "nowrap",
-    pointerEvents: "none",
-    border: "1px solid",
-    borderColor: color.border,
-    background: color.bg,
-    color: color.fg,
-    boxShadow: emphasized ? "0 2px 8px rgba(15,23,42,0.2)" : "0 1px 4px rgba(15,23,42,0.14)",
+    pointerEvents: onClick ? "auto" : "none",
+    cursor: onClick ? "pointer" : "default",
+    border: selected ? "2px solid" : "1px solid",
+    borderColor: selected ? color.fg : color.border,
+    background: selected ? color.fg : color.bg,
+    color: selected ? "#ffffff" : color.fg,
+    transform: selected ? "scale(1.08)" : "scale(1)",
+    transition: "transform .15s ease, box-shadow .15s ease",
+    boxShadow: selected
+      ? `0 0 0 3px ${color.border}55, 0 6px 16px rgba(15,23,42,0.28)`
+      : emphasized
+        ? "0 2px 8px rgba(15,23,42,0.2)"
+        : "0 1px 4px rgba(15,23,42,0.14)",
   } as CSSStyleDeclaration);
   return el;
 }
@@ -363,6 +391,9 @@ export function KakaoMapView({
   infra = [],
   onHoverChange,
   hoveredId = null,
+  onInfraSelect,
+  selectedInfraId = null,
+  onMapMove,
 }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
@@ -371,7 +402,13 @@ export function KakaoMapView({
   const onSelectRef = useRef(onSelect);
   const onHoverChangeRef = useRef(onHoverChange);
   const onViewportChangeRef = useRef(onViewportChange);
+  const onInfraSelectRef = useRef(onInfraSelect);
+  const onMapMoveRef = useRef(onMapMove);
+  /** 이 시각 전까지의 지도 이동은 코드가 일으킨 것(선택 시 확대·이동)으로 보고 무시한다. */
+  const programmaticUntilRef = useRef(0);
   const markersRef = useRef<MapMarker[]>(markers);
+  /** 이미 확대·이동을 마친 선택 id. 같은 선택으로 반복 확대하지 않도록 기억한다. */
+  const focusedSelectionRef = useRef<string | null>(null);
   const didInitialFitRef = useRef(false);
   const [failed, setFailed] = useState(!KAKAO_KEY);
   const [ready, setReady] = useState(false);
@@ -393,6 +430,14 @@ export function KakaoMapView({
     onViewportChangeRef.current = onViewportChange;
   }, [onViewportChange]);
 
+  useEffect(() => {
+    onInfraSelectRef.current = onInfraSelect;
+  }, [onInfraSelect]);
+
+  useEffect(() => {
+    onMapMoveRef.current = onMapMove;
+  }, [onMapMove]);
+
   const reportViewport = (map: any) => {
     if (!map || !onViewportChangeRef.current) return;
     const bounds = map.getBounds();
@@ -412,6 +457,7 @@ export function KakaoMapView({
     const map = mapRef.current;
     if (!kakao?.maps || !map || !containerRef.current || containerRef.current.clientWidth === 0) return;
     map.relayout();
+    programmaticUntilRef.current = Date.now() + 900;
     const list = markersRef.current;
     if (list.length === 1) {
       map.setCenter(new kakao.maps.LatLng(list[0].coord.lat, list[0].coord.lng));
@@ -426,21 +472,25 @@ export function KakaoMapView({
   const zoomBy = (delta: number) => {
     const map = mapRef.current;
     if (!map) return;
+    // 줌 버튼은 사용자의 지도 이동으로 치지 않는다 (선택이 풀리면 인프라 표시가 사라져 불편).
+    programmaticUntilRef.current = Date.now() + 900;
     map.setLevel(map.getLevel() + delta, { animate: true });
   };
 
-  /** 클러스터를 눌렀을 때 그 지점을 기준으로 부드럽게 단계 확대한다.
+  /** 클러스터를 눌렀을 때 그 지점으로 단계 확대한다.
    *  격자 클러스터링이 화면 픽셀 기준이라, 확대할수록 묶음이 알아서 풀린다.
    *  (setBounds 로 한 번에 맞추면 여전히 겹치는 레벨에 착지해 핀이 서로 가려진다.)
-   *  anchor 를 클러스터 좌표로 주면 그 지점이 고정된 채 확대돼 별도 이동이 필요 없다. */
+   *  확대는 즉시, 이동은 panTo 애니메이션으로 — setLevel 의 animate/anchor 와 panTo 를
+   *  함께 쓰면 두 동작이 서로 덮어써 확대가 아예 적용되지 않는다. */
   const zoomToCluster = (cluster: Cluster) => {
     const kakao = window.kakao;
     const map = mapRef.current;
     if (!kakao?.maps || !map) return;
     const center = new kakao.maps.LatLng(cluster.coord.lat, cluster.coord.lng);
     const next = Math.max(1, map.getLevel() - CLUSTER_ZOOM_STEP);
-    if (next === map.getLevel()) return;
-    map.setLevel(next, { animate: { duration: 350 }, anchor: center });
+    programmaticUntilRef.current = Date.now() + 900;
+    if (next !== map.getLevel()) map.setLevel(next);
+    map.panTo(center);
   };
 
   const handleHover = (id: string | null) => {
@@ -455,6 +505,7 @@ export function KakaoMapView({
     let ro: ResizeObserver | undefined;
     let kakaoInstance: any;
     let idleHandler: (() => void) | undefined;
+    let moveHandler: (() => void) | undefined;
     loadKakao()
       .then((kakao) => {
         if (cancelled || !containerRef.current) return;
@@ -470,6 +521,13 @@ export function KakaoMapView({
           setViewTick((tick) => tick + 1);
         };
         kakao.maps.event.addListener(mapRef.current, "idle", idleHandler);
+        // 사용자가 지도를 끌면 마커 선택을 해제한다.
+        // (줌 버튼·선택 시 자동 이동 등 코드가 일으킨 이동은 타임스탬프로 걸러낸다)
+        moveHandler = () => {
+          if (Date.now() < programmaticUntilRef.current) return;
+          onMapMoveRef.current?.();
+        };
+        kakao.maps.event.addListener(mapRef.current, "dragstart", moveHandler);
         setReady(true);
         // 컨테이너 리사이즈 시 레이아웃만 다시 계산 (센터/줌 유지)
         ro = new ResizeObserver(() => mapRef.current?.relayout());
@@ -480,8 +538,9 @@ export function KakaoMapView({
     return () => {
       cancelled = true;
       ro?.disconnect();
-      if (kakaoInstance?.maps && mapRef.current && idleHandler) {
-        kakaoInstance.maps.event.removeListener(mapRef.current, "idle", idleHandler);
+      if (kakaoInstance?.maps && mapRef.current) {
+        if (idleHandler) kakaoInstance.maps.event.removeListener(mapRef.current, "idle", idleHandler);
+        if (moveHandler) kakaoInstance.maps.event.removeListener(mapRef.current, "dragstart", moveHandler);
       }
     };
   }, []);
@@ -523,6 +582,30 @@ export function KakaoMapView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [markers, ready, viewTick]);
 
+  /**
+   * 선택이 바뀌면 해당 마커로 확대·이동한다.
+   * 목록에서 고른 주택이 근처 클러스터 버블에 가려지지 않도록 클러스터가 풀릴 만큼 확대한다.
+   */
+  useEffect(() => {
+    const kakao = window.kakao;
+    const map = mapRef.current;
+    if (!ready || !kakao?.maps || !map) return;
+    if (!selectedId) {
+      focusedSelectionRef.current = null;
+      return;
+    }
+    if (focusedSelectionRef.current === selectedId) return;
+    const target = markersRef.current.find((marker) => marker.id === selectedId);
+    if (!target) return;
+    focusedSelectionRef.current = selectedId;
+    const center = new kakao.maps.LatLng(target.coord.lat, target.coord.lng);
+    // 확대는 즉시, 이동은 애니메이션으로.
+    // (panTo 애니메이션 중에 setLevel 을 걸면 두 동작이 서로 덮어써 엉뚱한 위치에 착지한다)
+    programmaticUntilRef.current = Date.now() + 1200;
+    if (map.getLevel() > FOCUS_LEVEL) map.setLevel(FOCUS_LEVEL);
+    map.panTo(center);
+  }, [selectedId, ready]);
+
   // 선택·호버 강조 (재생성 없이 스타일만 토글)
   useEffect(() => {
     const kakao = window.kakao;
@@ -536,7 +619,6 @@ export function KakaoMapView({
       const active = cluster.members[0].id === selectedId;
       stylePin(el, cluster.tier, active, hovered);
       overlay.setZIndex(active ? 30 : hovered ? 25 : cluster.tier === "normal" ? 1 : 10);
-      if (active) mapRef.current.panTo(overlay.getPosition());
     });
   }, [selectedId, focusedId, ready, viewTick]);
 
@@ -546,11 +628,16 @@ export function KakaoMapView({
     if (!ready || !kakao?.maps || !mapRef.current) return;
     infraOverlaysRef.current.forEach((overlay) => overlay.setMap(null));
     infraOverlaysRef.current = infra.map((poi) => {
+      const selected = poi.id === selectedInfraId;
       const overlay = new kakao.maps.CustomOverlay({
         position: new kakao.maps.LatLng(poi.coord.lat, poi.coord.lng),
-        content: buildInfraPin(poi),
+        content: buildInfraPin(
+          poi,
+          selected,
+          onInfraSelectRef.current ? () => onInfraSelectRef.current?.(poi.id) : undefined,
+        ),
         yAnchor: 0.5,
-        zIndex: poi.tier === "preference" ? 3 : 6,
+        zIndex: selected ? 20 : poi.tier === "preference" ? 3 : 6,
       });
       overlay.setMap(mapRef.current);
       return overlay;
@@ -559,7 +646,7 @@ export function KakaoMapView({
       infraOverlaysRef.current.forEach((overlay) => overlay.setMap(null));
       infraOverlaysRef.current = [];
     };
-  }, [infra, ready]);
+  }, [infra, ready, selectedInfraId]);
 
   if (failed) {
     return (
@@ -573,6 +660,9 @@ export function KakaoMapView({
         infra={infra}
         onHoverChange={onHoverChange}
         hoveredId={hoveredId}
+        onInfraSelect={onInfraSelect}
+        selectedInfraId={selectedInfraId}
+        onMapMove={onMapMove}
       />
     );
   }

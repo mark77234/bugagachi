@@ -6,7 +6,19 @@ import { formatManwon } from "@/lib/formatting";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const MODEL = process.env.OPENAI_MODEL ?? "gpt-4o-mini";
+/**
+ * AI 제공자 설정.
+ *
+ * 기본값은 Upstage(Solar)이고, OpenAI 호환 API라 같은 SDK를 그대로 쓴다.
+ * 환경변수만 바꾸면 재배포 없이 제공자·모델을 교체할 수 있다.
+ *
+ *   AI_API_KEY   호출 키 (미설정 시 UPSTAGE_API_KEY → OPENAI_API_KEY 순으로 찾는다)
+ *   AI_BASE_URL  OpenAI 호환 엔드포인트 (OpenAI 로 되돌리려면 https://api.openai.com/v1)
+ *   AI_MODEL     모델 이름 (예: solar-pro2, gpt-4o-mini)
+ */
+const AI_BASE_URL = process.env.AI_BASE_URL ?? "https://api.upstage.ai/v1";
+const AI_MODEL = process.env.AI_MODEL ?? process.env.OPENAI_MODEL ?? "solar-pro2";
+const AI_API_KEY = process.env.AI_API_KEY ?? process.env.UPSTAGE_API_KEY ?? process.env.OPENAI_API_KEY;
 
 type ChatRole = "user" | "assistant";
 interface IncomingMessage {
@@ -64,7 +76,7 @@ ${buildHousingContext()}${focusBlock}`;
 }
 
 export async function POST(req: Request) {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = AI_API_KEY;
   if (!apiKey) {
     return Response.json({ error: "AI 설정이 완료되지 않았어요. 관리자에게 문의해 주세요." }, { status: 503 });
   }
@@ -84,11 +96,11 @@ export async function POST(req: Request) {
     return Response.json({ error: "메시지가 비어 있어요." }, { status: 400 });
   }
 
-  const openai = new OpenAI({ apiKey });
+  const client = new OpenAI({ apiKey, baseURL: AI_BASE_URL });
 
   try {
-    const stream = await openai.chat.completions.create({
-      model: MODEL,
+    const stream = await client.chat.completions.create({
+      model: AI_MODEL,
       stream: true,
       temperature: 0.4,
       max_tokens: 700,
@@ -118,17 +130,18 @@ export async function POST(req: Request) {
       },
     });
   } catch (error) {
-    // OpenAI 호출 실패 원인을 로그와 응답에 남긴다 (키 값 등 비밀은 포함하지 않음).
+    // 호출 실패 원인을 로그와 응답에 남긴다 (키 값 등 비밀은 포함하지 않음).
     const err = error as { status?: number; code?: string; type?: string; message?: string };
     const detail = [err?.status && `status=${err.status}`, err?.code && `code=${err.code}`, err?.type && `type=${err.type}`]
       .filter(Boolean)
       .join(" ");
-    console.error("[api/chat] OpenAI 호출 실패", {
+    console.error("[api/chat] AI 호출 실패", {
       status: err?.status,
       code: err?.code,
       type: err?.type,
       message: err?.message,
-      model: MODEL,
+      baseUrl: AI_BASE_URL,
+      model: AI_MODEL,
       keyLength: apiKey.length,
     });
 

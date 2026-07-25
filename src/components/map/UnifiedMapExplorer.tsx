@@ -258,6 +258,12 @@ export function UnifiedMapExplorer() {
     [groups],
   );
 
+  /** 사용자가 지도를 끌면 마커 포커스를 푼다. */
+  const handleMapMove = useCallback(() => {
+    setSelectedId(null);
+    setGroupKey(null);
+  }, []);
+
   const handleAiRecommend = useCallback((ids: string[]) => {
     setAiIds(ids);
     if (ids[0]) setSelectedId(ids[0]);
@@ -307,16 +313,13 @@ export function UnifiedMapExplorer() {
         onViewportChange: handleViewportChange,
         onHoverChange: setHoveredId,
         hoveredId,
+        // 지도를 끌면 마커 선택(과 주변 인프라 표시)을 해제한다.
+        onMapMove: handleMapMove,
         infra,
         ariaLabel: `부산 공공임대주택 ${filteredUnits.length}곳 지도`,
       }}
       assistant={
         <MapAssistantPanel focusedUnitId={activeId} onRecommend={handleAiRecommend} onSelectUnit={handleSelect} />
-      }
-      overlay={
-        activeId && infra.length > 0 ? (
-          <NearbyInfraLegend count={infra.length} tiers={[...new Set(infra.map((poi) => poi.tier))]} />
-        ) : null
       }
       controls={
         <>
@@ -407,6 +410,9 @@ export function UnifiedMapExplorer() {
               </span>
             )}
           </span>
+          {activeId && infra.length > 0 && (
+            <NearbyInfraLegend count={infra.length} tiers={[...new Set(infra.map((poi) => poi.tier))]} />
+          )}
           {hasFilters && (
             <button
               type="button"

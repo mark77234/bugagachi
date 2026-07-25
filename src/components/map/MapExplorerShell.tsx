@@ -26,7 +26,6 @@ export function MapExplorerShell({
   sheet,
   listCount,
   assistant,
-  overlay,
 }: {
   mapProps: MapViewProps;
   /** 좌측 상단에 놓이는 플로팅 컨트롤 (필터·정렬 등) */
@@ -41,8 +40,6 @@ export function MapExplorerShell({
   listCount: number;
   /** 우측 하단 AI 갈붕 패널 */
   assistant?: ReactNode;
-  /** 지도 하단 중앙 오버레이 (인프라 범례 등) */
-  overlay?: ReactNode;
 }) {
   const [listOpen, setListOpen] = useState(true);
 
@@ -112,13 +109,6 @@ export function MapExplorerShell({
           <ListFilter className="h-4 w-4 text-primary" aria-hidden />
           목록 {listCount}곳 보기
         </button>
-      )}
-
-      {/* 지도 하단 중앙 오버레이 (인프라 범례) */}
-      {overlay && (
-        <div className="pointer-events-none absolute bottom-[8.5rem] left-1/2 z-20 hidden -translate-x-1/2 lg:block">
-          {overlay}
-        </div>
       )}
 
       {/* 우측 하단 AI 갈붕 패널 */}

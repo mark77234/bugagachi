@@ -1,17 +1,16 @@
 "use client";
 
-import { Banknote, Building2, FileCheck2, MapPinned, ShieldCheck } from "lucide-react";
+import { Banknote, Building2, FileCheck2, MapPinned } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type DetailTabKey = "price" | "eligibility" | "house" | "area" | "trust";
+export type DetailTabKey = "price" | "eligibility" | "house" | "area";
 
 const TABS: { key: DetailTabKey; label: string; icon: LucideIcon }[] = [
   { key: "price", label: "임대조건", icon: Banknote },
   { key: "eligibility", label: "입주자격", icon: FileCheck2 },
   { key: "house", label: "주택정보", icon: Building2 },
   { key: "area", label: "주변환경", icon: MapPinned },
-  { key: "trust", label: "리뷰·출처", icon: ShieldCheck },
 ];
 
 /** 상세 페이지 섹션 탭. 내용이 길어 한 화면에 다 담지 않고 묶음으로 나눠 보여준다. */
