@@ -15,7 +15,7 @@ const ITEMS: { href: string; label: string; icon: LucideIcon; activePrefixes?: s
     activePrefixes: ["/eligibility", "/preferences", "/recommendations", "/housing"],
   },
   { href: "/chat", label: "AI 갈붕이", icon: Bot },
-  { href: "/map", label: "갈붕지도", icon: Map },
+  { href: "/map", label: "지도", icon: Map },
   { href: "/mypage", label: "마이", icon: User },
 ];
 

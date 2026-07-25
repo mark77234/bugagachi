@@ -15,7 +15,7 @@ export const FLOATING_PANEL =
 
 /**
  * 전체화면 지도 탐색 셸.
- * 갈붕 지도와 상세 추천이 완전히 같은 레이아웃/인터랙션을 쓰도록 공유한다.
+ * 지도와 상세 추천이 완전히 같은 레이아웃/인터랙션을 쓰도록 공유한다.
  * (데이터·목록 카드만 각 화면에서 주입)
  */
 export function MapExplorerShell({

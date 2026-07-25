@@ -183,7 +183,7 @@ export function HousingMapExplorer() {
         selectedId: mapSelectedId,
         onSelect: handleSelect,
         onViewportChange: handleViewportChange,
-        ariaLabel: `부산 공공임대주택 ${filteredUnits.length}곳 갈붕 지도`,
+        ariaLabel: `부산 공공임대주택 ${filteredUnits.length}곳 지도`,
       }}
       controls={
         <>

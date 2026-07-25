@@ -4,10 +4,10 @@ import Link from "next/link";
 import { Map as MapIcon, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-/** 갈붕 지도 ↔ 상세 추천 전환 토글. 지도 페이지에서는 플로팅으로 사용한다. */
+/** 지도 ↔ 상세 추천 전환 토글. 지도 페이지에서는 플로팅으로 사용한다. */
 export function ViewToggle({ current, floating = false }: { current: "map" | "recommendations"; floating?: boolean }) {
   const items = [
-    { key: "map" as const, href: "/map", label: "갈붕 지도", Icon: MapIcon },
+    { key: "map" as const, href: "/map", label: "지도", Icon: MapIcon },
     { key: "recommendations" as const, href: "/recommendations", label: "상세 추천", Icon: Sparkles },
   ];
 

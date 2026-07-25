@@ -265,7 +265,7 @@ export default function HousingDetailPage() {
             </Link>
             <Link href={`/map?selected=${unit.id}`} className={cn(buttonVariants({ variant: "outline", size: "md" }))}>
               <MapPinned className="h-4 w-4" aria-hidden />
-              갈붕 지도에서 보기
+              지도에서 보기
             </Link>
             <Button variant="outline" size="md" onClick={share}>
               <Share2 className="h-4 w-4" /> {copied ? "링크 복사됨" : "공유"}

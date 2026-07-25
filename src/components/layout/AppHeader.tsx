@@ -10,7 +10,7 @@ import { BrandLogo } from "./BrandLogo";
 const NAV = [
   { href: "/eligibility", label: "맞춤 추천" },
   { href: "/chat", label: "AI 갈붕이" },
-  { href: "/map", label: "갈붕 지도" },
+  { href: "/map", label: "지도" },
   { href: "/community", label: "커뮤니티" },
 ];
 

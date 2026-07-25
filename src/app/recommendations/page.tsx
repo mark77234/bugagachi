@@ -169,7 +169,7 @@ function RecommendationsInner() {
         markers,
         selectedId: activeId,
         onSelect: setActiveId,
-        ariaLabel: `추천 주택 ${filtered.length}곳 갈붕 지도`,
+        ariaLabel: `추천 주택 ${filtered.length}곳 지도`,
       }}
       controls={
         <>

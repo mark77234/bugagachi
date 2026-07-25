@@ -1,7 +1,5 @@
-import Link from "next/link";
 import Image from "next/image";
 import {
-  ArrowRight,
   ClipboardCheck,
   FileCheck2,
   ListChecks,
@@ -15,7 +13,6 @@ import { MascotVideo, type MascotVideoKey } from "@/components/common/MascotVide
 import { SectionHeader } from "@/components/common/SectionHeader";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardBody } from "@/components/ui/card";
-import { buttonVariants } from "@/components/ui/button";
 import { FadeIn } from "@/components/common/motion";
 import { Reveal } from "@/components/common/Reveal";
 import { ServiceEntryCard } from "@/components/landing/ServiceEntryCard";
@@ -87,12 +84,6 @@ export default function LandingPage() {
     <div className="pb-8">
       {/* 1) 서비스 진입 카드 — 추천받기(전체 폭) + AI 갈붕이 · 지도(좌우 1개씩) */}
       <PageContainer size="wide" className="pb-12 pt-8 sm:pb-16 sm:pt-10">
-        <div className="mb-7">
-          <p className="text-sm font-semibold text-primary">어디서부터 시작할까요?</p>
-          <h2 className="mt-2 text-2xl font-extrabold sm:text-3xl">필요한 도움을 바로 선택하세요</h2>
-          <p className="mt-2 max-w-2xl text-muted">추천을 먼저 받거나, 궁금한 정보를 묻거나, 부산 전체 주택을 둘러볼 수 있어요.</p>
-        </div>
-
         <div className="grid gap-4">
           <ServiceEntryCard
             href="/eligibility"
@@ -124,7 +115,7 @@ export default function LandingPage() {
               eyebrow="부산 공공임대주택을 한눈에"
               title="지도에서 전체 주택 둘러보기"
               description={`부산 공공임대주택 ${RENTAL_DATASET_STATS.buildings}개 건물을 지도에서 한눈에 살펴보세요.`}
-              actionLabel="갈붕 지도 열기"
+              actionLabel="지도 열기"
               tone="map"
               illustration={<MapIllustration />}
               illustrationFill
@@ -167,21 +158,6 @@ export default function LandingPage() {
               <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted sm:text-lg">
                 복잡한 자격 조건은 쉽게 확인하고, 예산과 생활 방식에 맞는 주택까지 한 번에 추천받을 수 있어요.
               </p>
-              <div className="mt-8">
-                <Link href="/eligibility" className={cn(buttonVariants({ variant: "primary", size: "lg" }), "w-full sm:w-auto")}>
-                  내 조건으로 추천받기 <ArrowRight className="h-5 w-5" aria-hidden />
-                </Link>
-              </div>
-              <ul className="mt-6 flex flex-col gap-2 text-sm text-muted sm:flex-row sm:flex-wrap sm:gap-x-6">
-                <li className="flex items-center gap-2">
-                  <ShieldCheck className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-                  로그인 없이 시작
-                </li>
-                <li className="flex items-center gap-2">
-                  <ShieldCheck className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-                  입력 정보는 이 브라우저에만 저장
-                </li>
-              </ul>
             </FadeIn>
 
             <FadeIn delay={0.06} y={10} className="hidden lg:block">
