@@ -1,21 +1,30 @@
 "use client";
 
 import { createElement, useMemo, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
 import {
   Baby,
+  Beer,
   BookOpen,
-  ChevronDown,
-  ChevronUp,
+  Coffee,
+  Croissant,
+  Drumstick,
   Dumbbell,
   ExternalLink,
+  GraduationCap,
   Hospital,
+  Library,
   MapPin,
+  PencilRuler,
   School,
+  Scissors,
+  ShoppingBasket,
   ShoppingCart,
   Store,
   Train,
   Trees,
+  UtensilsCrossed,
   X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -47,10 +56,24 @@ const REQUIRED_ICON: Record<InfraCategory, LucideIcon> = {
 
 const EDUCATION_ICON: Record<EduCategory, LucideIcon> = {
   DAYCARE: Baby,
-  KINDER: School,
+  KINDER: Baby,
   ELEM: School,
   MIDDLE: School,
-  HIGH: School,
+  HIGH: GraduationCap,
+};
+
+/** 2순위 취향 가게 — 2단계 Q5 칩 라벨과 1:1. 업종마다 다른 아이콘을 쓴다. */
+const PREFERENCE_ICON: Record<string, LucideIcon> = {
+  식당: UtensilsCrossed,
+  뷰티: Scissors,
+  카페: Coffee,
+  "편의점/슈퍼마켓": ShoppingBasket,
+  "운동/스포츠": Dumbbell,
+  베이커리: Croissant,
+  치킨: Drumstick,
+  주점: Beer,
+  "입시/예체능 학원": PencilRuler,
+  "독서실/스터디카페": Library,
 };
 
 /** 카테고리에 맞는 lucide 아이콘 엘리먼트. (컴포넌트를 렌더 중에 새로 만들지 않도록 createElement 로 만든다) */
@@ -60,7 +83,7 @@ function poiIcon(poi: NearbyPoi, className: string) {
       ? REQUIRED_ICON[poi.category as InfraCategory] ?? Store
       : poi.tier === "education"
         ? EDUCATION_ICON[poi.category as EduCategory] ?? School
-        : Store;
+        : PREFERENCE_ICON[poi.category] ?? Store;
   return createElement(icon, { className, "aria-hidden": true });
 }
 
@@ -72,10 +95,8 @@ const TIER_LABEL: Record<MapInfraPoi["tier"], string> = {
 
 type TierFilter = "all" | MapInfraPoi["tier"];
 
-/** 반경 구간마다 처음에 보여줄 개수. 나머지는 "더 보기"로 펼친다. */
-const BAND_PREVIEW = 12;
-/** 지도에 동시에 찍을 인프라 핀 상한 (가까운 순). */
-const MAP_PIN_LIMIT = 60;
+/** 지도에 동시에 찍을 인프라 핀 상한 (가까운 순). 목록은 전부 보여주고 지도만 과밀 방지용으로 제한한다. */
+const MAP_PIN_LIMIT = 120;
 
 /** 지도 마커와 같은 핀 아이콘. */
 function TierPin({ tier, className = "h-5 w-5" }: { tier: MapInfraPoi["tier"]; className?: string }) {
@@ -88,7 +109,10 @@ function TierPin({ tier, className = "h-5 w-5" }: { tier: MapInfraPoi["tier"]; c
 function PoiDetailCard({ poi, onClose }: { poi: NearbyPoi; onClose: () => void }) {
   const color = INFRA_COLOR[poi.tier];
   return (
-    <div className="overflow-hidden rounded-[var(--radius-card)] border-2 bg-surface" style={{ borderColor: color.border }}>
+    <div
+      className="overflow-hidden rounded-[var(--radius-card)] border-2 bg-surface/97 shadow-[var(--shadow-sheet)] backdrop-blur"
+      style={{ borderColor: color.border }}
+    >
       <div className="flex items-start gap-3 p-3.5">
         <span
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
@@ -151,26 +175,26 @@ function PoiRow({
         onClick={onSelect}
         aria-pressed={selected}
         className={cn(
-          "flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--color-ring)]",
-          selected ? "bg-primary-subtle/60" : "hover:bg-surface-muted/70",
+          "flex h-full w-full items-center gap-2.5 rounded-[var(--radius-input)] border p-2.5 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-ring)]",
+          selected
+            ? "border-primary bg-primary-subtle/60 ring-2 ring-primary/20"
+            : "border-border bg-surface hover:border-primary/40 hover:bg-surface-muted/60",
         )}
       >
         <span
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
           style={{ background: `${color.border}14`, color: color.fg }}
         >
-          {poiIcon(poi, "h-4 w-4")}
+          {poiIcon(poi, "h-4.5 w-4.5")}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-xs font-bold" style={{ color: color.fg }}>
+          <span className="block truncate text-[11px] font-bold" style={{ color: color.fg }}>
             {infraCategoryLabel(poi)}
           </span>
-          <span className="block truncate text-sm font-semibold text-fg">
-            {poi.name}
-            {poi.detail && <span className="ml-1 text-xs font-normal text-muted">{poi.detail}</span>}
-          </span>
+          <span className="block truncate text-sm font-semibold text-fg">{poi.name}</span>
+          {poi.detail && <span className="block truncate text-[11px] text-muted">{poi.detail}</span>}
         </span>
-        <span className="shrink-0 text-sm font-semibold tabular-nums text-muted">{formatDistance(poi.distance)}</span>
+        <span className="shrink-0 text-xs font-bold tabular-nums text-muted">{formatDistance(poi.distance)}</span>
       </button>
     </li>
   );
@@ -184,17 +208,19 @@ function PoiRow({
  */
 export function NearbyInfraSection({
   unitId,
+  unitName,
   origin,
   includeEducation,
 }: {
   unitId: string;
+  /** 지도 마커에 그대로 쓸 주택 이름 */
+  unitName: string;
   origin: LatLng;
   includeEducation: boolean;
 }) {
+  const reduceMotion = useReducedMotion();
   const [tierFilter, setTierFilter] = useState<TierFilter>("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  /** 반경 구간별로 펼친 상태. 구간 안 항목이 많아도 처음엔 일부만 보여준다. */
-  const [expanded, setExpanded] = useState<Partial<Record<RadiusBandKey, boolean>>>({});
 
   const infra = useMemo(() => detailInfraFor(unitId, { includeEducation }), [unitId, includeEducation]);
   const list = useMemo(
@@ -273,23 +299,36 @@ export function NearbyInfraSection({
         })}
       </div>
 
-      {/* 주택 위치 + 주변 인프라를 한 지도에 펼친다. 핀을 누르면 아래 카드에 설명이 뜬다. */}
-      <div className="overflow-hidden rounded-[var(--radius-card)] border border-border">
-        <div className="h-[420px] w-full sm:h-[520px]">
+      {/* 주택 위치 + 주변 인프라를 한 지도에 펼친다. 핀을 누르면 지도 안 바텀 카드로 설명이 뜬다. */}
+      <div className="relative overflow-hidden rounded-[var(--radius-card)] border border-border">
+        <div className="h-[520px] w-full sm:h-[640px]">
           <MapPanel
-            markers={[{ id: "home", coord: origin, label: "이 주택", caption: "이 주택", tier: "recommend" }]}
+            markers={[{ id: "home", coord: origin, label: unitName, caption: unitName, tier: "recommend" }]}
             selectedId="home"
             onSelect={() => {}}
-            ariaLabel="주택 위치와 주변 인프라 지도"
+            ariaLabel={`${unitName} 위치와 주변 인프라 지도`}
             infra={mapPois}
             onInfraSelect={(id) => setSelectedId((current) => (current === id ? null : id))}
             selectedInfraId={selectedId}
             fullBleed
           />
         </div>
-      </div>
 
-      {selected && <PoiDetailCard poi={selected} onClose={() => setSelectedId(null)} />}
+        {/* 지도 안 바텀 카드 — 선택한 인프라 설명 */}
+        <AnimatePresence>
+          {selected && (
+            <motion.div
+              initial={reduceMotion ? false : { opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 16 }}
+              transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+              className="absolute inset-x-3 bottom-3 z-10 sm:inset-x-4 sm:bottom-4"
+            >
+              <PoiDetailCard poi={selected} onClose={() => setSelectedId(null)} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
       <p className="text-xs text-muted">
         지도 핀이나 아래 목록을 누르면 해당 시설 설명이 열려요. 거리는 직선거리에 부산 평균 우회계수를 적용한 예상
@@ -301,19 +340,17 @@ export function NearbyInfraSection({
         {RADIUS_BANDS.map((band) => {
           const items = byBand.get(band.key);
           if (!items || items.length === 0) return null;
-          const open = expanded[band.key] ?? false;
-          const shown = open ? items : items.slice(0, BAND_PREVIEW);
-          const hidden = items.length - shown.length;
           return (
             <section key={band.key}>
-              <h4 className="mb-1.5 flex items-center gap-2 text-sm font-bold text-navy">
+              <h4 className="mb-2 flex items-center gap-2 text-sm font-bold text-navy">
                 <span className="rounded-full bg-primary-subtle px-2 py-0.5 text-[11px] font-bold text-primary">
                   {band.label}
                 </span>
                 <span className="text-xs font-semibold text-muted">{items.length}곳</span>
               </h4>
-              <ul className="divide-y divide-border overflow-hidden rounded-[var(--radius-input)] border border-border bg-surface">
-                {shown.map((poi) => (
+              {/* 항목이 많아 1열로 두면 한없이 길어진다. 화면 폭에 따라 열을 늘려 전부 보여준다. */}
+              <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                {items.map((poi) => (
                   <PoiRow
                     key={poi.id}
                     poi={poi}
@@ -321,26 +358,6 @@ export function NearbyInfraSection({
                     onSelect={() => setSelectedId((current) => (current === poi.id ? null : poi.id))}
                   />
                 ))}
-                {(hidden > 0 || open) && (
-                  <li>
-                    <button
-                      type="button"
-                      onClick={() => setExpanded((current) => ({ ...current, [band.key]: !open }))}
-                      aria-expanded={open}
-                      className="flex w-full items-center justify-center gap-1 py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-primary-subtle/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--color-ring)]"
-                    >
-                      {open ? (
-                        <>
-                          접기 <ChevronUp className="h-4 w-4" aria-hidden />
-                        </>
-                      ) : (
-                        <>
-                          {hidden}곳 더 보기 <ChevronDown className="h-4 w-4" aria-hidden />
-                        </>
-                      )}
-                    </button>
-                  </li>
-                )}
               </ul>
             </section>
           );

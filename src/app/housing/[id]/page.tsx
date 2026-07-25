@@ -195,7 +195,7 @@ export default function HousingDetailPage() {
   };
 
   return (
-    <PageContainer size="default" className="py-6">
+    <PageContainer size="wide" className="py-6">
       <Link href="/recommendations" className="mb-4 inline-flex items-center gap-1 text-sm text-muted hover:text-fg">
         <ArrowLeft className="h-4 w-4" /> 추천 목록으로
       </Link>
@@ -258,7 +258,7 @@ export default function HousingDetailPage() {
         </div>
       </header>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_360px]">
+      <div className="mt-6">
         <div className="min-w-0">
           {/* 내용이 많아 탭으로 나눠 보여준다. 각 탭은 원래 S1~S8 섹션 묶음이다. */}
           <DetailTabs value={tab} onChange={setTab} />
@@ -606,6 +606,7 @@ export default function HousingDetailPage() {
 
                 <NearbyInfraSection
                   unitId={unit.id}
+                  unitName={displayTitle}
                   origin={unit.coord}
                   includeEducation={pref.eduEnabled !== false}
                 />
@@ -648,38 +649,22 @@ export default function HousingDetailPage() {
             </>
           )}
 
-          {/* S9 — 신청하러 가기 */}
-          <Section id="s9" title="신청하러 가기">
-            <Card>
-              <CardBody className="space-y-3">
-                <InformationBanner tone="warning" title="모집 일정은 포함되어 있지 않아요">
-                  현재 주택·임대조건 정보이며 실시간 모집공고가 아니에요. 신청 기간과 모집 상태는 공식 기관에서
-                  확인하세요.
-                </InformationBanner>
-                <a
-                  href={unit.officialUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={cn(buttonVariants({ variant: "primary", size: "lg" }), "w-full")}
-                >
-                  BMC · LH청약플러스로 신청하러 가기 <ExternalLink className="h-4 w-4" />
-                </a>
-              </CardBody>
-            </Card>
-          </Section>
         </div>
+      </div>
 
-        {/* 사이드: 신청 CTA (상세 정보는 본문 탭에서 본다) */}
-        <aside className="lg:sticky lg:top-24 lg:self-start">
-          <a
-            href={unit.officialUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={cn(buttonVariants({ variant: "primary", size: "lg" }), "w-full")}
-          >
-            신청하러 가기 <ExternalLink className="h-4 w-4" />
-          </a>
-        </aside>
+      {/* 신청 CTA — 모든 정보를 본 뒤 맨 아래에서 한 번만 노출한다. */}
+      <div className="mt-8 rounded-[var(--radius-cardlg)] border border-primary/20 bg-primary-subtle/50 p-5 text-center">
+        <p className="text-sm text-muted">
+          모집 일정은 이 페이지에 포함되어 있지 않아요. 신청 기간과 모집 상태는 공식 기관에서 확인하세요.
+        </p>
+        <a
+          href={unit.officialUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={cn(buttonVariants({ variant: "primary", size: "lg" }), "mt-3 w-full sm:w-auto sm:px-10")}
+        >
+          BMC · LH청약플러스로 신청하러 가기 <ExternalLink className="h-4 w-4" />
+        </a>
       </div>
 
       <Disclaimer className="mt-10" />
