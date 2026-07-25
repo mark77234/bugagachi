@@ -5,7 +5,6 @@ import {
   ListChecks,
   MapPin,
   ShieldCheck,
-  Database,
 } from "lucide-react";
 import { PageContainer } from "@/components/common/PageContainer";
 import { Mascot, type MascotPose } from "@/components/common/Mascot";
@@ -124,20 +123,6 @@ export default function LandingPage() {
           </div>
         </div>
 
-        <aside className="mt-5 grid gap-2 rounded-[var(--radius-card)] border border-border bg-surface p-3 text-sm text-muted shadow-[var(--shadow-sm)] sm:grid-cols-3" aria-label="서비스 신뢰 안내">
-          <p className="flex items-center gap-2 px-2 py-1">
-            <Database className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-            부산 공공임대 {RENTAL_DATASET_STATS.validRows}호실 · {RENTAL_DATASET_STATS.buildings}개 건물
-          </p>
-          <p className="flex items-center gap-2 px-2 py-1">
-            <ShieldCheck className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-            입력 정보는 내 브라우저에만 저장
-          </p>
-          <p className="flex items-center gap-2 px-2 py-1">
-            <FileCheck2 className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-            신청 전 공식 공고 확인 필수
-          </p>
-        </aside>
       </PageContainer>
 
       {/* 2) 히어로 — '이렇게 도와드려요' 바로 위 */}

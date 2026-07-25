@@ -36,6 +36,7 @@ import {
   roomLabel,
 } from "@/components/housing/HousingDetailParts";
 import { MapPanel } from "@/components/map/MapPanel";
+import { NearbyInfraSection } from "@/components/housing/NearbyInfraSection";
 import { bestCondition, housingById, type HousingMetric, type HousingUnit } from "@/mocks/housing";
 import { reviewsByHousing } from "@/mocks/reviews";
 import { useUserStore } from "@/features/user/user.store";
@@ -73,32 +74,6 @@ function Section({
       {!description && <div className="mb-3" />}
       {children}
     </section>
-  );
-}
-
-function DataMetricTable({ title, items }: { title: string; items: [string, HousingMetric | null][] }) {
-  return (
-    <div>
-      <h3 className="mb-2 text-sm font-bold text-navy">{title}</h3>
-      <div className="overflow-x-auto rounded-[var(--radius-input)] border border-border">
-        <table className="w-full min-w-[280px] text-left text-sm">
-          <thead className="bg-surface-muted text-xs text-muted">
-            <tr>
-              <th className="px-3 py-2">시설</th>
-              <th className="px-3 py-2">거리</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map(([label, value]) => (
-              <tr key={label} className="border-t border-border/70">
-                <td className="px-3 py-2 font-medium">{label}</td>
-                <td className="px-3 py-2 tabular-nums">{value ? formatDistance(value.distance) : "정보 없음"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
   );
 }
 
@@ -557,26 +532,11 @@ export default function HousingDetailPage() {
                   </div>
                 )}
 
-                <DataMetricTable
-                  title="필수 인프라"
-                  items={[
-                    ["종합병원", unit.source.infra.hospital],
-                    ["공공도서관", unit.source.infra.library],
-                    ["대형마트", unit.source.infra.mart],
-                    ["공원", unit.source.infra.park],
-                    ["생활체육시설", unit.source.infra.sports],
-                    ["지하철역", unit.source.infra.subway],
-                  ]}
-                />
-                <DataMetricTable
-                  title="돌봄·교육"
-                  items={[
-                    ["어린이집", unit.source.education.daycare],
-                    ["유치원", unit.source.education.kindergarten],
-                    ["초등학교", unit.source.education.elementary],
-                    ["중학교", unit.source.education.middle],
-                    ["고등학교", unit.source.education.high],
-                  ]}
+                <NearbyInfraSection
+                  unitId={unit.id}
+                  includeEducation={pref.eduEnabled !== false}
+                  infraFallback={unit.source.infra}
+                  educationFallback={unit.source.education}
                 />
                 <div>
                   <h3 className="mb-2 text-sm font-bold text-navy">걸어서 갈 수 있는 가게 (반경 750m)</h3>

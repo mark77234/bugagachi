@@ -4,16 +4,20 @@ import { useState } from "react";
 import { ChevronDown, ChevronUp, List } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import type { HousingUnit } from "@/mocks/housing";
+import type { MarkerTier } from "@/components/map/MapView";
 import { HousingMapListCard } from "./HousingMapListCard";
 
 export function MapResultsSheet({
   units,
   selectedId,
   onSelect,
+  metaOf,
 }: {
   units: HousingUnit[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  /** 마커와 같은 구분(취향 추천 / AI 추천)을 모바일 목록에도 그대로 보여준다. */
+  metaOf?: (unitId: string) => { tier: MarkerTier; rank?: number; reason?: string };
 }) {
   const [expanded, setExpanded] = useState(false);
   const reduceMotion = useReducedMotion();
@@ -49,14 +53,20 @@ export function MapResultsSheet({
         <div id="mobile-map-results" className="min-h-0 flex-1 overflow-y-auto border-t border-border p-3">
           {units.length > 0 ? (
             <div className="space-y-3">
-              {units.map((unit) => (
-                <HousingMapListCard
-                  key={unit.id}
-                  unit={unit}
-                  selected={unit.id === selectedId}
-                  onSelect={() => onSelect(unit.id)}
-                />
-              ))}
+              {units.map((unit) => {
+                const meta = metaOf?.(unit.id);
+                return (
+                  <HousingMapListCard
+                    key={unit.id}
+                    unit={unit}
+                    selected={unit.id === selectedId}
+                    onSelect={() => onSelect(unit.id)}
+                    tier={meta?.tier}
+                    rank={meta?.rank}
+                    reason={meta?.reason}
+                  />
+                );
+              })}
             </div>
           ) : (
             <div className="flex min-h-36 items-center justify-center text-center text-sm text-muted">

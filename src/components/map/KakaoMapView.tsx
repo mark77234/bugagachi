@@ -3,11 +3,27 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Minus, Plus, Maximize2 } from "lucide-react";
-import { MockMapView, MAP_MARKER_ICON, type MapMarker, type MapViewProps, type MapViewportBounds } from "./MapView";
+import {
+  MockMapView,
+  MAP_MARKER_ICON,
+  TIER_COLOR,
+  INFRA_COLOR,
+  type MapInfraPoi,
+  type MapMarker,
+  type MapViewProps,
+  type MapViewportBounds,
+  type MarkerTier,
+} from "./MapView";
 
 const KAKAO_KEY = process.env.NEXT_PUBLIC_KAKAO_MAP_KEY;
 const SDK_ID = "kakao-maps-sdk";
 const BUSAN_CENTER = { lat: 35.16, lng: 129.07 };
+
+/** 클러스터 격자 한 칸의 화면 크기(px). 이 안에 들어오는 마커는 하나로 묶는다.
+ *  금액 라벨이 붙은 핀의 실제 너비(약 100px)보다 크게 잡아야 핀끼리 덜 겹친다. */
+const CLUSTER_CELL_PX = 120;
+/** 클러스터를 누를 때 한 번에 확대할 레벨 수. */
+const CLUSTER_ZOOM_STEP = 2;
 
 declare global {
   interface Window {
@@ -38,11 +54,73 @@ function loadKakao(): Promise<any> {
   });
 }
 
-/** 전용 마커 아이콘 + 금액(+그룹 수) 마커. */
-function buildPin(m: MapMarker, active: boolean, onClick: () => void): HTMLButtonElement {
+/** 화면에 그릴 단위 — 개별 마커 또는 여러 마커를 묶은 클러스터. */
+type Cluster = {
+  key: string;
+  coord: { lat: number; lng: number };
+  members: MapMarker[];
+  /** 묶인 마커 중 가장 강한 티어 (ai > recommend > normal) */
+  tier: MarkerTier;
+};
+
+const TIER_RANK: Record<MarkerTier, number> = { normal: 0, recommend: 1, ai: 2 };
+
+function strongestTier(markers: MapMarker[]): MarkerTier {
+  return markers.reduce<MarkerTier>((best, m) => {
+    const tier = m.tier ?? "normal";
+    return TIER_RANK[tier] > TIER_RANK[best] ? tier : best;
+  }, "normal");
+}
+
+/**
+ * 화면 좌표 격자로 마커를 묶는다.
+ * 위경도가 아니라 픽셀 기준이므로 겹치는 마커만 묶이고, 확대할수록 클러스터가 저절로 풀린다.
+ * 선택된 마커는 항상 단독으로 남겨 강조가 묻히지 않게 한다.
+ */
+function clusterMarkers(kakao: any, map: any, markers: MapMarker[], selectedId: string | null): Cluster[] {
+  if (!map) {
+    return markers.map((m) => ({ key: m.id, coord: m.coord, members: [m], tier: m.tier ?? "normal" }));
+  }
+  const projection = map.getProjection();
+  const cells = new Map<string, MapMarker[]>();
+  const singles: Cluster[] = [];
+
+  for (const marker of markers) {
+    if (marker.id === selectedId) {
+      singles.push({ key: marker.id, coord: marker.coord, members: [marker], tier: marker.tier ?? "normal" });
+      continue;
+    }
+    const point = projection.containerPointFromCoords(new kakao.maps.LatLng(marker.coord.lat, marker.coord.lng));
+    const key = `${Math.floor(point.x / CLUSTER_CELL_PX)}:${Math.floor(point.y / CLUSTER_CELL_PX)}`;
+    const bucket = cells.get(key);
+    if (bucket) bucket.push(marker);
+    else cells.set(key, [marker]);
+  }
+
+  const clustered: Cluster[] = [];
+  for (const [key, members] of cells) {
+    if (members.length === 1) {
+      const only = members[0];
+      clustered.push({ key: only.id, coord: only.coord, members, tier: only.tier ?? "normal" });
+      continue;
+    }
+    const lat = members.reduce((sum, m) => sum + m.coord.lat, 0) / members.length;
+    const lng = members.reduce((sum, m) => sum + m.coord.lng, 0) / members.length;
+    clustered.push({ key: `cluster-${key}`, coord: { lat, lng }, members, tier: strongestTier(members) });
+  }
+  return [...clustered, ...singles];
+}
+
+/** 개별 주택 마커 — 전용 핀 아이콘 + 금액(+그룹 수). */
+function buildPin(marker: MapMarker, onClick: () => void, onHover: (hovering: boolean) => void): HTMLButtonElement {
   const el = document.createElement("button");
   el.type = "button";
-  el.setAttribute("aria-label", `${m.label}${m.caption ? `, ${m.caption}` : ""}${m.count && m.count > 1 ? `, 이 위치 ${m.count}곳` : ""}`);
+  el.setAttribute(
+    "aria-label",
+    `${marker.label}${marker.caption ? `, ${marker.caption}` : ""}${
+      marker.count && marker.count > 1 ? `, 이 위치 ${marker.count}곳` : ""
+    }${marker.tier === "recommend" ? ", 취향 추천" : marker.tier === "ai" ? ", AI 갈붕이 추천" : ""}`,
+  );
 
   const icon = document.createElement("span");
   Object.assign(icon.style, {
@@ -56,14 +134,14 @@ function buildPin(m: MapMarker, active: boolean, onClick: () => void): HTMLButto
   icon.appendChild(img);
 
   const price = document.createElement("span");
-  price.textContent = m.caption ?? m.label;
+  price.textContent = marker.caption ?? marker.label;
 
   el.appendChild(icon);
   el.appendChild(price);
 
-  if (m.count && m.count > 1) {
+  if (marker.count && marker.count > 1) {
     const badge = document.createElement("span");
-    badge.textContent = String(m.count);
+    badge.textContent = String(marker.count);
     badge.dataset.badge = "1";
     Object.assign(badge.style, {
       fontSize: "10px", lineHeight: "1", padding: "2px 5px", borderRadius: "9999px", marginLeft: "1px",
@@ -71,15 +149,20 @@ function buildPin(m: MapMarker, active: boolean, onClick: () => void): HTMLButto
     el.appendChild(badge);
   }
 
-  stylePin(el, active);
-  el.addEventListener("click", (e) => {
-    e.stopPropagation();
+  el.addEventListener("click", (event) => {
+    event.stopPropagation();
     onClick();
   });
+  el.addEventListener("mouseenter", () => onHover(true));
+  el.addEventListener("mouseleave", () => onHover(false));
+  el.addEventListener("focus", () => onHover(true));
+  el.addEventListener("blur", () => onHover(false));
   return el;
 }
 
-function stylePin(el: HTMLButtonElement, active: boolean) {
+function stylePin(el: HTMLButtonElement, tier: MarkerTier, active: boolean, hovered: boolean) {
+  const color = TIER_COLOR[tier];
+  const focused = active || hovered;
   el.setAttribute("aria-pressed", String(active));
   Object.assign(el.style, {
     display: "inline-flex",
@@ -92,20 +175,92 @@ function stylePin(el: HTMLButtonElement, active: boolean) {
     lineHeight: "1",
     whiteSpace: "nowrap",
     cursor: "pointer",
-    transform: active ? "translateY(-6px) scale(1.08)" : "translateY(-6px)",
+    transform: focused ? `translateY(-6px) scale(${active ? 1.12 : 1.07})` : "translateY(-6px)",
     border: "1.5px solid",
-    boxShadow: active ? "0 6px 16px rgba(15,124,123,0.35)" : "0 2px 6px rgba(15,23,42,0.18)",
+    boxShadow: focused ? `0 8px 20px ${color.ring}` : "0 2px 6px rgba(15,23,42,0.18)",
+    outline: hovered && !active ? `2px solid ${color.border}` : "none",
+    outlineOffset: "2px",
     transition: "transform .15s ease, box-shadow .15s ease",
-    borderColor: active ? "var(--color-primary)" : "var(--color-border)",
-    background: active ? "var(--color-primary)" : "var(--color-surface)",
-    color: active ? "#ffffff" : "var(--color-fg)",
-    zIndex: active ? "20" : "1",
+    borderColor: color.border,
+    background: color.bg,
+    color: color.fg,
+    zIndex: active ? "30" : hovered ? "25" : tier === "normal" ? "1" : "10",
   } as CSSStyleDeclaration);
   const badge = el.querySelector<HTMLElement>('[data-badge="1"]');
   if (badge) {
-    badge.style.background = active ? "rgba(255,255,255,0.25)" : "var(--color-primary-subtle)";
-    badge.style.color = active ? "#ffffff" : "var(--color-primary)";
+    const onColor = tier !== "normal";
+    badge.style.background = onColor ? "rgba(255,255,255,0.25)" : "var(--color-primary-subtle)";
+    badge.style.color = onColor ? "#ffffff" : "var(--color-primary)";
   }
+}
+
+/** 클러스터 버블 — 묶인 개수를 원형으로 표시하고, 누르면 그 영역으로 확대한다. */
+function buildCluster(cluster: Cluster, onClick: () => void, onHover: (hovering: boolean) => void): HTMLButtonElement {
+  const el = document.createElement("button");
+  el.type = "button";
+  el.textContent = String(cluster.members.length);
+  el.setAttribute("aria-label", `주택 ${cluster.members.length}곳 묶음, 확대해서 보기`);
+  el.addEventListener("click", (event) => {
+    event.stopPropagation();
+    onClick();
+  });
+  el.addEventListener("mouseenter", () => onHover(true));
+  el.addEventListener("mouseleave", () => onHover(false));
+  el.addEventListener("focus", () => onHover(true));
+  el.addEventListener("blur", () => onHover(false));
+  return el;
+}
+
+function styleCluster(el: HTMLButtonElement, cluster: Cluster, hovered: boolean) {
+  const color = TIER_COLOR[cluster.tier];
+  const size = Math.min(58, 36 + Math.log2(cluster.members.length + 1) * 7);
+  Object.assign(el.style, {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: `${size}px`,
+    height: `${size}px`,
+    borderRadius: "9999px",
+    fontSize: "13px",
+    fontWeight: "800",
+    cursor: "pointer",
+    border: "2px solid",
+    borderColor: color.border,
+    background: cluster.tier === "normal" ? "var(--color-surface)" : color.bg,
+    color: cluster.tier === "normal" ? "var(--color-primary)" : color.fg,
+    boxShadow: hovered ? `0 0 0 6px ${color.ring}` : `0 0 0 4px ${color.ring}`,
+    transform: hovered ? "scale(1.08)" : "scale(1)",
+    transition: "transform .15s ease, box-shadow .15s ease",
+    zIndex: cluster.tier === "normal" ? "2" : "12",
+  } as CSSStyleDeclaration);
+}
+
+/** 인프라 핀 — 1순위는 진한 색·큰 글씨, 2순위는 옅게. */
+function buildInfraPin(poi: MapInfraPoi): HTMLDivElement {
+  const color = INFRA_COLOR[poi.tier];
+  const emphasized = poi.tier !== "preference";
+  const el = document.createElement("div");
+  el.setAttribute("role", "img");
+  el.setAttribute("aria-label", `${poi.categoryLabel} ${poi.label}, ${poi.distance}m`);
+  el.textContent = emphasized ? `${poi.categoryLabel} · ${poi.label}` : poi.categoryLabel;
+  Object.assign(el.style, {
+    display: "inline-flex",
+    alignItems: "center",
+    padding: emphasized ? "3px 8px" : "2px 6px",
+    borderRadius: "9999px",
+    fontSize: emphasized ? "11px" : "10px",
+    fontWeight: emphasized ? "700" : "600",
+    lineHeight: "1.1",
+    whiteSpace: "nowrap",
+    pointerEvents: "none",
+    border: "1px solid",
+    borderColor: color.border,
+    background: color.bg,
+    color: color.fg,
+    opacity: emphasized ? "1" : "0.9",
+    boxShadow: emphasized ? "0 2px 8px rgba(15,23,42,0.22)" : "0 1px 4px rgba(15,23,42,0.14)",
+  } as CSSStyleDeclaration);
+  return el;
 }
 
 export function KakaoMapView({
@@ -115,20 +270,34 @@ export function KakaoMapView({
   ariaLabel = "주택 위치 지도",
   onViewportChange,
   fullBleed = false,
+  infra = [],
+  onHoverChange,
+  hoveredId = null,
 }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
-  const overlaysRef = useRef<{ id: string; overlay: any; el: HTMLButtonElement }[]>([]);
+  const overlaysRef = useRef<{ key: string; cluster: Cluster; overlay: any; el: HTMLButtonElement }[]>([]);
+  const infraOverlaysRef = useRef<any[]>([]);
   const onSelectRef = useRef(onSelect);
+  const onHoverChangeRef = useRef(onHoverChange);
   const onViewportChangeRef = useRef(onViewportChange);
   const markersRef = useRef<MapMarker[]>(markers);
   const didInitialFitRef = useRef(false);
   const [failed, setFailed] = useState(!KAKAO_KEY);
   const [ready, setReady] = useState(false);
+  /** 줌·이동이 끝날 때마다 올려 클러스터를 다시 계산한다. */
+  const [viewTick, setViewTick] = useState(0);
+  const [innerHovered, setInnerHovered] = useState<string | null>(null);
+
+  const focusedId = hoveredId ?? innerHovered;
 
   useEffect(() => {
     onSelectRef.current = onSelect;
   }, [onSelect]);
+
+  useEffect(() => {
+    onHoverChangeRef.current = onHoverChange;
+  }, [onHoverChange]);
 
   useEffect(() => {
     onViewportChangeRef.current = onViewportChange;
@@ -170,6 +339,23 @@ export function KakaoMapView({
     map.setLevel(map.getLevel() + delta, { animate: true });
   };
 
+  /** 클러스터를 눌렀을 때 그 지점을 중심으로 단계적으로 확대한다.
+   *  격자 클러스터링이 화면 픽셀 기준이라, 확대할수록 묶음이 알아서 풀린다.
+   *  (setBounds 로 한 번에 맞추면 여전히 겹치는 레벨에 착지해 핀이 서로 가려진다.) */
+  const zoomToCluster = (cluster: Cluster) => {
+    const kakao = window.kakao;
+    const map = mapRef.current;
+    if (!kakao?.maps || !map) return;
+    const center = new kakao.maps.LatLng(cluster.coord.lat, cluster.coord.lng);
+    map.setCenter(center);
+    map.setLevel(Math.max(1, map.getLevel() - CLUSTER_ZOOM_STEP));
+  };
+
+  const handleHover = (id: string | null) => {
+    setInnerHovered(id);
+    onHoverChangeRef.current?.(id);
+  };
+
   // 지도 초기화. ResizeObserver 는 relayout 만 (줌/센터 보존). fitAll 은 최초 1회.
   useEffect(() => {
     if (!KAKAO_KEY) return;
@@ -187,7 +373,10 @@ export function KakaoMapView({
         });
         // 마우스 휠 줌 활성화
         mapRef.current.setZoomable(true);
-        idleHandler = () => reportViewport(mapRef.current);
+        idleHandler = () => {
+          reportViewport(mapRef.current);
+          setViewTick((tick) => tick + 1);
+        };
         kakao.maps.event.addListener(mapRef.current, "idle", idleHandler);
         setReady(true);
         // 컨테이너 리사이즈 시 레이아웃만 다시 계산 (센터/줌 유지)
@@ -205,42 +394,80 @@ export function KakaoMapView({
     };
   }, []);
 
-  // 마커 렌더 — markers 변경 시 재생성. 최초 1회만 전체 fit (이후엔 사용자 줌 보존).
+  // 마커 렌더 — markers/줌 변경 시 클러스터를 다시 계산해 재생성.
   useEffect(() => {
     const kakao = window.kakao;
     if (!ready || !kakao?.maps || !mapRef.current) return;
     markersRef.current = markers;
     overlaysRef.current.forEach(({ overlay }) => overlay.setMap(null));
-    overlaysRef.current = markers.map((m) => {
-      const active = m.id === selectedId;
-      const el = buildPin(m, active, () => onSelectRef.current(m.id));
+
+    const clusters = clusterMarkers(kakao, mapRef.current, markers, selectedId);
+    overlaysRef.current = clusters.map((cluster) => {
+      const isCluster = cluster.members.length > 1;
+      const el = isCluster
+        ? buildCluster(cluster, () => zoomToCluster(cluster), (hovering) => handleHover(hovering ? cluster.key : null))
+        : buildPin(
+            cluster.members[0],
+            () => onSelectRef.current(cluster.members[0].id),
+            (hovering) => handleHover(hovering ? cluster.members[0].id : null),
+          );
+      if (isCluster) styleCluster(el, cluster, false);
+      else stylePin(el, cluster.tier, cluster.members[0].id === selectedId, false);
+
       const overlay = new kakao.maps.CustomOverlay({
-        position: new kakao.maps.LatLng(m.coord.lat, m.coord.lng),
+        position: new kakao.maps.LatLng(cluster.coord.lat, cluster.coord.lng),
         content: el,
-        yAnchor: 1,
-        zIndex: active ? 20 : 1,
+        yAnchor: isCluster ? 0.5 : 1,
+        zIndex: cluster.tier === "normal" ? 1 : 10,
       });
       overlay.setMap(mapRef.current);
-      return { id: m.id, overlay, el };
+      return { key: cluster.key, cluster, overlay, el };
     });
+
     if (!didInitialFitRef.current && markers.length > 0) {
       didInitialFitRef.current = true;
       requestAnimationFrame(() => fitAll());
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [markers, ready]);
+  }, [markers, ready, viewTick]);
 
-  // 선택 마커 강조 + 이동 (재생성 없이 스타일만 토글)
+  // 선택·호버 강조 (재생성 없이 스타일만 토글)
   useEffect(() => {
     const kakao = window.kakao;
     if (!ready || !kakao?.maps || !mapRef.current) return;
-    overlaysRef.current.forEach(({ id, overlay, el }) => {
-      const active = id === selectedId;
-      stylePin(el, active);
-      overlay.setZIndex(active ? 20 : 1);
+    overlaysRef.current.forEach(({ key, cluster, overlay, el }) => {
+      const hovered = key === focusedId;
+      if (cluster.members.length > 1) {
+        styleCluster(el, cluster, hovered);
+        return;
+      }
+      const active = cluster.members[0].id === selectedId;
+      stylePin(el, cluster.tier, active, hovered);
+      overlay.setZIndex(active ? 30 : hovered ? 25 : cluster.tier === "normal" ? 1 : 10);
       if (active) mapRef.current.panTo(overlay.getPosition());
     });
-  }, [selectedId, ready]);
+  }, [selectedId, focusedId, ready, viewTick]);
+
+  // 인프라 핀 — 마커를 선택했을 때만 그려진다.
+  useEffect(() => {
+    const kakao = window.kakao;
+    if (!ready || !kakao?.maps || !mapRef.current) return;
+    infraOverlaysRef.current.forEach((overlay) => overlay.setMap(null));
+    infraOverlaysRef.current = infra.map((poi) => {
+      const overlay = new kakao.maps.CustomOverlay({
+        position: new kakao.maps.LatLng(poi.coord.lat, poi.coord.lng),
+        content: buildInfraPin(poi),
+        yAnchor: 0.5,
+        zIndex: poi.tier === "preference" ? 3 : 6,
+      });
+      overlay.setMap(mapRef.current);
+      return overlay;
+    });
+    return () => {
+      infraOverlaysRef.current.forEach((overlay) => overlay.setMap(null));
+      infraOverlaysRef.current = [];
+    };
+  }, [infra, ready]);
 
   if (failed) {
     return (
@@ -251,6 +478,9 @@ export function KakaoMapView({
         ariaLabel={`${ariaLabel} (모의)`}
         onViewportChange={onViewportChange}
         fullBleed={fullBleed}
+        infra={infra}
+        onHoverChange={onHoverChange}
+        hoveredId={hoveredId}
       />
     );
   }

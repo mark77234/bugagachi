@@ -4,7 +4,6 @@ import { useState, type ReactNode, type Ref } from "react";
 import { ListFilter, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { MapPanel } from "@/components/map/MapPanel";
-import { ViewToggle } from "@/components/map/ViewToggle";
 import { BrandLogo } from "@/components/layout/BrandLogo";
 import type { MapViewProps } from "@/components/map/MapView";
 import { cn } from "@/lib/utils";
@@ -15,11 +14,10 @@ export const FLOATING_PANEL =
 
 /**
  * 전체화면 지도 탐색 셸.
- * 지도와 상세 추천이 완전히 같은 레이아웃/인터랙션을 쓰도록 공유한다.
+ * 전체 재고 지도와 생활 취향 추천이 하나의 화면이므로 레이아웃·인터랙션도 여기 한 곳에 모은다.
  * (데이터·목록 카드만 각 화면에서 주입)
  */
 export function MapExplorerShell({
-  current,
   mapProps,
   controls,
   listTitle,
@@ -27,10 +25,11 @@ export function MapExplorerShell({
   children,
   sheet,
   listCount,
+  assistant,
+  overlay,
 }: {
-  current: "map" | "recommendations";
   mapProps: MapViewProps;
-  /** 토글 아래 줄에 놓이는 플로팅 컨트롤 (필터·정렬 등) */
+  /** 좌측 상단에 놓이는 플로팅 컨트롤 (필터·정렬 등) */
   controls?: ReactNode;
   /** 사이드바 헤더 좌측 내용 */
   listTitle: ReactNode;
@@ -40,6 +39,10 @@ export function MapExplorerShell({
   /** 모바일 바텀시트 */
   sheet?: ReactNode;
   listCount: number;
+  /** 우측 하단 AI 갈붕 패널 */
+  assistant?: ReactNode;
+  /** 지도 하단 중앙 오버레이 (인프라 범례 등) */
+  overlay?: ReactNode;
 }) {
   const [listOpen, setListOpen] = useState(true);
 
@@ -50,7 +53,7 @@ export function MapExplorerShell({
         <MapPanel {...mapProps} fullBleed />
       </div>
 
-      {/* 좌측 상단 플로팅: 로고(홈) + 화면 전환 토글 + 컨트롤 */}
+      {/* 좌측 상단 플로팅: 로고(홈) + 컨트롤 */}
       <div className="pointer-events-none absolute left-3 top-3 z-30 flex flex-col items-start gap-2 sm:left-4 sm:top-4">
         <div className="pointer-events-auto flex flex-wrap items-center gap-2">
           <BrandLogo
@@ -62,7 +65,6 @@ export function MapExplorerShell({
             logoClassName="h-8"
             titleClassName="h-6"
           />
-          <ViewToggle current={current} floating />
         </div>
 
         {controls && <div className="pointer-events-auto flex flex-wrap items-center gap-2">{controls}</div>}
@@ -110,6 +112,20 @@ export function MapExplorerShell({
           <ListFilter className="h-4 w-4 text-primary" aria-hidden />
           목록 {listCount}곳 보기
         </button>
+      )}
+
+      {/* 지도 하단 중앙 오버레이 (인프라 범례) */}
+      {overlay && (
+        <div className="pointer-events-none absolute bottom-[8.5rem] left-1/2 z-20 hidden -translate-x-1/2 lg:block">
+          {overlay}
+        </div>
+      )}
+
+      {/* 우측 하단 AI 갈붕 패널 */}
+      {assistant && (
+        <div className="pointer-events-none absolute bottom-[8.5rem] right-3 z-30 flex justify-end sm:right-4 lg:bottom-4">
+          {assistant}
+        </div>
       )}
 
       {/* 모바일: 바텀시트 */}
