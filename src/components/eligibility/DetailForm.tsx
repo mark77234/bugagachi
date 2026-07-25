@@ -1,19 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { QuestionCard } from "@/components/onboarding/QuestionCard";
-import { RadioCards } from "@/components/ui/selectable";
+import { CheckCards, RadioCards } from "@/components/ui/selectable";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { InformationBanner } from "@/components/common/banners";
 import { useEligibilityStore } from "@/features/eligibility/eligibility.store";
-import { ELIGIBILITY_TYPE_LABEL } from "@/features/eligibility/eligibility.types";
+import {
+  MARRIAGE_MONTHS_MAX,
+  SENIOR_AGE,
+  isSharedTierType,
+  needsMarriageFollowUp,
+  needsStudentFollowUp,
+  relevantTierAttrs,
+  tierStepComplete,
+} from "@/features/eligibility/eligibility.tiers";
+import { ELIGIBILITY_TYPE_LABEL, TIER_ATTR_LABEL } from "@/features/eligibility/eligibility.types";
 import type {
   EligibilityDetailInput,
   EligibilityTypeCode,
-  HaengbokTier,
   StudentStatus,
-  TonghapTier,
+  TierAttr,
 } from "@/features/eligibility/eligibility.types";
 
 const YESNO = [
@@ -21,15 +30,32 @@ const YESNO = [
   { value: "yes", label: "예" },
 ];
 
+/** 계층을 공유하지 않아 유형별로 따로 묻는 유형. */
+type SingleType = Exclude<EligibilityTypeCode, "TONGHAP" | "HAENGBOK">;
+
+/** 세부 자격 단계. 통합·행복은 계층이 겹치므로 'tiers' 한 단계로 합친다. */
+type DetailStep = { kind: "tiers" } | { kind: "type"; type: SingleType };
+
+function buildSteps(candidates: EligibilityTypeCode[]): DetailStep[] {
+  const steps: DetailStep[] = [];
+  if (candidates.some(isSharedTierType)) steps.push({ kind: "tiers" });
+  for (const type of candidates) {
+    if (!isSharedTierType(type)) steps.push({ kind: "type", type });
+  }
+  return steps;
+}
+
 function NumberField({
   label,
   suffix,
   value,
+  max,
   onChange,
 }: {
   label: string;
   suffix?: string;
   value: number | undefined;
+  max?: number;
   onChange: (n: number) => void;
 }) {
   return (
@@ -40,6 +66,7 @@ function NumberField({
           type="number"
           inputMode="numeric"
           min={0}
+          max={max}
           className="max-w-[200px]"
           value={value ?? ""}
           onChange={(e) => onChange(e.target.value === "" ? 0 : Number(e.target.value))}
@@ -50,154 +77,217 @@ function NumberField({
   );
 }
 
+/** 조건부로 나타나는 후속 문항 묶음. */
+function FollowUp({ children }: { children: React.ReactNode }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -8 }}
+      transition={{ duration: 0.2 }}
+      className="rounded-[var(--radius-card)] border border-border bg-surface-muted/50 p-4"
+    >
+      {children}
+    </motion.div>
+  );
+}
+
 export function DetailForm({
   candidates,
+  ageYears,
   onComplete,
   onBack,
 }: {
   candidates: EligibilityTypeCode[];
+  /** 스텝 B에서 확정된 만 나이. '고령자' 자동 판정에 쓴다. */
+  ageYears: number;
   onComplete: () => void;
   onBack: () => void;
 }) {
-  const { detail, setDetail } = useEligibilityStore();
+  const { detail, setDetail, toggleTierAttr, setTierFollowUp, syncSeniorAttr } = useEligibilityStore();
   const [idx, setIdx] = useState(0);
-  const type = candidates[idx];
 
-  const patch = (value: Record<string, unknown>) => {
+  const steps = useMemo(() => buildSteps(candidates), [candidates]);
+  const step = steps[Math.min(idx, steps.length - 1)];
+
+  // '고령자'는 만 나이로만 결정된다(체크·잠금). 스텝 B가 확정된 이 시점에만 유효하다.
+  const isSenior = ageYears >= SENIOR_AGE;
+  useEffect(() => {
+    if (steps.some((s) => s.kind === "tiers")) syncSeniorAttr(isSenior);
+  }, [isSenior, steps, syncSeniorAttr]);
+
+  const patch = (type: SingleType, value: Record<string, unknown>) => {
     const cur = ((detail as Record<string, unknown>)[type] as Record<string, unknown>) ?? {};
     setDetail({ ...detail, [type]: { ...cur, ...value } } as EligibilityDetailInput);
   };
 
-  const complete = isTypeComplete(type, detail);
+  const complete =
+    step.kind === "tiers"
+      ? tierStepComplete(detail.tiers, candidates)
+      : isTypeComplete(step.type, detail);
+
+  const sharedLabels = candidates.filter(isSharedTierType).map((t) => ELIGIBILITY_TYPE_LABEL[t]);
 
   return (
     <QuestionCard
-      title={`${ELIGIBILITY_TYPE_LABEL[type]} 세부 자격`}
-      description="후보로 남은 유형만 물어봐요. 선택에 따라 소득·자산 기준이 달라져요."
+      title={
+        step.kind === "tiers"
+          ? "해당하는 상황을 모두 선택해 주세요"
+          : `${ELIGIBILITY_TYPE_LABEL[step.type]} 세부 자격`
+      }
+      description={
+        step.kind === "tiers"
+          ? `${sharedLabels.join("·")}의 계층을 한 번에 확인해요. 여러 개에 해당하면 모두 선택하세요.`
+          : "후보로 남은 유형만 물어봐요. 선택에 따라 소득·자산 기준이 달라져요."
+      }
       onPrev={() => (idx > 0 ? setIdx(idx - 1) : onBack())}
-      onNext={() => (idx < candidates.length - 1 ? setIdx(idx + 1) : onComplete())}
+      onNext={() => (idx < steps.length - 1 ? setIdx(idx + 1) : onComplete())}
       nextDisabled={!complete}
-      isLast={idx === candidates.length - 1}
-      nextLabel="다음 유형"
+      isLast={idx === steps.length - 1}
+      nextLabel="다음"
     >
       <div className="mb-4 flex items-center gap-2">
         <Badge tone="primary">
-          {idx + 1} / {candidates.length}
+          {idx + 1} / {steps.length}
         </Badge>
-        <span className="text-sm text-muted">현재 {ELIGIBILITY_TYPE_LABEL[type]}의 세부 자격을 확인하고 있어요.</span>
+        <span className="text-sm text-muted">
+          {step.kind === "tiers"
+            ? `${sharedLabels.join("·")}이(가) 이 답변을 함께 사용해요.`
+            : `현재 ${ELIGIBILITY_TYPE_LABEL[step.type]}의 세부 자격을 확인하고 있어요.`}
+        </span>
       </div>
 
-      {type === "JAEGAEBAL" && (
+      {step.kind === "type" && step.type === "JAEGAEBAL" && (
         <InformationBanner tone="warning" className="mb-5">
           재개발임대는 2026년 공고 미발표로 2025년 공고 기준으로 판정해요.
         </InformationBanner>
       )}
 
-      {renderQuestions(type, detail, patch)}
+      {step.kind === "tiers" ? (
+        <TierStep
+          candidates={candidates}
+          isSenior={isSenior}
+          detail={detail}
+          onToggle={toggleTierAttr}
+          onFollowUp={setTierFollowUp}
+        />
+      ) : (
+        renderQuestions(step.type, detail, (v) => patch(step.type, v))
+      )}
     </QuestionCard>
   );
 }
 
+/** 통합·행복 공통 계층 문항 + 조건부 후속 문항. */
+function TierStep({
+  candidates,
+  isSenior,
+  detail,
+  onToggle,
+  onFollowUp,
+}: {
+  candidates: EligibilityTypeCode[];
+  isSenior: boolean;
+  detail: EligibilityDetailInput;
+  onToggle: (attr: TierAttr) => void;
+  onFollowUp: (v: { marriageMonths?: number; dualIncome?: boolean; studentStatus?: StudentStatus }) => void;
+}) {
+  const shared = detail.tiers;
+  const attrs = shared?.attrs ?? [];
+  const options = relevantTierAttrs(candidates).map((attr) => ({
+    value: attr,
+    label: TIER_ATTR_LABEL[attr],
+    // 고령자는 만 나이로 자동 판정되므로 직접 바꿀 수 없다.
+    ...(attr === "고령자"
+      ? {
+          disabled: true,
+          description: isSenior
+            ? `만 ${SENIOR_AGE}세 이상이라 자동 적용됐어요`
+            : `만 ${SENIOR_AGE}세 이상만 해당 — 나이로 자동 판정`,
+        }
+      : {}),
+  }));
+
+  const showMarriage = needsMarriageFollowUp(attrs);
+  const showStudent = needsStudentFollowUp(attrs, candidates);
+
+  return (
+    <div className="space-y-5">
+      <fieldset>
+        <legend className="mb-1 font-semibold text-fg">해당하는 상황 (중복 선택 가능)</legend>
+        <p className="mb-3 text-sm text-muted">
+          계층은 택일이 아니라 사실이에요. 여러 계층에 해당하면 가장 유리한 기준으로 판정해 드려요.
+        </p>
+        <CheckCards<TierAttr> values={attrs} onToggle={onToggle} options={options} columns={2} />
+        {attrs.length === 0 && (
+          <p className="mt-3 text-sm font-semibold text-error" role="alert">
+            최소 1개는 선택해 주세요.
+          </p>
+        )}
+      </fieldset>
+
+      {candidates.includes("HAENGBOK") && candidates.includes("TONGHAP") && (
+        <p className="text-sm text-muted">
+          대학생·사회초년생은 행복주택에만 있는 계층이라 통합공공임대 판정에는 쓰이지 않아요.
+        </p>
+      )}
+
+      <AnimatePresence initial={false}>
+        {showMarriage && (
+          <FollowUp key="marriage">
+            <p className="mb-3 text-sm font-bold text-primary">신혼·한부모 확인</p>
+            <NumberField
+              label={`혼인신고 후 몇 개월 지났나요? (${MARRIAGE_MONTHS_MAX}개월 이내)`}
+              suffix="개월"
+              max={MARRIAGE_MONTHS_MAX}
+              value={shared?.marriageMonths}
+              onChange={(n) => onFollowUp({ marriageMonths: n })}
+            />
+            <fieldset>
+              <legend className="mb-3 font-semibold">본인·배우자 모두 소득이 있나요?</legend>
+              <RadioCards
+                name="tier-dual"
+                columns={2}
+                value={shared?.dualIncome === undefined ? null : shared.dualIncome ? "yes" : "no"}
+                onChange={(v) => onFollowUp({ dualIncome: v === "yes" })}
+                options={YESNO}
+              />
+              <p className="mt-2 text-sm text-muted">
+                맞벌이면 통합공공임대·행복주택 모두 소득 상한이 올라가요. 한 번만 입력하면 두 유형에 함께 반영돼요.
+              </p>
+            </fieldset>
+          </FollowUp>
+        )}
+
+        {showStudent && (
+          <FollowUp key="student">
+            <p className="mb-3 text-sm font-bold text-primary">행복주택 대학생·사회초년생 확인</p>
+            <fieldset>
+              <legend className="mb-3 font-semibold">현재 상태는?</legend>
+              <RadioCards<StudentStatus>
+                name="tier-student"
+                columns={3}
+                value={shared?.studentStatus ?? null}
+                onChange={(v) => onFollowUp({ studentStatus: v })}
+                options={[
+                  { value: "재학", label: "재학 중" },
+                  { value: "졸업2년내", label: "졸업 2년 내" },
+                  { value: "소득활동5년내", label: "소득활동 5년 내" },
+                ]}
+              />
+            </fieldset>
+          </FollowUp>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 function renderQuestions(
-  type: EligibilityTypeCode,
+  type: SingleType,
   detail: EligibilityDetailInput,
   patch: (v: Record<string, unknown>) => void,
 ) {
-  if (type === "TONGHAP") {
-    const d = detail.TONGHAP;
-    return (
-      <div className="space-y-6">
-        <fieldset>
-          <legend className="mb-3 font-semibold">해당하는 계층을 선택해 주세요</legend>
-          <RadioCards<TonghapTier>
-            name="tonghap-tier"
-            columns={2}
-            value={d?.tier ?? null}
-            onChange={(v) => patch({ tier: v })}
-            options={[
-              { value: "청년", label: "청년" },
-              { value: "신혼한부모", label: "신혼·한부모" },
-              { value: "고령자", label: "고령자" },
-              { value: "일반", label: "일반" },
-            ]}
-          />
-        </fieldset>
-        {d?.tier === "신혼한부모" && (
-          <>
-            <NumberField label="혼인신고 후 몇 개월 지났나요? (84개월 이내)" suffix="개월" value={d?.marriageMonths} onChange={(n) => patch({ marriageMonths: n })} />
-            <fieldset>
-              <legend className="mb-3 font-semibold">본인·배우자 모두 소득이 있나요?</legend>
-              <RadioCards
-                name="tonghap-dual"
-                columns={2}
-                value={d?.dualIncome === undefined ? null : d.dualIncome ? "yes" : "no"}
-                onChange={(v) => patch({ dualIncome: v === "yes" })}
-                options={YESNO}
-              />
-            </fieldset>
-          </>
-        )}
-      </div>
-    );
-  }
-
-  if (type === "HAENGBOK") {
-    const d = detail.HAENGBOK;
-    const needStatus = d?.tier === "대학생" || d?.tier === "사회초년생";
-    return (
-      <div className="space-y-6">
-        <fieldset>
-          <legend className="mb-3 font-semibold">해당하는 계층을 선택해 주세요</legend>
-          <RadioCards<HaengbokTier>
-            name="haengbok-tier"
-            columns={2}
-            value={d?.tier ?? null}
-            onChange={(v) => patch({ tier: v })}
-            options={[
-              { value: "대학생", label: "대학생" },
-              { value: "청년", label: "청년" },
-              { value: "사회초년생", label: "사회초년생" },
-              { value: "신혼한부모", label: "신혼·한부모" },
-              { value: "고령자", label: "고령자" },
-              { value: "주거급여", label: "주거급여수급자" },
-            ]}
-          />
-        </fieldset>
-        {needStatus && (
-          <fieldset>
-            <legend className="mb-3 font-semibold">현재 상태는?</legend>
-            <RadioCards<StudentStatus>
-              name="haengbok-status"
-              columns={3}
-              value={d?.studentStatus ?? null}
-              onChange={(v) => patch({ studentStatus: v })}
-              options={[
-                { value: "재학", label: "재학 중" },
-                { value: "졸업2년내", label: "졸업 2년 내" },
-                { value: "소득활동5년내", label: "소득활동 5년 내" },
-              ]}
-            />
-          </fieldset>
-        )}
-        {d?.tier === "신혼한부모" && (
-          <>
-            <NumberField label="혼인신고 후 몇 개월 지났나요?" suffix="개월" value={d?.marriageMonths} onChange={(n) => patch({ marriageMonths: n })} />
-            <fieldset>
-              <legend className="mb-3 font-semibold">본인·배우자 모두 소득이 있나요?</legend>
-              <RadioCards
-                name="haengbok-dual"
-                columns={2}
-                value={d?.dualIncome === undefined ? null : d.dualIncome ? "yes" : "no"}
-                onChange={(v) => patch({ dualIncome: v === "yes" })}
-                options={YESNO}
-              />
-            </fieldset>
-          </>
-        )}
-      </div>
-    );
-  }
-
   if (type === "JAEGAEBAL") {
     const d = detail.JAEGAEBAL;
     return (
@@ -301,21 +391,8 @@ function renderQuestions(
   );
 }
 
-function isTypeComplete(type: EligibilityTypeCode, detail: EligibilityDetailInput): boolean {
+function isTypeComplete(type: SingleType, detail: EligibilityDetailInput): boolean {
   switch (type) {
-    case "TONGHAP": {
-      const d = detail.TONGHAP;
-      if (!d?.tier) return false;
-      if (d.tier === "신혼한부모") return !!d.marriageMonths && d.dualIncome !== undefined;
-      return true;
-    }
-    case "HAENGBOK": {
-      const d = detail.HAENGBOK;
-      if (!d?.tier) return false;
-      if (d.tier === "대학생" || d.tier === "사회초년생") return !!d.studentStatus;
-      if (d.tier === "신혼한부모") return !!d.marriageMonths && d.dualIncome !== undefined;
-      return true;
-    }
     case "JAEGAEBAL":
       return detail.JAEGAEBAL?.children !== undefined;
     case "MAEIP_ILBAN": {

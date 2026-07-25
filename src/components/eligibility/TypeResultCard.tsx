@@ -8,7 +8,8 @@ import { ELIGIBILITY_TYPE_LABEL } from "@/features/eligibility/eligibility.types
 import type { EligibilityTypeResult } from "@/features/eligibility/eligibility.types";
 
 export function TypeResultCard({ result }: { result: EligibilityTypeResult }) {
-  const { type, evaluation, baseYear, appliedTier } = result;
+  const { type, evaluation, baseYear, appliedTier, evaluatedTiers } = result;
+  const multiTier = (evaluatedTiers?.length ?? 0) > 1;
   return (
     <Card>
       <CardBody className="space-y-3">
@@ -31,6 +32,12 @@ export function TypeResultCard({ result }: { result: EligibilityTypeResult }) {
           </InfoAccordion>
         ) : (
           <p className="text-sm text-muted">{evaluation.reasons[0]}</p>
+        )}
+
+        {multiTier && (
+          <p className="text-sm text-muted">
+            함께 검토한 계층: <span className="font-semibold text-navy">{evaluatedTiers!.join(" · ")}</span>
+          </p>
         )}
 
         {evaluation.checkLater.length > 0 && (

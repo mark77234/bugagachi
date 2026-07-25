@@ -39,9 +39,10 @@ function Legend({ children, hint }: { children: React.ReactNode; hint?: string }
   );
 }
 
-/** Q0 예산 — 슬라이더 기본값(만원). 재고 상한(보증금 4,553 · 월 32.3)을 덮는 범위. */
-const DEPOSIT_SLIDER = { min: 0, max: 5000, step: 50, fallback: 1000 };
-const RENT_SLIDER = { min: 0, max: 50, step: 1, fallback: 25 };
+/** Q0 예산 — 슬라이더 범위(만원). 재고 상한(보증금 4,553 · 월 32.3)보다 넉넉하게 잡아
+ *  보증금이 큰 조건까지 상한으로 지정할 수 있게 한다. */
+const DEPOSIT_SLIDER = { min: 0, max: 10000, step: 50, fallback: 1000 };
+const RENT_SLIDER = { min: 0, max: 70, step: 1, fallback: 25 };
 
 function AmountSlider({
   label,
@@ -121,7 +122,7 @@ export function BudgetStep() {
         min={DEPOSIT_SLIDER.min}
         max={DEPOSIT_SLIDER.max}
         step={DEPOSIT_SLIDER.step}
-        quick={[1000, 3000, 5000]}
+        quick={[1000, 3000, 5000, 10000]}
         onChange={(v) => setBudget({ maxDeposit: v })}
       />
 
@@ -132,7 +133,7 @@ export function BudgetStep() {
         min={RENT_SLIDER.min}
         max={RENT_SLIDER.max}
         step={RENT_SLIDER.step}
-        quick={[15, 25, 35]}
+        quick={[15, 25, 35, 70]}
         onChange={(v) => setBudget({ maxMonthlyRent: v })}
       />
 

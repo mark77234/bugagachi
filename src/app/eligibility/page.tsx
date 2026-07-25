@@ -167,11 +167,15 @@ export default function EligibilityPage() {
             transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
           >
             {phase === "common" && (
-              <>
-                {step === "A" && (
-                  <div className="mb-3 flex justify-end">
+              <QuestionCard
+                title={stepTitle(step)}
+                eyebrow={`STEP ${step} · ${STEPS.findIndex((s) => s.key === step) + 1}/${STEPS.length}`}
+                headingRef={questionHeadingRef}
+                description={stepDesc(step)}
+                headerAction={
+                  step === "A" ? (
                     <Button
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
                       onClick={() => {
                         setEligibilitySkipped(true);
@@ -180,24 +184,18 @@ export default function EligibilityPage() {
                     >
                       자격 확인 건너뛰기 <SkipForward className="h-4 w-4" aria-hidden />
                     </Button>
-                  </div>
-                )}
-                <QuestionCard
-                  title={stepTitle(step)}
-                  eyebrow={`STEP ${step} · ${STEPS.findIndex((s) => s.key === step) + 1}/${STEPS.length}`}
-                  headingRef={questionHeadingRef}
-                  description={stepDesc(step)}
-                  onPrev={step === "A" ? undefined : handleStepPrev}
-                  onNext={handleStepNext}
-                  nextDisabled={!stepValid}
-                  isLast={step === "D"}
-                >
-                  {step === "A" && <StepA />}
-                  {step === "B" && <StepB />}
-                  {step === "C" && <StepC />}
-                  {step === "D" && <StepD />}
-                </QuestionCard>
-              </>
+                  ) : undefined
+                }
+                onPrev={step === "A" ? undefined : handleStepPrev}
+                onNext={handleStepNext}
+                nextDisabled={!stepValid}
+                isLast={step === "D"}
+              >
+                {step === "A" && <StepA />}
+                {step === "B" && <StepB />}
+                {step === "C" && <StepC />}
+                {step === "D" && <StepD />}
+              </QuestionCard>
             )}
 
             {phase === "result1" &&
@@ -210,6 +208,7 @@ export default function EligibilityPage() {
             {phase === "detail" && (
               <DetailForm
                 candidates={candidates}
+                ageYears={common?.ageYears ?? 0}
                 onBack={() => setPhase("result1")}
                 onComplete={() => {
                   store.saveResults(finalResults);

@@ -152,27 +152,24 @@ function capPerCategory(list: NearbyPoi[], perCategory: number): NearbyPoi[] {
 export interface InfraSelectOptions {
   /** 설문에서 돌봄·교육이 필요하다고 답했을 때만 교육 인프라를 포함한다. */
   includeEducation?: boolean;
-  /** 사용자가 선택한 취향 가게 칩. 있으면 해당 업종을 우선한다. */
-  preferredChips?: string[];
   /** 총 개수 상한 */
   limit?: number;
 }
 
 /**
  * 지도에서 마커를 선택했을 때 함께 띄울 주변 인프라.
- * 가까운 순으로 최대한 많이 보여주되, 한 업종이 목록을 독점하지 않도록 카테고리당 개수만 제한한다.
+ *
+ * 취향 가게(preference)는 건물 한 곳 주변에만 수백 곳이 몰려 마커가 지도를 덮어버리므로 찍지 않는다.
+ * 필수 인프라와 (설문에서 필요하다고 답한 경우) 돌봄·교육만 보여주고, 취향 가게는 상세 페이지에서 확인한다.
+ * 한 업종이 목록을 독점하지 않도록 카테고리당 개수를 제한한다.
  */
 export function mapInfraFor(unitId: string, options: InfraSelectOptions = {}): NearbyPoi[] {
-  const { includeEducation = false, preferredChips = [], limit = 40 } = options;
+  const { includeEducation = false, limit = 40 } = options;
   const infra = nearbyInfraOf(unitId);
-  const chips = new Set(preferredChips);
 
   const picked: NearbyPoi[] = [
     ...capPerCategory(infra.required, 2),
     ...(includeEducation ? capPerCategory(infra.education, 2) : []),
-    // 선택한 취향 칩은 조금 더 넉넉히 보여준다.
-    ...capPerCategory(infra.preference, 3).filter((poi) => chips.size === 0 || chips.has(poi.category)),
-    ...(chips.size > 0 ? capPerCategory(infra.preference, 1).filter((poi) => !chips.has(poi.category)) : []),
   ];
 
   return picked.sort((a, b) => a.distance - b.distance).slice(0, limit);

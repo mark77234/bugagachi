@@ -88,6 +88,7 @@ export function FinalSummary({
   const pass = results.filter((r) => r.evaluation.status === "PASS");
   const needs = results.filter((r) => r.evaluation.status === "NEEDS_MORE");
   const fail = results.filter((r) => r.evaluation.status === "FAIL");
+  const multiTierPass = pass.some((r) => (r.evaluatedTiers?.length ?? 0) > 1);
 
   return (
     <div>
@@ -105,6 +106,14 @@ export function FinalSummary({
       <InformationBanner tone="warning" title="이 결과는 자격 확정이 아니에요" className="mb-6">
         아래는 입력 기준의 참고 판정이에요. 실제 신청 가능 여부는 각 유형의 공식 모집공고로 확정됩니다.
       </InformationBanner>
+
+      {/* 판정은 해당 계층을 모두 평가하지만, 실제 신청은 유형·계층을 하나만 골라야 한다. */}
+      {multiTierPass && (
+        <InformationBanner tone="primary" title="가장 유리한 계층으로 신청하세요" className="mb-6">
+          여러 계층에 동시에 해당해서 유리한 기준으로 판정했어요. 실제 신청은 한 유형·한 계층으로만 할 수 있으니, 공고에서
+          계층별 공급 물량과 소득·자산 기준을 비교해 유리한 쪽을 고르세요.
+        </InformationBanner>
+      )}
 
       <Group title="신청 가능성이 있는 유형" items={pass} />
       <Group title="추가 확인이 필요한 유형" items={needs} />

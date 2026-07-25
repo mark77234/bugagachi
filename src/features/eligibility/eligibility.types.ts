@@ -61,14 +61,49 @@ export type HaengbokTier =
 export type StudentStatus = "재학" | "졸업2년내" | "소득활동5년내";
 export type BirthCount = 0 | 1 | 2; // 2 = 2 이상
 
+/**
+ * 통합·행복이 공유하는 '계층' 다중선택 값.
+ *
+ * 계층은 택일 대상이 아니라 사실(속성)이다 — 만 65세 이상이면서 혼인 7년 이내면 고령자이자 신혼이다.
+ * 그래서 유형별로 따로 묻지 않고 한 번만 받아 각 유형이 조회하고, 유형 안에서는 해당 계층을 모두 평가한다.
+ */
+export type TierAttr =
+  | "대학생"
+  | "청년"
+  | "사회초년생"
+  | "신혼한부모"
+  | "고령자"
+  | "수급주거급여"
+  | "일반";
+
+export const TIER_ATTR_LABEL: Record<TierAttr, string> = {
+  대학생: "대학생",
+  청년: "청년",
+  사회초년생: "사회초년생",
+  신혼한부모: "신혼·한부모",
+  고령자: "고령자",
+  수급주거급여: "수급·주거급여",
+  일반: "일반",
+};
+
+/**
+ * 공통 계층 입력. 후속값은 유형명이 아니라 **의미 단위**로 저장해 통합·행복이 함께 재사용한다
+ * (신혼 유저가 두 유형 후보일 때 혼인개월·맞벌이를 두 번 묻지 않기 위함).
+ */
+export interface SharedTierInput {
+  /** 다중선택 결과. 최소 1개 필수. */
+  attrs: TierAttr[];
+  /** '신혼·한부모' 체크 시 — 통합·행복 신혼 판정 공통 (0~84) */
+  marriageMonths?: number;
+  /** '신혼·한부모' 체크 시 — 통합 중180·행복 도120 가산 공통 */
+  dualIncome?: boolean;
+  /** '대학생'·'사회초년생' 체크 시 — 행복 대학생·사회초년생 전용 */
+  studentStatus?: StudentStatus;
+}
+
 export interface EligibilityDetailInput {
-  TONGHAP?: { tier: TonghapTier; marriageMonths?: number; dualIncome?: boolean };
-  HAENGBOK?: {
-    tier: HaengbokTier;
-    studentStatus?: StudentStatus;
-    marriageMonths?: number;
-    dualIncome?: boolean;
-  };
+  /** 통합공공임대·행복주택 공통 계층. 두 유형은 이 값을 조회만 한다. */
+  tiers?: SharedTierInput;
   JAEGAEBAL?: { children: BirthCount };
   MAEIP_ILBAN?: { isRank1: boolean; children: BirthCount };
   MAEIP_CHUNG?: {
@@ -89,7 +124,10 @@ export interface EligibilityTypeResult {
   type: EligibilityTypeCode;
   evaluation: EligibilityEvaluation;
   baseYear: BaseYear;
+  /** 통과 판정에 쓰인 계층(복수 해당 시 가장 유리한 계층). */
   appliedTier?: string;
+  /** 이 유형에서 함께 검토한 계층 전체. 1개면 생략. */
+  evaluatedTiers?: string[];
 }
 
 /** 1-1 산출 결과 */

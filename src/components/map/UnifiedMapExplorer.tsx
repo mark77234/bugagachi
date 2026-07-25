@@ -209,12 +209,12 @@ export function UnifiedMapExplorer() {
   const mapSelectedId = activeId ? unitToRep.get(activeId) ?? activeId : null;
 
   // ── 선택된 주택 주변 인프라 (마커 이벤트 시에만) ─────────────────────
+  // 취향 가게는 수가 너무 많아 지도를 덮으므로 mapInfraFor 에서 제외한다(상세 페이지에서 확인).
   const infra: MapInfraPoi[] = useMemo(() => {
     if (!activeId) return [];
     return mapInfraFor(activeId, {
       // 1·2단계 설문에서 자녀·돌봄이 필요하다고 답했을 때만 교육 인프라를 함께 띄운다.
       includeEducation: pref.eduEnabled === true,
-      preferredChips: pref.storeChips,
       limit: 40,
     }).map((poi) => ({
       id: poi.id,
@@ -224,7 +224,7 @@ export function UnifiedMapExplorer() {
       tier: poi.tier,
       distance: poi.distance,
     }));
-  }, [activeId, pref.eduEnabled, pref.storeChips]);
+  }, [activeId, pref.eduEnabled]);
 
   // ── 목록 ────────────────────────────────────────────────────────────
   const visibleUnits = viewport ? filteredUnits.filter((unit) => isInside(viewport, unit)) : filteredUnits;
@@ -336,9 +336,10 @@ export function UnifiedMapExplorer() {
                   className="h-9 border-0 bg-transparent pl-1 text-sm font-bold shadow-none focus-visible:outline-none"
                 >
                   <option value="recommend">추천순</option>
-                  <option value="rent">월 임대료순</option>
-                  <option value="deposit">보증금순</option>
-                  <option value="distance">거리순</option>
+                  <option value="distance">장소·거리순</option>
+                  <option value="infra">기반시설순</option>
+                  <option value="education">돌봄·교육시설순</option>
+                  <option value="store">취향가게순</option>
                 </Select>
               </div>
               <button

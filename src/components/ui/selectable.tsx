@@ -10,6 +10,8 @@ export interface Option<T extends string> {
   label: string;
   description?: string;
   icon?: LucideIcon;
+  /** 값이 다른 입력에서 자동 결정될 때(예: 나이로 판정되는 계층) 잠근다. */
+  disabled?: boolean;
 }
 
 const gridCols = (columns: number) =>
@@ -105,14 +107,28 @@ export function CheckCards<T extends string>({
         const Icon = o.icon;
         return (
           <label key={o.value} className="block">
-            <input type="checkbox" checked={on} onChange={() => onToggle(o.value)} className="sr-only peer" />
+            <input
+              type="checkbox"
+              checked={on}
+              disabled={o.disabled}
+              onChange={() => onToggle(o.value)}
+              className="sr-only peer"
+            />
             <motion.span
-              whileTap={reduceMotion ? undefined : { scale: 0.98 }}
-              className={cn(cardBase, on ? cardOn : cardIdle, focusRing)}
+              whileTap={reduceMotion || o.disabled ? undefined : { scale: 0.98 }}
+              className={cn(
+                cardBase,
+                on ? cardOn : cardIdle,
+                focusRing,
+                o.disabled && "cursor-not-allowed opacity-70 hover:border-border hover:bg-surface",
+              )}
             >
               <Mark on={on} shape="check" />
               {Icon && <Icon className={cn("h-5 w-5 shrink-0", on ? "text-primary" : "text-muted")} />}
-              <span className={cn("font-medium", on ? "text-primary" : "text-fg")}>{o.label}</span>
+              <span className="min-w-0">
+                <span className={cn("block font-medium", on ? "text-primary" : "text-fg")}>{o.label}</span>
+                {o.description && <span className="mt-0.5 block text-sm text-muted">{o.description}</span>}
+              </span>
             </motion.span>
           </label>
         );

@@ -8,13 +8,24 @@ import {
   incomeCeiling,
 } from "@/config/eligibility-config.2026";
 import { BASE_YEAR_BY_TYPE } from "@/config/eligibility-config.2025";
-import type {
-  EligibilityCommonInput,
-  EligibilityDetailInput,
-  EligibilityEvaluation,
-  EligibilityTypeCode,
-  EligibilityTypeResult,
-  Stage1Outcome,
+import {
+  MARRIAGE_MONTHS_MAX,
+  isSharedTierType,
+  needsMarriageFollowUp,
+  needsStudentFollowUp,
+  tierCandidates,
+  type SharedTierType,
+} from "./eligibility.tiers";
+import {
+  ELIGIBILITY_TYPE_LABEL,
+  TIER_ATTR_LABEL,
+  type EligibilityCommonInput,
+  type EligibilityDetailInput,
+  type EligibilityEvaluation,
+  type EligibilityTypeCode,
+  type EligibilityTypeResult,
+  type SharedTierInput,
+  type Stage1Outcome,
 } from "./eligibility.types";
 
 const ALL_TYPES: EligibilityTypeCode[] = [
@@ -114,9 +125,172 @@ export function stage1Common(input: EligibilityCommonInput): Stage1Outcome {
 
 const GENERIC_CHECK = "실제 소득·자산·세대 구성은 모집공고 제출 서류로 최종 확정돼요.";
 
+/** 내부 계층명 → 표시 라벨. */
+function tierLabel(tier: string): string {
+  if (tier === "주거급여") return "주거급여수급자";
+  return TIER_ATTR_LABEL[tier as keyof typeof TIER_ATTR_LABEL] ?? tier;
+}
+
+/** 한 계층 기준 판정 결과. reasons가 비면 그 계층으로 통과. */
+interface TierVerdict {
+  tier: string;
+  reasons: string[];
+}
+
+/** 세부 판정 결과 + 어떤 계층으로 판정했는지. */
+interface DetailVerdict {
+  evaluation: EligibilityEvaluation;
+  appliedTier?: string;
+  evaluatedTiers?: string[];
+}
+
+/** 통합공공임대 — 계층 하나를 기준으로 소득·자산·자동차 컷 심사. */
+function judgeTonghapTier(
+  common: EligibilityCommonInput,
+  tier: string,
+  shared: SharedTierInput,
+): TierVerdict {
+  const rule = STAGE2_RULES[`TONGHAP:${tier}`];
+  const reasons: string[] = [];
+  const basis = basisOf(common, rule.householderDef);
+  if (rule.householderDef === "household" && common.ownMemberHouse) {
+    reasons.push("무주택 세대구성원 조건에 어긋나요.");
+  }
+  const isNewlywed = tier === "신혼한부모";
+  if (isNewlywed && (shared.marriageMonths ?? 0) > MARRIAGE_MONTHS_MAX) {
+    reasons.push(`혼인 ${MARRIAGE_MONTHS_MAX}개월(7년)을 초과했어요.`);
+  }
+  const mult = rule.multiplier! + (isNewlywed && shared.dualIncome ? rule.dualAdd : 0);
+  if (basis.incomeWon > incomeCeiling(rule.incomeStandard, basis.size, mult)) {
+    reasons.push("중위소득 기준을 초과했어요.");
+  }
+  if (rule.asset !== null && basis.assetWon > rule.asset) reasons.push("총자산 기준을 초과했어요.");
+  if (rule.car !== null && CAR_VALUE[common.carBand] > rule.car) {
+    reasons.push("자동차 가액 기준을 초과했어요.");
+  }
+  return { tier, reasons };
+}
+
+/** 행복주택 — 계층 하나를 기준으로 심사. 대학생 계층은 자동차 보유 자체가 불가. */
+function judgeHaengbokTier(
+  common: EligibilityCommonInput,
+  tier: string,
+  shared: SharedTierInput,
+): TierVerdict {
+  const rule = STAGE2_RULES[`HAENGBOK:${tier}`];
+  const reasons: string[] = [];
+  const basis = basisOf(common, rule.householderDef);
+  const carVal = CAR_VALUE[common.carBand];
+  if (rule.householderDef === "household" && common.ownMemberHouse) {
+    reasons.push("무주택 세대구성원 조건에 어긋나요.");
+  }
+  if (rule.asset !== null && basis.assetWon > rule.asset) reasons.push("계층 총자산 기준을 초과했어요.");
+  if (rule.car === 0) {
+    if (carVal > 0) reasons.push("대학생 계층은 자동차를 소유할 수 없어요.");
+  } else if (rule.car !== null && carVal > rule.car) {
+    reasons.push("자동차 가액 기준을 초과했어요.");
+  }
+  const isNewlywed = tier === "신혼한부모";
+  if (isNewlywed && (shared.marriageMonths ?? 0) > MARRIAGE_MONTHS_MAX) {
+    reasons.push(`혼인 ${MARRIAGE_MONTHS_MAX}개월(7년)을 초과했어요.`);
+  }
+  const mult = rule.multiplier! + (isNewlywed && shared.dualIncome ? rule.dualAdd : 0);
+  if (basis.incomeWon > incomeCeiling(rule.incomeStandard, basis.size, mult)) {
+    reasons.push("도시근로자 소득 기준을 초과했어요.");
+  }
+  return { tier, reasons };
+}
+
+/**
+ * 통합·행복 세부 판정. 공통 계층 다중선택에서 이 유형에 유효한 계층을 모두 평가하고,
+ * **하나라도 통과하면 그 유형 통과**로 본다(가장 유리한 계층으로 판정).
+ */
+function judgeSharedTierType(
+  type: SharedTierType,
+  common: EligibilityCommonInput,
+  detail: EligibilityDetailInput,
+): DetailVerdict {
+  const shared = detail.tiers;
+  const attrs = shared?.attrs ?? [];
+  if (!shared || attrs.length === 0) {
+    return { evaluation: needMore("해당하는 상황을 최소 1개 선택해 주세요.") };
+  }
+
+  const tiers = tierCandidates(type, attrs);
+  if (tiers.length === 0) {
+    // 예: '대학생'만 골랐는데 통합이 후보 — 통합에는 대학생 계층이 없다.
+    return {
+      evaluation: {
+        status: "FAIL",
+        reasons: [`선택한 상황에 해당하는 ${ELIGIBILITY_TYPE_LABEL[type]} 계층이 없어요.`],
+        checkLater: [],
+      },
+    };
+  }
+
+  // 후속 문항이 비어 있으면 아직 판정할 수 없다.
+  if (needsMarriageFollowUp(attrs) && (shared.marriageMonths === undefined || shared.dualIncome === undefined)) {
+    return { evaluation: needMore("혼인 개월과 맞벌이 여부를 입력해 주세요.") };
+  }
+  if (needsStudentFollowUp(attrs, [type]) && !shared.studentStatus) {
+    return { evaluation: needMore("현재 상태(재학·졸업·소득활동)를 선택해 주세요.") };
+  }
+
+  const verdicts = tiers.map((tier) =>
+    type === "TONGHAP" ? judgeTonghapTier(common, tier, shared) : judgeHaengbokTier(common, tier, shared),
+  );
+  const evaluatedTiers = verdicts.map((v) => tierLabel(v.tier));
+  const checkLater: string[] = [GENERIC_CHECK];
+  if (tiers.some((tier) => tier === "대학생" || tier === "사회초년생")) {
+    checkLater.push("재학·졸업·소득활동 상태는 공고 기준으로 다시 확인해요.");
+  }
+
+  const passed = verdicts.find((v) => v.reasons.length === 0);
+  if (passed) {
+    return {
+      evaluation: {
+        status: "PASS",
+        reasons: [
+          verdicts.length > 1
+            ? `${tierLabel(passed.tier)} 계층 기준으로 세부 자격을 충족해요.`
+            : "세부 자격 조건을 충족해요.",
+        ],
+        checkLater,
+      },
+      appliedTier: tierLabel(passed.tier),
+      evaluatedTiers,
+    };
+  }
+
+  // 전부 탈락 — 계층이 여럿이면 어느 계층에서 왜 걸렸는지 함께 보여준다.
+  const reasons =
+    verdicts.length === 1
+      ? verdicts[0].reasons
+      : verdicts.map((v) => `${tierLabel(v.tier)} 계층: ${v.reasons.join(" ")}`);
+  return { evaluation: { status: "FAIL", reasons, checkLater }, evaluatedTiers };
+}
+
 /** 1-2 유형별 세부 판정. common은 1-1 통과 입력, detail은 유형별 답변. */
 export function stage1Detail(
   type: EligibilityTypeCode,
+  common: EligibilityCommonInput,
+  detail: EligibilityDetailInput,
+): EligibilityEvaluation {
+  return judgeDetail(type, common, detail).evaluation;
+}
+
+function judgeDetail(
+  type: EligibilityTypeCode,
+  common: EligibilityCommonInput,
+  detail: EligibilityDetailInput,
+): DetailVerdict {
+  if (isSharedTierType(type)) return judgeSharedTierType(type, common, detail);
+  return { evaluation: judgeSingleType(type, common, detail), appliedTier: singleTypeTier(type, common, detail) };
+}
+
+/** 계층을 공유하지 않는 유형(재개발·매입일반·매입청년)의 세부 판정. */
+function judgeSingleType(
+  type: Exclude<EligibilityTypeCode, SharedTierType>,
   common: EligibilityCommonInput,
   detail: EligibilityDetailInput,
 ): EligibilityEvaluation {
@@ -131,50 +305,6 @@ export function stage1Detail(
   const checkHouseholder = (def: "self" | "household") => {
     if (def === "household" && common.ownMemberHouse) reasons.push("무주택 세대구성원 조건에 어긋나요.");
   };
-
-  if (type === "TONGHAP") {
-    const d = detail.TONGHAP;
-    if (!d?.tier) return needMore("계층을 선택해 주세요.");
-    if (d.tier === "신혼한부모" && (!d.marriageMonths || d.dualIncome === undefined))
-      return needMore("혼인 개월과 맞벌이 여부를 입력해 주세요.");
-    const rule = STAGE2_RULES[`TONGHAP:${d.tier}`];
-    checkHouseholder(rule.householderDef);
-    const basis = basisOf(common, rule.householderDef);
-    const isNewlywed = d.tier === "신혼한부모";
-    if (isNewlywed && (d.marriageMonths ?? 0) > 84) reasons.push("혼인 84개월(7년)을 초과했어요.");
-    const mult = rule.multiplier! + (isNewlywed && d.dualIncome ? rule.dualAdd : 0);
-    if (basis.incomeWon > incomeCeiling(rule.incomeStandard, basis.size, mult))
-      reasons.push("중위소득 기준을 초과했어요.");
-    if (rule.asset !== null && basis.assetWon > rule.asset) reasons.push("총자산 기준을 초과했어요.");
-    if (rule.car !== null && carVal > rule.car) reasons.push("자동차 가액 기준을 초과했어요.");
-    return finalize(reasons, checkLater, d.tier);
-  }
-
-  if (type === "HAENGBOK") {
-    const d = detail.HAENGBOK;
-    if (!d?.tier) return needMore("계층을 선택해 주세요.");
-    if ((d.tier === "대학생" || d.tier === "사회초년생") && !d.studentStatus)
-      return needMore("현재 상태를 선택해 주세요.");
-    if (d.tier === "신혼한부모" && (!d.marriageMonths || d.dualIncome === undefined))
-      return needMore("혼인 개월과 맞벌이 여부를 입력해 주세요.");
-    const rule = STAGE2_RULES[`HAENGBOK:${d.tier}`];
-    checkHouseholder(rule.householderDef);
-    const basis = basisOf(common, rule.householderDef);
-    if (rule.asset !== null && basis.assetWon > rule.asset) reasons.push("계층 총자산 기준을 초과했어요.");
-    if (rule.car === 0) {
-      if (carVal > 0) reasons.push("대학생 계층은 자동차를 소유할 수 없어요.");
-    } else if (rule.car !== null && carVal > rule.car) {
-      reasons.push("자동차 가액 기준을 초과했어요.");
-    }
-    const isNewlywed = d.tier === "신혼한부모";
-    const mult = rule.multiplier! + (isNewlywed && d.dualIncome ? rule.dualAdd : 0);
-    if (basis.incomeWon > incomeCeiling(rule.incomeStandard, basis.size, mult))
-      reasons.push("도시근로자 소득 기준을 초과했어요.");
-    if (d.tier === "대학생" || d.tier === "사회초년생") {
-      checkLater.push("재학·졸업·소득활동 상태는 공고 기준으로 다시 확인해요.");
-    }
-    return finalize(reasons, checkLater, d.tier);
-  }
 
   if (type === "JAEGAEBAL") {
     const d = detail.JAEGAEBAL;
@@ -264,26 +394,24 @@ export function evaluateAll(
     if (s1.perType[type].status === "FAIL") {
       return { type, evaluation: s1.perType[type], baseYear };
     }
-    const hasDetail = Boolean((detail as Record<string, unknown>)[type]);
+    // 통합·행복은 공통 계층 답변을, 나머지는 유형별 답변을 본다.
+    const hasDetail = isSharedTierType(type)
+      ? Boolean(detail.tiers?.attrs.length)
+      : Boolean((detail as Record<string, unknown>)[type]);
     if (!hasDetail) {
       return { type, evaluation: s1.perType[type], baseYear }; // NEEDS_MORE
     }
-    const evaluation = stage1Detail(type, common, detail);
-    const appliedTier = detailTierLabel(type, common, detail);
-    return { type, evaluation, baseYear, appliedTier };
+    const { evaluation, appliedTier, evaluatedTiers } = judgeDetail(type, common, detail);
+    return { type, evaluation, baseYear, appliedTier, evaluatedTiers };
   });
 }
 
-function detailTierLabel(
-  type: EligibilityTypeCode,
+function singleTypeTier(
+  type: Exclude<EligibilityTypeCode, SharedTierType>,
   common: EligibilityCommonInput,
   detail: EligibilityDetailInput,
 ): string | undefined {
   switch (type) {
-    case "TONGHAP":
-      return detail.TONGHAP?.tier;
-    case "HAENGBOK":
-      return detail.HAENGBOK?.tier;
     case "MAEIP_CHUNG": {
       const youth = detail.MAEIP_CHUNG;
       if (youth?.isRank1) return "1순위";

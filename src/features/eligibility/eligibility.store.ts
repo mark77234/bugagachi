@@ -5,12 +5,15 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import { STORAGE_KEYS } from "@/lib/storage";
 import { calcKoreanAge } from "@/lib/formatting";
 import { ASSET_BRACKETS, incomeBrackets } from "./eligibility.brackets";
+import { migrateLegacyTierDetail, pruneTierFollowUps } from "./eligibility.tiers";
 import type {
   CarBand,
   EligibilityCommonInput,
   EligibilityDetailInput,
   EligibilityTypeResult,
   HouseholdMember,
+  SharedTierInput,
+  TierAttr,
 } from "./eligibility.types";
 
 /** 세대구성원 상한(본인 포함). 소득·자산 기준표가 8인까지만 정의된다. */
@@ -73,6 +76,14 @@ interface EligibilityState {
   ) => void;
   setLivesInBusan: (v: boolean) => void;
   setDetail: (detail: EligibilityDetailInput) => void;
+  /** 공통 계층 체크 토글. 해제 시 딸린 후속값도 초기화한다. */
+  toggleTierAttr: (attr: TierAttr) => void;
+  /** 공통 계층 후속값(혼인개월·맞벌이·재학상태) 갱신. */
+  setTierFollowUp: (
+    v: Partial<Pick<SharedTierInput, "marriageMonths" | "dualIncome" | "studentStatus">>,
+  ) => void;
+  /** 만 65세 이상 여부로 '고령자'를 자동 반영. 스텝 B에서 만 나이가 확정된 뒤 호출한다. */
+  syncSeniorAttr: (isSenior: boolean) => void;
   saveResults: (r: EligibilityTypeResult[]) => void;
   invalidateDetail: () => void; // 1-1 변경 시 1-2 무효화
   reset: () => void;
@@ -112,16 +123,43 @@ export const useEligibilityStore = create<EligibilityState>()(
       setStepC: (v) => set((s) => ({ ...s, ...v })),
       setLivesInBusan: (v) => set({ livesInBusan: v }),
       setDetail: (detail) => set({ detail }),
+      toggleTierAttr: (attr) =>
+        set((s) => {
+          const cur = s.detail.tiers ?? { attrs: [] };
+          const attrs = cur.attrs.includes(attr)
+            ? cur.attrs.filter((a) => a !== attr)
+            : [...cur.attrs, attr];
+          return { detail: { ...s.detail, tiers: pruneTierFollowUps({ ...cur, attrs }) } };
+        }),
+      setTierFollowUp: (v) =>
+        set((s) => ({
+          detail: { ...s.detail, tiers: { ...(s.detail.tiers ?? { attrs: [] }), ...v } },
+        })),
+      syncSeniorAttr: (isSenior) =>
+        set((s) => {
+          const cur = s.detail.tiers ?? { attrs: [] };
+          if (cur.attrs.includes("고령자") === isSenior) return s; // 이미 일치 — 갱신하지 않는다
+          const attrs = isSenior
+            ? [...cur.attrs, "고령자" as TierAttr]
+            : cur.attrs.filter((a) => a !== "고령자");
+          return { detail: { ...s.detail, tiers: pruneTierFollowUps({ ...cur, attrs }) } };
+        }),
       saveResults: (r) => set({ savedResults: r }),
       invalidateDetail: () => set({ detail: {}, savedResults: null }),
       reset: () => set({ ...initial }),
     }),
     {
       name: STORAGE_KEYS.eligibility,
-      version: 1,
+      version: 2,
       storage: createJSONStorage(() => localStorage),
       migrate: (persisted, version) => {
         const value = { ...((persisted ?? {}) as Record<string, unknown>) };
+        // v2: 통합·행복 계층을 유형별 라디오 → 공통 다중선택으로 통합. 기존 답변을 attrs로 옮긴다.
+        if (version < 2) {
+          value.detail = migrateLegacyTierDetail(value.detail);
+          // 계층 판정 방식이 바뀌었으므로 결과 스냅샷은 다시 계산해야 한다.
+          value.savedResults = null;
+        }
         // v1: members[] 목록 → 관계별 인원수. 관계 정보가 없던 행은 자녀로 접는다.
         if (version < 1) {
           const members = Array.isArray(value.members)

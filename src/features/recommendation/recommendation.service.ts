@@ -4,7 +4,6 @@ import { boostedMeters } from "@/lib/coordinates";
 import { formatDistance, formatManwon, formatPercentileTop } from "@/lib/formatting";
 import {
   MOCK_HOUSING,
-  bestCondition,
   matchingConditions,
   type HousingMetric,
   type HousingUnit,
@@ -256,8 +255,21 @@ export function recommend(
   return { kind: "ok", recommendations: recs };
 }
 
-/** 정렬 유틸 (B4). */
-export type SortKey = "recommend" | "rent" | "deposit" | "distance";
+/** 정렬 유틸 (B4).
+ *  추천순 외의 기준은 2단계 점수 축과 1:1로 대응한다 — 축 점수가 높은 순.
+ *  (축 점수는 거리·개수를 이미 정규화한 값이라 "가까운/많은 순"과 같은 순서가 된다) */
+export type SortKey = "recommend" | "distance" | "infra" | "education" | "store";
+
+/** 축 점수(0~1). 설문에서 제외한 축이면 undefined. */
+function axisScore(rec: HousingRecommendation, axis: ScoreAxis): number | undefined {
+  return rec.score.byAxis.find((entry) => entry.axis === axis)?.score;
+}
+
+/** 축 점수 내림차순. 해당 축이 없는 주택은 뒤로 보낸다. */
+function byAxisDesc(recs: HousingRecommendation[], axis: ScoreAxis): HousingRecommendation[] {
+  return recs.sort((a, b) => (axisScore(b, axis) ?? -1) - (axisScore(a, axis) ?? -1));
+}
+
 export function sortRecommendations(
   recs: HousingRecommendation[],
   key: SortKey,
@@ -265,28 +277,23 @@ export function sortRecommendations(
 ): HousingRecommendation[] {
   const copy = [...recs];
   const unit = (id: string) => MOCK_HOUSING.find((h) => h.id === id)!;
-  const conditionValue = (id: string, field: "deposit" | "monthlyRent") =>
-    bestCondition(unit(id))?.[field] ?? Number.POSITIVE_INFINITY;
   switch (key) {
-    case "rent":
-      return copy.sort(
-        (a, b) =>
-          conditionValue(a.unitId, "monthlyRent") -
-          conditionValue(b.unitId, "monthlyRent"),
-      );
-    case "deposit":
-      return copy.sort(
-        (a, b) =>
-          conditionValue(a.unitId, "deposit") -
-          conditionValue(b.unitId, "deposit"),
-      );
     case "distance":
+      // 자주 가는 장소를 입력했으면 실제 보정거리로, 없으면 frequent 축 점수로 정렬한다.
       if (originForDistance) {
         return copy.sort(
-          (a, b) => boostedMeters(unit(a.unitId).coord, originForDistance) - boostedMeters(unit(b.unitId).coord, originForDistance),
+          (a, b) =>
+            boostedMeters(unit(a.unitId).coord, originForDistance) -
+            boostedMeters(unit(b.unitId).coord, originForDistance),
         );
       }
-      return copy;
+      return byAxisDesc(copy, "frequent");
+    case "infra":
+      return byAxisDesc(copy, "infra");
+    case "education":
+      return byAxisDesc(copy, "education");
+    case "store":
+      return byAxisDesc(copy, "store");
     default:
       return copy.sort((a, b) => b.score.final - a.score.final);
   }

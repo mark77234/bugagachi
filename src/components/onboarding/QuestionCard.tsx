@@ -11,6 +11,7 @@ export function QuestionCard({
   headingRef,
   helpId,
   description,
+  headerAction,
   children,
   onPrev,
   onNext,
@@ -26,6 +27,8 @@ export function QuestionCard({
   headingRef?: React.Ref<HTMLHeadingElement>;
   helpId?: string;
   description?: string;
+  /** 카드 내부 우측 상단 보조 액션 (예: 단계 전체 건너뛰기) */
+  headerAction?: React.ReactNode;
   children: React.ReactNode;
   onPrev?: () => void;
   onNext: () => void;
@@ -39,10 +42,19 @@ export function QuestionCard({
   return (
     <Card className="overflow-visible">
       <CardBody className="pb-24 sm:p-8 sm:pb-8">
-        {eyebrow && <p className="mb-1.5 text-sm font-bold text-primary">{eyebrow}</p>}
-        <h2 ref={headingRef} tabIndex={-1} className="text-balance text-xl font-bold leading-snug outline-none sm:text-2xl">
-          {title}
-        </h2>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            {eyebrow && <p className="mb-1.5 text-sm font-bold text-primary">{eyebrow}</p>}
+            <h2
+              ref={headingRef}
+              tabIndex={-1}
+              className="text-balance text-xl font-bold leading-snug outline-none sm:text-2xl"
+            >
+              {title}
+            </h2>
+          </div>
+          {headerAction && <div className="shrink-0">{headerAction}</div>}
+        </div>
         {description && (
           <p id={helpId} className="mt-2 text-muted">
             {description}
