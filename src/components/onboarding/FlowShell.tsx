@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
-import Link from "next/link";
-import Image from "next/image";
 import { PageContainer } from "@/components/common/PageContainer";
+import { BrandLogo } from "@/components/layout/BrandLogo";
 import { cn } from "@/lib/utils";
 
 export function FlowShell({
@@ -25,23 +24,9 @@ export function FlowShell({
 }) {
   return (
     <div className="min-h-[calc(100dvh-7rem)] bg-surface-muted/45">
-      <header className="border-b border-border bg-surface">
+      <header className="border-b border-border bg-surface/90 backdrop-blur">
         <PageContainer size="wide" className="flex min-h-16 items-center justify-between gap-4">
-          <Link
-            href="/"
-            className="flex items-center gap-2 rounded-lg text-primary focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-primary/25"
-            aria-label="부가가치 홈으로 이동"
-          >
-            <Image
-              src="/assets/logo/bugagachi_website_logo.png"
-              alt=""
-              width={32}
-              height={32}
-              className="h-8 w-8 shrink-0 object-contain"
-              aria-hidden
-            />
-            <span className="text-lg font-extrabold tracking-[-0.03em]">부가가치</span>
-          </Link>
+          <BrandLogo logoClassName="h-8" titleClassName="h-6" />
           <p className="text-sm font-semibold text-muted">{eyebrow}</p>
         </PageContainer>
       </header>

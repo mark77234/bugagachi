@@ -13,7 +13,6 @@ import { PageContainer } from "@/components/common/PageContainer";
 import { Mascot, type MascotPose } from "@/components/common/Mascot";
 import { MascotVideo, type MascotVideoKey } from "@/components/common/MascotVideo";
 import { SectionHeader } from "@/components/common/SectionHeader";
-import { InformationBanner, PrivacyNotice } from "@/components/common/banners";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardBody } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
@@ -123,7 +122,7 @@ export default function LandingPage() {
             <FadeIn delay={0.06} y={10} className="hidden lg:block">
               <div className="relative overflow-hidden rounded-[var(--radius-cardlg)] border border-primary/15 shadow-[var(--shadow-card)]">
                 <Image
-                  src="/assets/wallpapers/hf_20260724_120406_f313782a-7cc8-42fb-b2c0-c812e1158941.png"
+                  src="/assets/wallpapers/search_wallpaper_2.png"
                   alt="집 모양 모자를 쓴 마스코트 갈붕이가 추천·지도·채팅 정보를 안내하는 모습"
                   width={800}
                   height={451}
@@ -205,7 +204,7 @@ export default function LandingPage() {
 
       <section className="relative overflow-hidden py-14 sm:py-20">
         <Image
-          src="/assets/wallpapers/hf_20260724_120349_438fc9d3-b715-4a63-92c8-29e5ffd80cd0.png"
+          src="/assets/wallpapers/map_wallpaper_1.png"
           alt=""
           fill
           sizes="100vw"
@@ -294,19 +293,6 @@ export default function LandingPage() {
         </Reveal>
       </PageContainer>
 
-      <PageContainer size="wide" className="pb-16">
-        <SectionHeader eyebrow="꼭 확인하세요" title="추천과 법적 자격 확정은 달라요" />
-        <Reveal className="grid gap-4 lg:grid-cols-2" y={10}>
-          <InformationBanner tone="warning" title="추천 결과는 참고용이에요">
-            최종 신청 가능 여부는 각 유형의 공식 모집공고와 제출 서류로 확인해야 합니다.
-          </InformationBanner>
-          <InformationBanner tone="primary" title="부산 공공임대 주택·생활권 정보를 사용해요">
-            {RENTAL_DATASET_STATS.validRows}호실을 {RENTAL_DATASET_STATS.buildings}개 건물로 묶어 보여주며,
-            모집 상태와 신청 일정은 포함되어 있지 않아요.
-          </InformationBanner>
-          <PrivacyNotice className="lg:col-span-2" />
-        </Reveal>
-      </PageContainer>
     </div>
   );
 }

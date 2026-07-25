@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BrandLogo } from "./BrandLogo";
 
 const NAV = [
   { href: "/eligibility", label: "맞춤 추천" },
@@ -23,23 +23,6 @@ function isActivePath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function Logo() {
-  return (
-    <Link href="/" className="flex items-center gap-2 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-ring)]">
-      <Image
-        src="/assets/logo/bugagachi_website_logo.png"
-        alt=""
-        width={40}
-        height={40}
-        priority
-        className="h-10 w-10 shrink-0 object-contain"
-        aria-hidden
-      />
-      <span className="text-lg font-extrabold tracking-tight text-navy">부가가치</span>
-    </Link>
-  );
-}
-
 export function AppHeader() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -47,7 +30,7 @@ export function AppHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-surface/90 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-[1280px] items-center justify-between px-4 sm:px-6">
-        <Logo />
+        <BrandLogo priority logoClassName="h-10" titleClassName="h-7" />
 
         <nav className="hidden items-center gap-1 md:flex" aria-label="주요 메뉴">
           {NAV.map((n) => {

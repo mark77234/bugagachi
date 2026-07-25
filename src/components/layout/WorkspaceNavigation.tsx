@@ -24,11 +24,11 @@ export function WorkspaceNavigation() {
         className="mt-4 flex h-11 w-11 items-center justify-center overflow-hidden rounded-[var(--radius-input)] bg-surface shadow-[var(--shadow-card)]"
       >
         <Image
-          src="/assets/logo/bugagachi_website_logo.png"
+          src="/assets/logo/ic_logo.png"
           alt=""
-          width={44}
-          height={44}
-          className="h-11 w-11 object-contain"
+          width={185}
+          height={229}
+          className="h-10 w-auto object-contain"
           aria-hidden
         />
       </Link>

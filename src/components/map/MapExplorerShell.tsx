@@ -1,12 +1,11 @@
 "use client";
 
 import { useState, type ReactNode, type Ref } from "react";
-import Link from "next/link";
-import Image from "next/image";
 import { ListFilter, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { MapPanel } from "@/components/map/MapPanel";
 import { ViewToggle } from "@/components/map/ViewToggle";
+import { BrandLogo } from "@/components/layout/BrandLogo";
 import type { MapViewProps } from "@/components/map/MapView";
 import { cn } from "@/lib/utils";
 
@@ -54,25 +53,15 @@ export function MapExplorerShell({
       {/* 좌측 상단 플로팅: 로고(홈) + 화면 전환 토글 + 컨트롤 */}
       <div className="pointer-events-none absolute left-3 top-3 z-30 flex flex-col items-start gap-2 sm:left-4 sm:top-4">
         <div className="pointer-events-auto flex flex-wrap items-center gap-2">
-          <Link
-            href="/"
-            aria-label="부가가치 홈으로"
+          <BrandLogo
+            priority
             className={cn(
               FLOATING_PANEL,
               "flex h-12 items-center gap-2 px-3 transition-colors hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-ring)]",
             )}
-          >
-            <Image
-              src="/assets/logo/bugagachi_website_logo.png"
-              alt=""
-              width={32}
-              height={32}
-              priority
-              className="h-8 w-8 shrink-0 object-contain"
-              aria-hidden
-            />
-            <span className="hidden text-base font-extrabold tracking-tight text-navy sm:inline">부가가치</span>
-          </Link>
+            logoClassName="h-8"
+            titleClassName="h-6"
+          />
           <ViewToggle current={current} floating />
         </div>
 

@@ -3,7 +3,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Minus, Plus, Maximize2 } from "lucide-react";
-import { MockMapView, MAP_MARKER_LOGO, type MapMarker, type MapViewProps, type MapViewportBounds } from "./MapView";
+import { MockMapView, MAP_MARKER_ICON, type MapMarker, type MapViewProps, type MapViewportBounds } from "./MapView";
 
 const KAKAO_KEY = process.env.NEXT_PUBLIC_KAKAO_MAP_KEY;
 const SDK_ID = "kakao-maps-sdk";
@@ -38,28 +38,27 @@ function loadKakao(): Promise<any> {
   });
 }
 
-/** 브랜드 로고 + 금액(+그룹 수) 마커. */
+/** 전용 마커 아이콘 + 금액(+그룹 수) 마커. */
 function buildPin(m: MapMarker, active: boolean, onClick: () => void): HTMLButtonElement {
   const el = document.createElement("button");
   el.type = "button";
   el.setAttribute("aria-label", `${m.label}${m.caption ? `, ${m.caption}` : ""}${m.count && m.count > 1 ? `, 이 위치 ${m.count}곳` : ""}`);
 
-  const logo = document.createElement("span");
-  Object.assign(logo.style, {
+  const icon = document.createElement("span");
+  Object.assign(icon.style, {
     display: "inline-flex", alignItems: "center", justifyContent: "center",
-    width: "18px", height: "18px", borderRadius: "9999px", background: "#fff",
-    overflow: "hidden", flexShrink: "0",
+    width: "18px", height: "24px", overflow: "hidden", flexShrink: "0",
   } as CSSStyleDeclaration);
   const img = document.createElement("img");
-  img.src = MAP_MARKER_LOGO;
+  img.src = MAP_MARKER_ICON;
   img.alt = "";
-  Object.assign(img.style, { width: "18px", height: "18px", objectFit: "contain" } as CSSStyleDeclaration);
-  logo.appendChild(img);
+  Object.assign(img.style, { width: "18px", height: "24px", objectFit: "contain" } as CSSStyleDeclaration);
+  icon.appendChild(img);
 
   const price = document.createElement("span");
   price.textContent = m.caption ?? m.label;
 
-  el.appendChild(logo);
+  el.appendChild(icon);
   el.appendChild(price);
 
   if (m.count && m.count > 1) {

@@ -16,8 +16,8 @@ export interface MapMarker {
   count?: number;
 }
 
-/** 지도 마커에 함께 노출하는 브랜드 로고. */
-export const MAP_MARKER_LOGO = "/assets/logo/bugagachi_website_logo.png";
+/** 지도 마커에 사용하는 전용 핀 에셋. */
+export const MAP_MARKER_ICON = "/assets/markers/ic_marker.png";
 
 export interface MapViewportBounds {
   north: number;
@@ -73,8 +73,9 @@ export function MockMapView({
       style={{
         backgroundColor: "#e8eeec",
         backgroundImage:
-          "linear-gradient(0deg, rgba(15,118,110,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(15,118,110,0.06) 1px, transparent 1px)",
-        backgroundSize: "36px 36px",
+          "linear-gradient(rgba(252,253,253,0.4), rgba(252,253,253,0.4)), url('/assets/wallpapers/map_wallpaper_4.png')",
+        backgroundPosition: "center",
+        backgroundSize: "cover",
       }}
       role="group"
       aria-label={ariaLabel}
@@ -104,8 +105,8 @@ export function MockMapView({
                 active ? "border-primary bg-primary text-white" : "border-border bg-surface text-fg",
               )}
             >
-              <span className="flex h-5 w-5 items-center justify-center overflow-hidden rounded-full bg-white">
-                <Image src={MAP_MARKER_LOGO} alt="" width={20} height={20} className="h-5 w-5 object-contain" />
+              <span className="flex h-7 w-5 shrink-0 items-center justify-center">
+                <Image src={MAP_MARKER_ICON} alt="" width={400} height={529} className="h-6 w-auto object-contain" />
               </span>
               {m.caption ?? m.label}
               {m.count && m.count > 1 ? (
