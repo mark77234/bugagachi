@@ -88,7 +88,7 @@ export const usePreferencesStore = create<PreferencesState>()(
     }),
     {
       name: STORAGE_KEYS.preferences,
-      version: 2,
+      version: 3,
       storage: createJSONStorage(() => localStorage),
       migrate: (persisted, version) => {
         const value = { ...((persisted ?? {}) as Record<string, unknown>) };
@@ -98,6 +98,8 @@ export const usePreferencesStore = create<PreferencesState>()(
             legacy === "quiet" ? 0 : legacy === "moderate" ? 0.5 : legacy === "lively" ? 1 : null;
           delete value.mood;
         }
+        // v3: 취향 가게 칩 라벨 전면 교체 — 옛 라벨은 점수 키와 매칭되지 않으므로 버린다.
+        if (version < 3) value.storeChips = [];
         return value as unknown as PreferencesState;
       },
       onRehydrateStorage: () => (state) => {

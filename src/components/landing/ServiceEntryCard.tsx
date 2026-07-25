@@ -53,6 +53,7 @@ export function ServiceEntryCard({
   highlights,
   delay = 0,
   className,
+  cardClassName,
 }: {
   href: string;
   eyebrow: string;
@@ -68,6 +69,8 @@ export function ServiceEntryCard({
   highlights?: string[];
   delay?: number;
   className?: string;
+  /** 카드 본체(Link)에 병합되는 클래스. 높이 등 기본값 재정의용. */
+  cardClassName?: string;
 }) {
   const titleId = useId();
   const descriptionId = useId();
@@ -91,6 +94,7 @@ export function ServiceEntryCard({
           "interactive-card transition-[border-color,box-shadow] focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-[var(--color-ring)]",
           size === "primary" && "min-h-[340px] sm:p-9 lg:min-h-[576px]",
           TONE_STYLES[tone],
+          cardClassName,
         )}
       >
         {illustrationFill && (

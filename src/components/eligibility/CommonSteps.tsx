@@ -1,15 +1,20 @@
 "use client";
 
-import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Minus, Plus } from "lucide-react";
 import { useState } from "react";
-import { useEligibilityStore } from "@/features/eligibility/eligibility.store";
+import {
+  MAX_HOUSEHOLD,
+  householdSizeOf,
+  needsHouseholdAmounts,
+  needsSelfAmounts,
+  useEligibilityStore,
+} from "@/features/eligibility/eligibility.store";
 import { ASSET_BRACKETS, CAR_OPTIONS, incomeBrackets } from "@/features/eligibility/eligibility.brackets";
-import type { CarBand, MemberRelation } from "@/features/eligibility/eligibility.types";
+import type { CarBand } from "@/features/eligibility/eligibility.types";
 import { RadioCards } from "@/components/ui/selectable";
 import { InfoAccordion } from "@/components/ui/accordion";
+import { InformationBanner } from "@/components/common/banners";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
-import { Toggle } from "@/components/ui/toggle";
 import { calcKoreanAge } from "@/lib/formatting";
 import { cn } from "@/lib/utils";
 import type { Bracket } from "@/features/eligibility/eligibility.brackets";
@@ -73,31 +78,64 @@ export function StepA() {
   );
 }
 
-const MAX_HOUSEHOLD = 8;
+/** 관계별 인원수 스테퍼. 본인은 디폴트 1명으로 고정되어 여기에 나오지 않는다. */
+function CountRow({
+  label,
+  help,
+  value,
+  max,
+  onChange,
+}: {
+  label: string;
+  help: string;
+  value: number;
+  max: number;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-[var(--radius-input)] border border-border bg-surface px-4 py-3">
+      <div className="min-w-0">
+        <p className="font-semibold text-fg">{label}</p>
+        <p className="mt-0.5 text-sm text-muted">{help}</p>
+      </div>
+      <div className="flex shrink-0 items-center gap-1">
+        <button
+          type="button"
+          onClick={() => onChange(Math.max(0, value - 1))}
+          disabled={value <= 0}
+          aria-label={`${label} 1명 줄이기`}
+          className="flex h-11 w-11 items-center justify-center rounded-[var(--radius-input)] border border-border text-fg transition-colors hover:enabled:border-primary/50 hover:enabled:bg-primary-subtle disabled:opacity-35 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-ring)]"
+        >
+          <Minus className="h-4 w-4" aria-hidden />
+        </button>
+        <output className="w-10 text-center font-bold tabular-nums text-fg" aria-label={`${label} ${value}명`}>
+          {value}
+        </output>
+        <button
+          type="button"
+          onClick={() => onChange(Math.min(max, value + 1))}
+          disabled={value >= max}
+          aria-label={`${label} 1명 늘리기`}
+          className="flex h-11 w-11 items-center justify-center rounded-[var(--radius-input)] border border-border text-fg transition-colors hover:enabled:border-primary/50 hover:enabled:bg-primary-subtle disabled:opacity-35 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-ring)]"
+        >
+          <Plus className="h-4 w-4" aria-hidden />
+        </button>
+      </div>
+    </div>
+  );
+}
 
-/** 추가 가구원 관계 옵션 (본인·태아 제외). 자격 판정에는 인원수만 사용. */
-const ADD_RELATIONS: { value: MemberRelation; label: string }[] = [
-  { value: "SPOUSE", label: "배우자" },
-  { value: "PARENT", label: "부모" },
-  { value: "CHILD", label: "자녀" },
-  { value: "SIBLING", label: "형제자매" },
-  { value: "OTHER", label: "기타" },
-];
-
-/** 스텝 B — 가구·나이 */
+/** 스텝 B — 생년월일 · 주민등록상 세대구성원 */
 export function StepB() {
-  const { birthISO, setBirth, members, addMember, removeMember, setMemberRelation } = useEligibilityStore();
+  const store = useEligibilityStore();
+  const { birthISO, setBirth, hasSpouse, parentCount, childCount, fetusCount, setStepB } = store;
   const age = calcKoreanAge(birthISO);
-
-  const total = members.length;
-  const atMax = total >= MAX_HOUSEHOLD;
-  const rows = members.filter((m) => m.relation !== "FETUS"); // 본인 + 추가 가구원
-  const fetus = members.find((m) => m.relation === "FETUS");
-  const hasFetus = !!fetus;
+  const total = householdSizeOf(store);
+  const remaining = MAX_HOUSEHOLD - total;
 
   return (
     <div>
-      <Field legend="생년월일" help="만 나이는 자동으로 계산돼요.">
+      <Field legend="생년월일을 입력해 주세요" help="만 나이는 자동으로 계산돼요.">
         <div className="flex flex-wrap items-center gap-3">
           <Input
             type="date"
@@ -117,77 +155,72 @@ export function StepB() {
 
       <fieldset className="mb-6 last:mb-0">
         <div className="mb-3 flex flex-wrap items-end justify-between gap-x-3 gap-y-1">
-          <legend className="font-semibold text-fg">가구원 구성</legend>
+          <legend className="font-semibold text-fg">주민등록상 세대구성원을 관계별로 알려주세요</legend>
           <span className="text-sm text-muted">
-            함께 거주하는 가구원을 추가해 주세요 · 총 <b className="font-bold text-primary">{total}명</b>
+            총 <b className="font-bold text-primary">{total}명</b> (태아 포함)
           </span>
         </div>
 
         <div className="space-y-2">
-          {rows.map((m) =>
-            m.relation === "SELF" ? (
-              <div
-                key={m.id}
-                className="flex h-12 items-center rounded-[var(--radius-input)] border border-border bg-surface-muted px-4 font-semibold text-fg"
-              >
-                본인
-              </div>
-            ) : (
-              <div key={m.id} className="flex items-center gap-2">
-                <Select
-                  value={m.relation}
-                  onChange={(e) => setMemberRelation(m.id, e.target.value as MemberRelation)}
-                  aria-label="가구원 관계"
-                  className="h-12 flex-1"
-                >
-                  {ADD_RELATIONS.map((r) => (
-                    <option key={r.value} value={r.value}>
-                      {r.label}
-                    </option>
-                  ))}
-                </Select>
-                <button
-                  type="button"
-                  onClick={() => removeMember(m.id)}
-                  aria-label="가구원 삭제"
-                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[var(--radius-input)] border border-border text-muted transition-colors hover:border-error/40 hover:bg-error-subtle hover:text-error focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-ring)]"
-                >
-                  <Trash2 className="h-4 w-4" aria-hidden />
-                </button>
-              </div>
-            ),
-          )}
-        </div>
-
-        <button
-          type="button"
-          onClick={() => !atMax && addMember("CHILD", "자녀")}
-          disabled={atMax}
-          className="mt-2 flex min-h-12 w-full items-center justify-center gap-1.5 rounded-[var(--radius-input)] border-2 border-dashed border-border text-sm font-semibold text-primary transition-colors hover:enabled:border-primary/50 hover:enabled:bg-primary-subtle disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-ring)]"
-        >
-          <Plus className="h-4 w-4" aria-hidden />
-          {atMax ? `최대 ${MAX_HOUSEHOLD}명까지 추가할 수 있어요` : "가구원 추가"}
-        </button>
-
-        <div className="mt-3 flex items-center justify-between gap-3 rounded-[var(--radius-input)] border border-border bg-surface px-4 py-3">
-          <div className="min-w-0">
-            <p className="font-semibold text-fg">태아 포함</p>
-            <p className="mt-0.5 text-sm text-muted">임신 중이면 태아도 가구원에 포함돼요.</p>
+          <div className="flex items-center justify-between gap-3 rounded-[var(--radius-input)] border border-border bg-surface-muted px-4 py-3">
+            <div className="min-w-0">
+              <p className="font-semibold text-fg">본인</p>
+              <p className="mt-0.5 text-sm text-muted">항상 세대구성원에 포함돼요.</p>
+            </div>
+            <span className="shrink-0 rounded-full bg-primary-subtle px-3 py-1 text-sm font-bold text-primary">
+              1명
+            </span>
           </div>
-          <Toggle
-            checked={hasFetus}
-            onChange={() => {
-              if (hasFetus && fetus) removeMember(fetus.id);
-              else if (!atMax) addMember("FETUS", "태아");
-            }}
-            label="태아 포함"
+
+          <div className="rounded-[var(--radius-input)] border border-border bg-surface px-4 py-3">
+            <p className="font-semibold text-fg">배우자</p>
+            <p className="mt-0.5 mb-3 text-sm text-muted">따로 살아도 세대구성원에 포함돼요.</p>
+            <RadioCards
+              name="spouse"
+              columns={2}
+              value={boolToVal(hasSpouse)}
+              onChange={(v) => setStepB({ hasSpouse: v === "yes" })}
+              options={YESNO("있음", "없음")}
+            />
+          </div>
+
+          <CountRow
+            label="부모·조부모"
+            help="주민등록표에 함께 오른 분만 세어 주세요."
+            value={parentCount}
+            max={parentCount + Math.max(remaining, 0)}
+            onChange={(v) => setStepB({ parentCount: v })}
+          />
+          <CountRow
+            label="자녀"
+            help="미성년 자녀도 모두 포함해요."
+            value={childCount}
+            max={childCount + Math.max(remaining, 0)}
+            onChange={(v) => setStepB({ childCount: v })}
+          />
+          <CountRow
+            label="임신 중 태아"
+            help="임신 중이면 태아도 세대구성원으로 세요."
+            value={fetusCount}
+            max={fetusCount + Math.max(remaining, 0)}
+            onChange={(v) => setStepB({ fetusCount: v })}
           />
         </div>
 
-        <p className="mt-3 text-sm text-muted">
-          본인은 기본 포함돼요. 자격 판정에는 인원수만 사용하고, 개인정보는 저장하지 않아요.
-        </p>
+        {remaining <= 0 && (
+          <p className="mt-3 text-sm text-muted">최대 {MAX_HOUSEHOLD}명까지 입력할 수 있어요.</p>
+        )}
       </fieldset>
+
+      <InformationBanner tone="primary" title="세대구성원이란?">
+        <p>
+          주민등록표에 함께 오른 본인 · 배우자 · 부모(조부모) · 자녀예요. 배우자는 따로 살아도 포함돼요.
+        </p>
+        <p className="mt-2">
+          <b className="text-fg">형제자매, 삼촌, 조카 등은 세대구성원이 아니라 빼고 입력</b>해 주세요.
+        </p>
+        <p className="mt-2">입력한 관계로 세대원 수(태아 포함)가 자동 계산돼 소득·자산 기준에 쓰여요.</p>
+      </InformationBanner>
     </div>
   );
 }
@@ -268,58 +301,128 @@ function AmountField({
   );
 }
 
-/** 스텝 C — 소득·자산 */
+/** 스텝 C — 소득·자산.
+ *  본인 질문은 세대 1인이거나 만 19~39세일 때만, 세대 합계 질문은 2인 이상일 때만 노출한다. */
 export function StepC() {
+  const store = useEligibilityStore();
   const {
-    members,
     incomeBracketIndex,
     assetBracketIndex,
     incomeManwonExact,
     assetManwonExact,
+    selfIncomeBracketIndex,
+    selfAssetBracketIndex,
+    selfIncomeManwonExact,
+    selfAssetManwonExact,
     carBand,
     setStepC,
-  } = useEligibilityStore();
-  const size = Math.min(Math.max(members.length, 1), 8);
-  const incomeOptions = incomeBrackets(size);
-  const income100 = incomeOptions[2]?.repManwon ?? 0;
+  } = store;
+
+  const size = householdSizeOf(store);
+  const showSelf = needsSelfAmounts(store);
+  const showHousehold = needsHouseholdAmounts(store);
+
+  // 본인 소득은 1인 가구 구간, 세대 소득은 세대원 수 구간을 쓴다.
+  const selfIncomeOptions = incomeBrackets(1);
+  const householdIncomeOptions = incomeBrackets(size);
   const carOpts = CAR_OPTIONS.map((o) => ({ value: o.value, label: o.label }));
-  const incomeLegend = size === 1 ? "본인 월평균 소득이 얼마인가요?" : "세대 월평균 소득이 얼마인가요?";
-  const assetLegend = "가구의 총자산이 얼마인가요?";
+
+  const selfIncomeLegend = "본인의 월평균 소득(세전)은?";
+  const selfAssetLegend = "본인이 보유한 총자산은? (부동산+자동차+금융+기타−부채)";
+  const householdIncomeLegend = "세대구성원 전원의 월소득 합계는?";
+  const householdAssetLegend = "세대구성원 전원의 총자산 합계는?";
 
   return (
     <div>
+      {showSelf && (
+        <>
+          <Field
+            legend={selfIncomeLegend}
+            help={`1인 가구 기준 · 도시근로자 월평균소득 100% = ${(selfIncomeOptions[2]?.repManwon ?? 0).toLocaleString("ko-KR")}만원`}
+          >
+            <AmountField
+              ariaLabel={selfIncomeLegend}
+              placeholder="예: 280"
+              exact={selfIncomeManwonExact}
+              brackets={selfIncomeOptions}
+              bracketIndex={selfIncomeBracketIndex}
+              onExact={(value) =>
+                setStepC({
+                  selfIncomeManwonExact: value,
+                  selfIncomeBracketIndex: bracketIndexForValue(value, selfIncomeOptions),
+                })
+              }
+              onBracket={(index) => setStepC({ selfIncomeBracketIndex: index, selfIncomeManwonExact: null })}
+            />
+          </Field>
+
+          <Field legend={selfAssetLegend} help="본인 명의 자산에서 부채를 뺀 금액이에요.">
+            <AmountField
+              ariaLabel={selfAssetLegend}
+              placeholder="예: 15,000"
+              exact={selfAssetManwonExact}
+              brackets={ASSET_BRACKETS}
+              bracketIndex={selfAssetBracketIndex}
+              onExact={(value) =>
+                setStepC({
+                  selfAssetManwonExact: value,
+                  selfAssetBracketIndex: bracketIndexForValue(value, ASSET_BRACKETS),
+                })
+              }
+              onBracket={(index) => setStepC({ selfAssetBracketIndex: index, selfAssetManwonExact: null })}
+            />
+          </Field>
+        </>
+      )}
+
+      {showHousehold && (
+        <>
+          <Field
+            legend={householdIncomeLegend}
+            help={`${size}인 가구 · 도시근로자 월평균소득 100% = ${(householdIncomeOptions[2]?.repManwon ?? 0).toLocaleString("ko-KR")}만원`}
+          >
+            <AmountField
+              ariaLabel={householdIncomeLegend}
+              placeholder="예: 420"
+              exact={incomeManwonExact}
+              brackets={householdIncomeOptions}
+              bracketIndex={incomeBracketIndex}
+              onExact={(value) =>
+                setStepC({
+                  incomeManwonExact: value,
+                  incomeBracketIndex: bracketIndexForValue(value, householdIncomeOptions),
+                })
+              }
+              onBracket={(index) => setStepC({ incomeBracketIndex: index, incomeManwonExact: null })}
+            />
+          </Field>
+
+          <Field
+            legend={householdAssetLegend}
+            help="부동산+자동차+금융+기타 − 부채 로 계산한 세대 전원의 합계예요."
+          >
+            <AmountField
+              ariaLabel={householdAssetLegend}
+              placeholder="예: 25,000"
+              exact={assetManwonExact}
+              brackets={ASSET_BRACKETS}
+              bracketIndex={assetBracketIndex}
+              onExact={(value) =>
+                setStepC({
+                  assetManwonExact: value,
+                  assetBracketIndex: bracketIndexForValue(value, ASSET_BRACKETS),
+                })
+              }
+              onBracket={(index) => setStepC({ assetBracketIndex: index, assetManwonExact: null })}
+            />
+          </Field>
+        </>
+      )}
+
       <Field
-        legend={incomeLegend}
-        help={`${size}인 가구 · 도시근로자 월평균소득 100% = ${income100.toLocaleString("ko-KR")}만원`}
+        legend="세대구성원이 보유한 차량 중 가장 비싼 차의 가액은?"
+        help="자동차 가액 4,542만원이 기준이에요."
       >
-        <AmountField
-          ariaLabel={incomeLegend}
-          placeholder="예: 280"
-          exact={incomeManwonExact}
-          brackets={incomeOptions}
-          bracketIndex={incomeBracketIndex}
-          onExact={(value) =>
-            setStepC({ incomeManwonExact: value, incomeBracketIndex: bracketIndexForValue(value, incomeOptions) })
-          }
-          onBracket={(index) => setStepC({ incomeBracketIndex: index, incomeManwonExact: null })}
-        />
-      </Field>
-
-      <Field legend={assetLegend} help="부동산+자동차+금융+기타 − 부채 로 계산한 금액이에요.">
-        <AmountField
-          ariaLabel={assetLegend}
-          placeholder="예: 15,000"
-          exact={assetManwonExact}
-          brackets={ASSET_BRACKETS}
-          bracketIndex={assetBracketIndex}
-          onExact={(value) =>
-            setStepC({ assetManwonExact: value, assetBracketIndex: bracketIndexForValue(value, ASSET_BRACKETS) })
-          }
-          onBracket={(index) => setStepC({ assetBracketIndex: index, assetManwonExact: null })}
-        />
-      </Field>
-
-      <Field legend="가구가 소유한 차량 상태는?" help="자동차 가액 4,542만원이 기준이에요.">
         <RadioCards
           name="car"
           columns={3}
@@ -329,10 +432,22 @@ export function StepC() {
         />
       </Field>
 
-      <InfoAccordion summary="왜 소득·자산을 확인하나요?">
-        공공임대는 유형별로 소득·자산 상한이 정해져 있어요. 가구원 수에 따라 소득 구간이 달라지기 때문에 가구원을 먼저
-        입력한 뒤 소득 구간이 표시돼요.
-      </InfoAccordion>
+      <InformationBanner tone="primary" title="소득·자산은 '본인'과 '세대 전원'을 따로 받아요.">
+        <p>유형마다 심사 기준이 달라서예요. 청년 유형은 &lsquo;본인&rsquo;만, 그 외는 &lsquo;세대 전원&rsquo;을 봐요.</p>
+        <p className="mt-2">
+          본인 질문은 <b className="text-fg">만 19~39세</b>일 때만 떠요. 세대구성원이 본인 한 명이면 세대 합계 질문은
+          건너뜁니다.
+        </p>
+        <p className="mt-3 font-semibold text-fg">합계 넣을 때</p>
+        <ul className="mt-1 space-y-1">
+          <li>· 소득·자산 모두 <b className="text-fg">세대구성원 전원(본인·미성년 자녀 포함)</b>을 더해 주세요.</li>
+          <li>· 소득 = 세전 월평균, 자산 = 부동산+자동차+금융+기타−부채</li>
+          <li>
+            · <b className="text-fg">자동차 질문</b>은 가장 비싼 차 1대 기준이고, <b className="text-fg">총자산 합계</b>엔
+            세대가 보유한 모든 차를 포함해요.
+          </li>
+        </ul>
+      </InformationBanner>
     </div>
   );
 }

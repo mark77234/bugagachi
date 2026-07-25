@@ -85,7 +85,72 @@ const VIDEO_FEATURES: {
 export default function LandingPage() {
   return (
     <div className="pb-8">
-      <section className="border-b border-primary/10 bg-primary-subtle/55">
+      {/* 1) 서비스 진입 카드 — 추천받기(전체 폭) + AI 갈붕이 · 지도(좌우 1개씩) */}
+      <PageContainer size="wide" className="pb-12 pt-8 sm:pb-16 sm:pt-10">
+        <div className="mb-7">
+          <p className="text-sm font-semibold text-primary">어디서부터 시작할까요?</p>
+          <h2 className="mt-2 text-2xl font-extrabold sm:text-3xl">필요한 도움을 바로 선택하세요</h2>
+          <p className="mt-2 max-w-2xl text-muted">추천을 먼저 받거나, 궁금한 정보를 묻거나, 부산 전체 주택을 둘러볼 수 있어요.</p>
+        </div>
+
+        <div className="grid gap-4">
+          <ServiceEntryCard
+            href="/eligibility"
+            eyebrow="자격과 생활 취향을 함께"
+            title="나에게 맞는 집 추천받기"
+            description="간단한 질문에 답하면 신청 가능성이 있는 유형을 확인하고, 예산과 생활 취향에 맞는 주택을 추천해요."
+            actionLabel="자격 확인부터 시작해 맞춤 주택 추천받기"
+            tone="primary"
+            size="primary"
+            illustration={<RecommendationIllustration />}
+            illustrationFill
+            highlights={["자격 확인", "취향 입력", "추천 이유"]}
+            cardClassName="lg:min-h-[380px]"
+          />
+          <div className="grid gap-4 lg:grid-cols-2">
+            <ServiceEntryCard
+              href="/chat"
+              eyebrow="AI 갈붕이"
+              title="AI 갈붕이에게 물어보기"
+              description="공공임대 안내부터 예산·생활 취향 맞춤 주택 추천까지, AI 갈붕이가 도와드려요."
+              actionLabel="AI 갈붕이 시작하기"
+              tone="warm"
+              illustration={<ChatIllustration />}
+              illustrationFill
+              delay={0.04}
+            />
+            <ServiceEntryCard
+              href="/map"
+              eyebrow="부산 공공임대주택을 한눈에"
+              title="지도에서 전체 주택 둘러보기"
+              description={`부산 공공임대주택 ${RENTAL_DATASET_STATS.buildings}개 건물을 지도에서 한눈에 살펴보세요.`}
+              actionLabel="갈붕 지도 열기"
+              tone="map"
+              illustration={<MapIllustration />}
+              illustrationFill
+              delay={0.08}
+            />
+          </div>
+        </div>
+
+        <aside className="mt-5 grid gap-2 rounded-[var(--radius-card)] border border-border bg-surface p-3 text-sm text-muted shadow-[var(--shadow-sm)] sm:grid-cols-3" aria-label="서비스 신뢰 안내">
+          <p className="flex items-center gap-2 px-2 py-1">
+            <Database className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+            부산 공공임대 {RENTAL_DATASET_STATS.validRows}호실 · {RENTAL_DATASET_STATS.buildings}개 건물
+          </p>
+          <p className="flex items-center gap-2 px-2 py-1">
+            <ShieldCheck className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+            입력 정보는 내 브라우저에만 저장
+          </p>
+          <p className="flex items-center gap-2 px-2 py-1">
+            <FileCheck2 className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+            신청 전 공식 공고 확인 필수
+          </p>
+        </aside>
+      </PageContainer>
+
+      {/* 2) 히어로 — '이렇게 도와드려요' 바로 위 */}
+      <section className="border-y border-primary/10 bg-primary-subtle/55">
         <PageContainer size="wide" className="py-14 sm:py-20 lg:py-24">
           <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,1fr)_400px]">
             <FadeIn y={12}>
@@ -139,69 +204,7 @@ export default function LandingPage() {
         </PageContainer>
       </section>
 
-      <PageContainer size="wide" className="py-12 sm:py-16">
-        <div className="mb-7">
-          <p className="text-sm font-semibold text-primary">어디서부터 시작할까요?</p>
-          <h2 className="mt-2 text-2xl font-extrabold sm:text-3xl">필요한 도움을 바로 선택하세요</h2>
-          <p className="mt-2 max-w-2xl text-muted">추천을 먼저 받거나, 궁금한 정보를 묻거나, 부산 전체 주택을 둘러볼 수 있어요.</p>
-        </div>
-
-        <div className="grid gap-4 lg:grid-cols-12 lg:grid-rows-2">
-          <ServiceEntryCard
-            href="/eligibility"
-            eyebrow="자격과 생활 취향을 함께"
-            title="나에게 맞는 집 추천받기"
-            description="간단한 질문에 답하면 신청 가능성이 있는 유형을 확인하고, 예산과 생활 취향에 맞는 주택을 추천해요."
-            actionLabel="자격 확인부터 시작해 맞춤 주택 추천받기"
-            tone="primary"
-            size="primary"
-            illustration={<RecommendationIllustration />}
-            illustrationFill
-            highlights={["자격 확인", "취향 입력", "추천 이유"]}
-            className="lg:col-span-7 lg:row-span-2"
-          />
-          <ServiceEntryCard
-            href="/chat"
-            eyebrow="AI 갈붕이"
-            title="AI 갈붕이에게 물어보기"
-            description="공공임대 안내부터 예산·생활 취향 맞춤 주택 추천까지, AI 갈붕이가 도와드려요."
-            actionLabel="AI 갈붕이 시작하기"
-            tone="warm"
-            illustration={<ChatIllustration />}
-            illustrationFill
-            delay={0.04}
-            className="lg:col-span-5"
-          />
-          <ServiceEntryCard
-            href="/map"
-            eyebrow="부산 공공임대주택을 한눈에"
-            title="지도에서 전체 주택 둘러보기"
-            description={`부산 공공임대주택 ${RENTAL_DATASET_STATS.buildings}개 건물을 지도에서 한눈에 살펴보세요.`}
-            actionLabel="갈붕 지도 열기"
-            tone="map"
-            illustration={<MapIllustration />}
-            illustrationFill
-            delay={0.08}
-            className="lg:col-span-5"
-          />
-        </div>
-
-        <aside className="mt-5 grid gap-2 rounded-[var(--radius-card)] border border-border bg-surface p-3 text-sm text-muted shadow-[var(--shadow-sm)] sm:grid-cols-3" aria-label="서비스 신뢰 안내">
-          <p className="flex items-center gap-2 px-2 py-1">
-            <Database className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-            부산 공공임대 {RENTAL_DATASET_STATS.validRows}호실 · {RENTAL_DATASET_STATS.buildings}개 건물
-          </p>
-          <p className="flex items-center gap-2 px-2 py-1">
-            <ShieldCheck className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-            입력 정보는 내 브라우저에만 저장
-          </p>
-          <p className="flex items-center gap-2 px-2 py-1">
-            <FileCheck2 className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-            신청 전 공식 공고 확인 필수
-          </p>
-        </aside>
-      </PageContainer>
-
+      {/* 3) 이렇게 도와드려요 */}
       <section className="relative overflow-hidden py-14 sm:py-20">
         <Image
           src="/assets/wallpapers/map_wallpaper_1.png"

@@ -1,10 +1,16 @@
 "use client";
 
 import { ShieldCheck } from "lucide-react";
-import { useEligibilityStore } from "@/features/eligibility/eligibility.store";
+import {
+  householdSizeOf,
+  needsHouseholdAmounts,
+  needsSelfAmounts,
+  useEligibilityStore,
+} from "@/features/eligibility/eligibility.store";
 import { ASSET_BRACKETS, CAR_OPTIONS, incomeBrackets } from "@/features/eligibility/eligibility.brackets";
 import { calcKoreanAge, withThousands } from "@/lib/formatting";
 import { cn } from "@/lib/utils";
+import type { Bracket } from "@/features/eligibility/eligibility.brackets";
 
 function Row({ label, value }: { label: string; value: string }) {
   const empty = value === "—";
@@ -18,24 +24,22 @@ function Row({ label, value }: { label: string; value: string }) {
 
 const yn = (v: boolean | null, t: string, f: string) => (v === null ? "—" : v ? t : f);
 
+function amountLabel(exact: number | null, bracketIndex: number | null, brackets: Bracket[]): string {
+  if (exact !== null) return `${withThousands(exact)}만원`;
+  if (bracketIndex !== null) return brackets[bracketIndex]?.label ?? "—";
+  return "—";
+}
+
 /** 입력 요약 사이드바 (이미지의 우측 카드). */
 export function SummarySidebar({ className }: { className?: string }) {
   const s = useEligibilityStore();
-  const size = Math.min(Math.max(s.members.length, 1), 8);
+  const size = householdSizeOf(s);
   const age = calcKoreanAge(s.birthISO);
 
-  const income =
-    s.incomeManwonExact !== null
-      ? `${withThousands(s.incomeManwonExact)}만원`
-      : s.incomeBracketIndex !== null
-        ? incomeBrackets(size)[s.incomeBracketIndex].label
-        : "—";
-  const asset =
-    s.assetManwonExact !== null
-      ? `${withThousands(s.assetManwonExact)}만원`
-      : s.assetBracketIndex !== null
-        ? ASSET_BRACKETS[s.assetBracketIndex].label
-        : "—";
+  const selfIncome = amountLabel(s.selfIncomeManwonExact, s.selfIncomeBracketIndex, incomeBrackets(1));
+  const selfAsset = amountLabel(s.selfAssetManwonExact, s.selfAssetBracketIndex, ASSET_BRACKETS);
+  const income = amountLabel(s.incomeManwonExact, s.incomeBracketIndex, incomeBrackets(size));
+  const asset = amountLabel(s.assetManwonExact, s.assetBracketIndex, ASSET_BRACKETS);
   const car = s.carBand ? CAR_OPTIONS.find((o) => o.value === s.carBand)?.label ?? "—" : "—";
 
   return (
@@ -46,9 +50,19 @@ export function SummarySidebar({ className }: { className?: string }) {
         <Row label="세대원 주택" value={yn(s.ownMemberHouse, "있음", "없음")} />
         <Row label="제한이력" value={yn(s.hasRestriction, "있음", "없음")} />
         <Row label="만 나이" value={age !== null ? `${age}세` : "—"} />
-        <Row label="가구원" value={`${size}명`} />
-        <Row label="월평균 소득" value={income} />
-        <Row label="총자산" value={asset} />
+        <Row label="세대구성원" value={`${size}명`} />
+        {needsSelfAmounts(s) && (
+          <>
+            <Row label="본인 월소득" value={selfIncome} />
+            <Row label="본인 총자산" value={selfAsset} />
+          </>
+        )}
+        {needsHouseholdAmounts(s) && (
+          <>
+            <Row label="세대 월소득 합계" value={income} />
+            <Row label="세대 총자산 합계" value={asset} />
+          </>
+        )}
         <Row label="자동차" value={car} />
         <Row label="부산 거주" value={yn(s.livesInBusan, "예", "아니오")} />
       </dl>

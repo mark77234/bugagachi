@@ -8,7 +8,7 @@ import { ArrowRight } from "lucide-react";
 import { PageContainer } from "@/components/common/PageContainer";
 import { LoadingState } from "@/components/common/states";
 import { Mascot } from "@/components/common/Mascot";
-import { Disclaimer, InformationBanner } from "@/components/common/banners";
+import { Disclaimer } from "@/components/common/banners";
 import { Card, CardBody } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -148,16 +148,7 @@ export default function PreferencesPage() {
           </div>
         ) : undefined
       }
-      footer={
-        <>
-          {step === "intro" && (
-            <InformationBanner tone="warning" className="mt-6">
-              예산과 희망 지역은 반드시 맞아야 하는 조건이고, 생활 취향은 추천 순서를 정할 때만 사용해요.
-            </InformationBanner>
-          )}
-          <Disclaimer className="mt-8" />
-        </>
-      }
+      footer={<Disclaimer className="mt-8" />}
     >
 
       <div ref={headingRef} tabIndex={-1} className="outline-none">

@@ -17,13 +17,10 @@ import {
   Trees,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import type { CSSProperties } from "react";
-import { Input } from "@/components/ui/input";
+import { useEffect, type CSSProperties } from "react";
 import { Button } from "@/components/ui/button";
 import { CheckCards, RadioCards } from "@/components/ui/selectable";
 import { ToggleChip } from "@/components/ui/chip";
-import { InfoAccordion } from "@/components/ui/accordion";
-import { InformationBanner } from "@/components/common/banners";
 import { AddressSearch } from "./AddressSearch";
 import { usePreferencesStore } from "@/features/recommendation/preferences.store";
 import { BUSAN_GUNGU } from "@/mocks/regions";
@@ -42,63 +39,106 @@ function Legend({ children, hint }: { children: React.ReactNode; hint?: string }
   );
 }
 
+/** Q0 예산 — 슬라이더 기본값(만원). 재고 상한(보증금 4,553 · 월 32.3)을 덮는 범위. */
+const DEPOSIT_SLIDER = { min: 0, max: 5000, step: 50, fallback: 1000 };
+const RENT_SLIDER = { min: 0, max: 50, step: 1, fallback: 25 };
+
+function AmountSlider({
+  label,
+  hint,
+  value,
+  min,
+  max,
+  step,
+  quick,
+  onChange,
+}: {
+  label: string;
+  hint: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  quick: number[];
+  onChange: (v: number) => void;
+}) {
+  const progress = ((value - min) / (max - min)) * 100;
+  return (
+    <fieldset>
+      <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+        <legend className="font-semibold text-fg">{label}</legend>
+        <output className="rounded-full bg-primary-subtle px-3 py-1 text-sm font-bold tabular-nums text-primary">
+          {withThousands(value)}만원 이하
+        </output>
+      </div>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(event) => onChange(Number(event.target.value))}
+        aria-label={`${label}(만원)`}
+        aria-valuetext={`${withThousands(value)}만원`}
+        className="preference-range w-full"
+        style={{ "--range-progress": `${progress}%` } as CSSProperties}
+      />
+      <div className="mt-2 flex justify-between text-xs text-muted">
+        <span>{withThousands(min)}만원</span>
+        <span>{withThousands(max)}만원</span>
+      </div>
+      <p className="mt-2 text-sm text-muted">{hint}</p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {quick.map((v) => (
+          <Button key={v} variant="outline" size="sm" onClick={() => onChange(v)}>
+            {formatManwon(v)}
+          </Button>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
+
 /** Q0 예산 */
 export function BudgetStep() {
   const { maxDeposit, maxMonthlyRent, setBudget } = usePreferencesStore();
-  const depositQuick = [1000, 3000, 5000];
-  const rentQuick = [15, 25, 35];
+  const deposit = maxDeposit ?? DEPOSIT_SLIDER.fallback;
+  const rent = maxMonthlyRent ?? RENT_SLIDER.fallback;
+
+  // 슬라이더는 '미입력' 상태를 표현할 수 없으므로 진입 시 기본값을 확정한다.
+  useEffect(() => {
+    if (maxDeposit === null || maxMonthlyRent === null) {
+      setBudget({ maxDeposit: deposit, maxMonthlyRent: rent });
+    }
+  }, [maxDeposit, maxMonthlyRent, deposit, rent, setBudget]);
+
   return (
-    <div className="space-y-6">
-      <fieldset>
-        <Legend hint="만원 단위로 입력하세요.">보증금 최대 금액</Legend>
-        <div className="flex items-center gap-2">
-          <Input
-            type="number"
-            inputMode="numeric"
-            className="max-w-[220px]"
-            value={maxDeposit ?? ""}
-            onChange={(e) => setBudget({ maxDeposit: e.target.value === "" ? 0 : Number(e.target.value) })}
-            aria-label="보증금 최대 금액(만원)"
-          />
-          <span className="text-muted">만원</span>
-        </div>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {depositQuick.map((v) => (
-            <Button key={v} variant="outline" size="sm" onClick={() => setBudget({ maxDeposit: v })}>
-              {formatManwon(v)}
-            </Button>
-          ))}
-        </div>
-      </fieldset>
+    <div className="space-y-7">
+      <AmountSlider
+        label="보증금 최대 금액"
+        hint="슬라이더를 움직여 보증금 상한을 정하면 예산 밖 주택을 제외해요."
+        value={deposit}
+        min={DEPOSIT_SLIDER.min}
+        max={DEPOSIT_SLIDER.max}
+        step={DEPOSIT_SLIDER.step}
+        quick={[1000, 3000, 5000]}
+        onChange={(v) => setBudget({ maxDeposit: v })}
+      />
 
-      <fieldset>
-        <Legend hint="만원 단위로 입력하세요.">월 임대료 최대 금액</Legend>
-        <div className="flex items-center gap-2">
-          <Input
-            type="number"
-            inputMode="numeric"
-            className="max-w-[220px]"
-            value={maxMonthlyRent ?? ""}
-            onChange={(e) => setBudget({ maxMonthlyRent: e.target.value === "" ? 0 : Number(e.target.value) })}
-            aria-label="월 임대료 최대 금액(만원)"
-          />
-          <span className="text-muted">만원</span>
-        </div>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {rentQuick.map((v) => (
-            <Button key={v} variant="outline" size="sm" onClick={() => setBudget({ maxMonthlyRent: v })}>
-              {formatManwon(v)}
-            </Button>
-          ))}
-        </div>
-      </fieldset>
+      <AmountSlider
+        label="월 임대료 최대 금액"
+        hint="슬라이더를 움직여 월 임대료 상한을 정하면 예산 밖 주택을 제외해요."
+        value={rent}
+        min={RENT_SLIDER.min}
+        max={RENT_SLIDER.max}
+        step={RENT_SLIDER.step}
+        quick={[15, 25, 35]}
+        onChange={(v) => setBudget({ maxMonthlyRent: v })}
+      />
 
-      {(maxDeposit !== null || maxMonthlyRent !== null) && (
-        <p className="rounded-[var(--radius-input)] bg-surface-muted p-3 text-sm text-fg">
-          현재 예산: 보증금 <b>{maxDeposit !== null ? withThousands(maxDeposit) + "만원" : "—"}</b> · 월{" "}
-          <b>{maxMonthlyRent !== null ? withThousands(maxMonthlyRent) + "만원" : "—"}</b> 이하
-        </p>
-      )}
+      <p className="rounded-[var(--radius-input)] bg-surface-muted p-3 text-sm text-fg">
+        현재 예산: 보증금 <b>{withThousands(deposit)}만원</b> · 월 <b>{withThousands(rent)}만원</b> 이하
+      </p>
     </div>
   );
 }
@@ -130,14 +170,7 @@ export function RegionStep() {
 export function FrequentStep() {
   return (
     <div className="space-y-4">
-      <InformationBanner tone="primary">
-        주소를 EPSG:5186 좌표로 바꾼 뒤 직선거리 × 1.291로 예상 이동거리를 계산해요.
-      </InformationBanner>
       <AddressSearch />
-      <InfoAccordion summary="거리 점수는 어떻게 계산하나요?">
-        5km 이하는 1점, 10km는 0.7점, 30km 이상은 0점으로 두고 그 사이는 선형으로 낮아져요.
-        직장이나 학교 한 곳을 기준 장소로 적용합니다.
-      </InfoAccordion>
     </div>
   );
 }
@@ -146,7 +179,7 @@ const INFRA_OPTS: { value: InfraCategory; label: string; icon: LucideIcon }[] = 
   { value: "HOSPITAL", label: "종합병원", icon: Hospital },
   { value: "MART", label: "대형마트", icon: ShoppingCart },
   { value: "PARK", label: "공원", icon: Trees },
-  { value: "LIBRARY", label: "도서관", icon: BookOpen },
+  { value: "LIBRARY", label: "공공도서관", icon: BookOpen },
   { value: "SPORTS", label: "생활체육시설", icon: Dumbbell },
   { value: "SUBWAY", label: "지하철역", icon: Train },
 ];
@@ -160,10 +193,6 @@ export function InfraStep() {
         <Legend hint="선택한 시설만 추천 점수에 반영돼요. (복수 선택)">필요한 기반시설</Legend>
         <CheckCards<InfraCategory> values={infraCategories} onToggle={toggleInfra} options={INFRA_OPTS} columns={2} />
       </fieldset>
-      <InfoAccordion summary="종합병원은 왜 기준이 다른가요?">
-        병원과 도서관은 거점형 시설이라 5·10·15·20km 차량 기준을, 대형마트·공원·생활체육시설·지하철역은
-        750m·1.5km·3km·6km 도보 기준을 사용해요. 각 구간 사이는 점수가 선형으로 낮아집니다.
-      </InfoAccordion>
     </div>
   );
 }
@@ -208,25 +237,22 @@ export function EducationStep() {
           </motion.fieldset>
         )}
       </AnimatePresence>
-      <InfoAccordion summary="돌봄·교육 점수는 어떻게 계산하나요?">
-        어린이집은 375m·750m·1.5km·3km, 유치원과 초·중·고는 750m·1.5km·3km·6km를
-        기준으로 점수를 낮춰요. 여러 시설을 고르면 같은 비중으로 평균합니다.
-      </InfoAccordion>
     </div>
   );
 }
 
+/** Q5 취향 가게 칩. 값은 점수 데이터(unit.source.stores) 키와 1:1로 맞춘다. */
 const STORE_CHIPS = [
+  "식당",
+  "뷰티",
   "카페",
-  "편의점",
-  "헬스장",
-  "빨래방",
-  "동물병원",
-  "스터디카페",
-  "밥집",
+  "편의점/슈퍼마켓",
+  "운동/스포츠",
   "베이커리",
-  "미용실",
-  "약국",
+  "치킨",
+  "주점",
+  "입시/예체능 학원",
+  "독서실/스터디카페",
 ];
 
 /** Q5 취향 가게 */
@@ -235,10 +261,6 @@ export function StoreStep() {
   const limitReached = storeChips.length >= 5;
   return (
     <div className="space-y-4">
-      <InformationBanner tone="primary">
-        건물 반경 750m 안의 업종별 점포 수를 전체 주택 건물과 비교해 백분위로 바꾸고, 선택한 업종을 같은 비중으로
-        평균해요.
-      </InformationBanner>
       <fieldset>
         <Legend hint={`최대 5개까지 선택할 수 있어요. (${storeChips.length}/5)`}>
           자주 이용하는 가게
@@ -312,10 +334,6 @@ export function NeighborhoodStep() {
           </div>
         </div>
       </fieldset>
-      <InfoAccordion summary="분위기 점수는 어떻게 계산하나요?">
-        반경 750m의 전체 상가 수 백분위가 선택한 위치와 가까울수록 점수가 높아요. 조용한 쪽을 선택할수록 노래방·주점
-        같은 소음 업종 구성비에 최대 50% 감점을 적용하고, 번화한 쪽으로 갈수록 감점은 줄어듭니다.
-      </InfoAccordion>
     </div>
   );
 }

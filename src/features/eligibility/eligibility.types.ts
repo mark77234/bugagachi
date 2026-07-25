@@ -19,7 +19,8 @@ export type EligibilityStatus = "PASS" | "FAIL" | "NEEDS_MORE";
 export type IncomeStandard = "MEDIAN" | "URBAN";
 export type HouseholderDef = "self" | "household"; // 무주택자 / 무주택세대구성원
 export type CarBand = "NONE" | "UNDER_4542" | "OVER";
-export type MemberRelation = "SELF" | "SPOUSE" | "PARENT" | "CHILD" | "FETUS" | "SIBLING" | "OTHER";
+/** 주민등록상 세대구성원 관계. 형제자매·삼촌·조카 등은 세대구성원이 아니므로 받지 않는다. */
+export type MemberRelation = "SELF" | "SPOUSE" | "PARENT" | "CHILD" | "FETUS";
 export type BaseYear = 2026 | 2025;
 
 export interface HouseholdMember {
@@ -38,8 +39,12 @@ export interface EligibilityCommonInput {
   ageYears: number; // 만나이 자동
   members: HouseholdMember[];
   householdSize: number; // 자동(1~8)
-  incomeManwon: number; // 스텝C: 선택 구간 대표값(상한, 만원)
-  assetManwon: number; // 총자산 대표값(만원)
+  /** 스텝C: 세대구성원 전원 합계 (선택 구간 대표값 = 상한, 만원). */
+  incomeManwon: number;
+  assetManwon: number; // 세대 총자산 대표값(만원)
+  /** 스텝C: 본인 단독 값(만원). 청년 유형 판정용. 세대 1인이면 세대 값과 같다. */
+  selfIncomeManwon: number;
+  selfAssetManwon: number;
   carBand: CarBand;
   livesInBusan: boolean; // 스텝D
 }

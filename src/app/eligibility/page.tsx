@@ -20,6 +20,7 @@ import { Stage1Result, FinalSummary, ExitScreen } from "@/components/eligibility
 import {
   buildCommonInput,
   isCommonComplete,
+  isStepCComplete,
   useEligibilityStore,
 } from "@/features/eligibility/eligibility.store";
 import { calcKoreanAge } from "@/lib/formatting";
@@ -274,11 +275,7 @@ function validateStep(step: StepKey, s: ReturnType<typeof useEligibilityStore.ge
     case "B":
       return calcKoreanAge(s.birthISO) !== null;
     case "C":
-      return (
-        (s.incomeManwonExact !== null || s.incomeBracketIndex !== null) &&
-        (s.assetManwonExact !== null || s.assetBracketIndex !== null) &&
-        s.carBand !== null
-      );
+      return isStepCComplete(s);
     case "D":
       return s.livesInBusan !== null;
   }

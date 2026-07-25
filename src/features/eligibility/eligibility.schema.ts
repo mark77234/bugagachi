@@ -1,7 +1,7 @@
 /** Zod 스키마 — 1단계 입력 검증. RHF resolver 및 store 복구 검증에 사용. */
 import { z } from "zod";
 
-export const memberRelationSchema = z.enum(["SELF", "SPOUSE", "PARENT", "CHILD", "FETUS", "SIBLING", "OTHER"]);
+export const memberRelationSchema = z.enum(["SELF", "SPOUSE", "PARENT", "CHILD", "FETUS"]);
 
 export const householdMemberSchema = z.object({
   id: z.string(),
@@ -25,12 +25,17 @@ export const stepBSchema = z.object({
       const d = new Date(v);
       return !Number.isNaN(d.getTime()) && d.getTime() <= Date.now();
     }, "올바른 생년월일을 입력해 주세요."),
-  members: z.array(householdMemberSchema).min(1, "본인은 기본 포함돼요."),
+  hasSpouse: z.boolean(),
+  parentCount: z.number().int().min(0).max(7),
+  childCount: z.number().int().min(0).max(7),
+  fetusCount: z.number().int().min(0).max(7),
 });
 
 export const stepCSchema = z.object({
-  incomeBracketIndex: z.number().int().min(0).max(4),
-  assetBracketIndex: z.number().int().min(0).max(7),
+  incomeBracketIndex: z.number().int().min(0).max(4).nullable(),
+  assetBracketIndex: z.number().int().min(0).max(7).nullable(),
+  selfIncomeBracketIndex: z.number().int().min(0).max(4).nullable(),
+  selfAssetBracketIndex: z.number().int().min(0).max(7).nullable(),
   carBand: carBandSchema,
 });
 
@@ -48,6 +53,8 @@ export const commonInputSchema = z.object({
   householdSize: z.number().int().min(1).max(8),
   incomeManwon: z.number(),
   assetManwon: z.number(),
+  selfIncomeManwon: z.number(),
+  selfAssetManwon: z.number(),
   carBand: carBandSchema,
   livesInBusan: z.boolean(),
 });

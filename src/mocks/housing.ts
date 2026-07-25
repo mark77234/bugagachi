@@ -304,18 +304,19 @@ function buildHousing(address: string, rows: RentalScoreRow[]): HousingUnit {
         middle: metric(first.middle_school_dist_m, first.middle_school_score),
         high: metric(first.high_school_dist_m, first.high_school_score),
       },
+      // 키는 2단계 Q5 칩 라벨과 1:1로 맞춘다.
+      // 치킨·주점·입시/예체능 학원은 원자료에 대응 열이 없어 null(=점수 축에서 제외)이다.
       stores: {
+        식당: storeMetric(first.restaurant_cnt_750m, first.restaurant_score),
+        뷰티: storeMetric(first.hair_salon_cnt_750m, first.hair_salon_score),
         카페: storeMetric(first.cafe_cnt_750m, first.cafe_score),
-        편의점: storeMetric(first.convenience_cnt_750m, first.convenience_score),
-        헬스장: storeMetric(first.gym_cnt_750m, first.gym_score),
-        빨래방: storeMetric(first.laundry_cnt_750m, first.laundry_score),
-        // 설명 문서 지침: 동물병원은 상가 원자료에 없어 점수 축에서 제외한다.
-        동물병원: null,
-        스터디카페: storeMetric(first.study_cafe_cnt_750m, first.study_cafe_score),
-        밥집: storeMetric(first.restaurant_cnt_750m, first.restaurant_score),
+        "편의점/슈퍼마켓": storeMetric(first.convenience_cnt_750m, first.convenience_score),
+        "운동/스포츠": storeMetric(first.gym_cnt_750m, first.gym_score),
         베이커리: storeMetric(first.bakery_cnt_750m, first.bakery_score),
-        미용실: storeMetric(first.hair_salon_cnt_750m, first.hair_salon_score),
-        약국: storeMetric(first.pharmacy_cnt_750m, first.pharmacy_score),
+        치킨: null,
+        주점: null,
+        "입시/예체능 학원": null,
+        "독서실/스터디카페": storeMetric(first.study_cafe_cnt_750m, first.study_cafe_score),
       },
       neighborhood,
     },
