@@ -25,9 +25,9 @@ const DETOUR = 1.291;
 /** 티어별 기본 수집 반경(보정거리 m)과 건물당 카테고리별 최대 개수.
  *  지도·상세에서 "가까운 순으로 최대한 많이" 보여줄 수 있도록 넉넉히 담는다. */
 const LIMITS = {
-  required: { radius: 5000, perCategory: 6 },
-  preference: { radius: 1500, perCategory: 10 },
-  education: { radius: 4000, perCategory: 6 },
+  required: { radius: 5000, perCategory: 4 },
+  preference: { radius: 1200, perCategory: 5 },
+  education: { radius: 4000, perCategory: 4 },
 };
 
 /**
@@ -168,26 +168,9 @@ const PROJECTED = {
   education: projectAll(EDUCATION),
 };
 
-/** src/mocks/housing.ts 의 stableId 와 동일한 해시(FNV-1a). 건물 id 를 그대로 키로 쓴다. */
-function stableId(value) {
-  let hash = 2166136261;
-  for (let index = 0; index < value.length; index += 1) {
-    hash ^= value.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
-  }
-  return `rental-${(hash >>> 0).toString(36)}`;
-}
-
-const rentalRows = readJson("busan_rental_scores.json").filter(
-  (row) =>
-    row.address_norm && row.address && row.district && typeof row.lat === "number" && typeof row.lon === "number",
-);
-const buildings = new Map();
-for (const row of rentalRows) {
-  if (!buildings.has(row.address_norm)) {
-    buildings.set(row.address_norm, { lat: row.lat, lng: row.lon });
-  }
-}
+// 건물 목록·id 는 build-housing-index.mjs 결과를 그대로 따른다 (id 계산을 한 곳에만 둔다).
+const housingIndex = readJson("housing_index.json");
+const buildings = new Map(housingIndex.buildings.map((b) => [b.id, { lat: b.lat, lng: b.lng }]));
 console.log(`주택 건물 ${buildings.size}곳 기준 근접 인프라 계산 중…`);
 
 /** 한 건물 기준으로 카테고리별 최근접 POI 를 뽑는다. 거리는 보정거리(m). */
@@ -255,9 +238,9 @@ function parkEdgeMetric(origin) {
 }
 
 const output = {};
-for (const [addressNorm, coord] of buildings) {
+for (const [buildingId, coord] of buildings) {
   const origin = toEpsg5186(coord);
-  output[stableId(addressNorm)] = {
+  output[buildingId] = {
     parkEdge: parkEdgeMetric(origin),
     required: nearestFor(origin, PROJECTED.required, LIMITS.required),
     preference: nearestFor(origin, PROJECTED.preference, LIMITS.preference),

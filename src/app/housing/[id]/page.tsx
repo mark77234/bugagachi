@@ -37,7 +37,7 @@ import {
 } from "@/components/housing/HousingDetailParts";
 import { NearbyInfraSection } from "@/components/housing/NearbyInfraSection";
 import { DetailTabs, type DetailTabKey } from "@/components/housing/DetailTabs";
-import { bestCondition, housingById, type HousingUnit } from "@/mocks/housing";
+import { bestCondition, housingById } from "@/mocks/housing";
 import { reviewsByHousing } from "@/mocks/reviews";
 import { useUserStore } from "@/features/user/user.store";
 import { useEligibilityStore } from "@/features/eligibility/eligibility.store";
@@ -101,10 +101,10 @@ function MetricTerm({ label, value }: { label: string; value: string }) {
   );
 }
 
-/** 원본 행에서 값이 있는 것만 모아 중복 없이 돌려준다(유형별 조건부 노출용). */
-function distinctValues(unit: HousingUnit, key: string): string[] {
-  const values = unit.source.sourceRows
-    .map((row) => row[key])
+/** 배열에서 값이 있는 것만 모아 중복 없이 돌려준다(유형별 조건부 노출용). */
+function distinctValues<T>(rows: T[], pick: (row: T) => string | number | null | undefined): string[] {
+  const values = rows
+    .map(pick)
     .filter((value): value is string | number => value !== null && value !== undefined && value !== "")
     .map(String);
   return [...new Set(values)];
@@ -153,36 +153,41 @@ export default function HousingDetailPage() {
 
   const st = STATUS[unit.recruitStatus];
   const representative = bestCondition(unit);
-  const sourceHead = unit.source.sourceRows[0];
   const match = rec ? matchLevel(rec) : null;
   const reviews = reviewsByHousing(unit.id);
   const myElig = eligHydrated ? (savedResults ?? []).find((r) => r.type === unit.type) : undefined;
   const address = cleanAddress(unit.address);
   const thisYear = new Date().getFullYear();
 
-  // S0 — 단지명 결측(매입임대 약 16%) 시 도로명주소로 대체
-  const displayTitle = sourceHead.complex_name?.trim() || address;
+  // S0 — 단지명이 없으면 어댑터가 주소 기반 이름을 만들어 준다.
+  const displayTitle = unit.name;
 
-  // S3 — 유형별 조건부 필드는 값이 있을 때만 노출
-  const supplyClasses = distinctValues(unit, "supply_class");
-  const incomeBrackets = distinctValues(unit, "income_bracket");
-  const householdSizes = distinctValues(unit, "household_size");
-  const protectionTypes = distinctValues(unit, "protection_type");
-  const priorityRanks = distinctValues(unit, "priority_rank");
+  // S3 — 유형별 조건부 필드는 값이 있을 때만 노출 (가격행에서 수집)
+  const supplyClasses = unit.source.supplyClasses;
+  const incomeBrackets = distinctValues(unit.source.prices, (row) => row.incomeBracket);
+  const householdSizes = distinctValues(unit.source.prices, (row) => row.householdSize);
+  const protectionTypes = distinctValues(unit.source.prices, (row) => row.protectionType);
+  const priorityRanks = distinctValues(unit.source.prices, (row) => row.priorityRank);
 
-  // S4 — 주택 사양
+  // S4 — 주택 사양 (물리 호실에서 수집)
   const roomCounts = [
     ...new Set(
-      unit.source.sourceRows
-        .map((row) => row.room_count)
+      unit.source.units
+        .map((row) => row.roomCount)
         .filter((value): value is number => typeof value === "number"),
     ),
   ].sort((a, b) => a - b);
-  const unitTypes = distinctValues(unit, "unit_type");
-  const unitNos = distinctValues(unit, "unit_no");
+  const unitTypes = distinctValues(unit.source.units, (row) => row.unitType);
+  const unitNos = distinctValues(unit.source.units, (row) => row.unitNo);
 
-  // S2 — 가격 미등록 호실
-  const unpricedCount = unit.source.sourceRowCount - unit.source.pricedUnitCount;
+  // S2 — 가격 정보가 없는 건물 (실데이터에는 없지만 방어적으로 유지)
+  const unpricedCount = unit.source.prices.length === 0 ? unit.source.units.length : 0;
+  // 가격표 컬럼은 유형마다 채워지는 항목이 달라서, 값이 있는 열만 띄운다.
+  const showUnitType = unitTypes.length > 0;
+  const showIncome = incomeBrackets.length > 0;
+  const showHousehold = householdSizes.length > 0;
+  const showSupplyClass = supplyClasses.length > 0;
+  const showRank = priorityRanks.length > 0;
 
   const share = async () => {
     try {
@@ -310,38 +315,36 @@ export default function HousingDetailPage() {
                   </InformationBanner>
                 )}
 
-                {unit.source.sourceRows.length > 0 ? (
+                {unit.source.prices.length > 0 ? (
                   <div className="max-h-[420px] overflow-auto rounded-[var(--radius-input)] border border-border">
                     <table className="w-full min-w-[560px] border-collapse text-left text-sm">
                       <thead className="sticky top-0 bg-surface-muted text-xs text-muted">
                         <tr>
-                          <th className="px-3 py-2 font-semibold">호명</th>
+                          {showUnitType && <th className="px-3 py-2 font-semibold">주택형</th>}
+                          {showIncome && <th className="px-3 py-2 font-semibold">소득구간</th>}
+                          {showHousehold && <th className="px-3 py-2 font-semibold">가구원수</th>}
+                          {showSupplyClass && <th className="px-3 py-2 font-semibold">공급계층</th>}
+                          {showRank && <th className="px-3 py-2 font-semibold">순위</th>}
                           <th className="px-3 py-2 font-semibold">전용면적</th>
                           <th className="px-3 py-2 font-semibold">방</th>
-                          <th className="px-3 py-2 font-semibold">순위</th>
                           <th className="px-3 py-2 font-semibold">보증금</th>
                           <th className="px-3 py-2 font-semibold">월 임대료</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {unit.source.sourceRows.map((row, index) => (
-                          <tr key={`${row.unit_no ?? "unit"}-${index}`} className="border-t border-border/70">
-                            <td className="px-3 py-2">{row.unit_no ?? "미상"}</td>
+                        {unit.source.prices.map((row, index) => (
+                          <tr key={index} className="border-t border-border/70">
+                            {showUnitType && <td className="px-3 py-2">{row.unitType ?? "—"}</td>}
+                            {showIncome && <td className="px-3 py-2">{row.incomeBracket ? `${row.incomeBracket}구간` : "—"}</td>}
+                            {showHousehold && <td className="px-3 py-2">{row.householdSize ? `${row.householdSize}인` : "—"}</td>}
+                            {showSupplyClass && <td className="px-3 py-2">{row.supplyClass ?? "—"}</td>}
+                            {showRank && <td className="px-3 py-2">{row.priorityRank === null ? "—" : `${row.priorityRank}순위`}</td>}
                             <td className="px-3 py-2 tabular-nums">
-                              {row.area_exclusive_m2 === null ? "미공개" : formatArea(row.area_exclusive_m2)}
+                              {row.areaM2 === null ? "미공개" : formatArea(row.areaM2)}
                             </td>
-                            <td className="px-3 py-2">
-                              {row.room_count === null ? "미공개" : roomLabel(row.room_count)}
-                            </td>
-                            <td className="px-3 py-2">
-                              {row.priority_rank === null ? "—" : `${row.priority_rank}순위`}
-                            </td>
-                            <td className="px-3 py-2 font-semibold tabular-nums">
-                              {row.deposit_krw === null ? "가격 미등록" : formatManwon(row.deposit_krw / 10_000)}
-                            </td>
-                            <td className="px-3 py-2 font-semibold tabular-nums">
-                              {row.rent_krw === null ? "가격 미등록" : formatManwon(row.rent_krw / 10_000)}
-                            </td>
+                            <td className="px-3 py-2">{row.roomCount === null ? "미공개" : roomLabel(row.roomCount)}</td>
+                            <td className="px-3 py-2 font-semibold tabular-nums">{formatManwon(row.depositManwon)}</td>
+                            <td className="px-3 py-2 font-semibold tabular-nums">{formatManwon(row.rentManwon)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -372,7 +375,7 @@ export default function HousingDetailPage() {
               <CardBody className="space-y-4">
                 <div className="rounded-[var(--radius-input)] bg-surface-muted/70 p-4">
                   <p className="text-xs text-muted">자격 요약</p>
-                  <p className="mt-1 font-semibold text-fg">{unit.source.eligibilitySummary ?? "미공개"}</p>
+                  <p className="mt-1 font-semibold text-fg">{unit.source.eligibilitySummaries.join(" · ") ?? "미공개"}</p>
                 </div>
 
                 {(supplyClasses.length > 0 ||
@@ -498,8 +501,9 @@ export default function HousingDetailPage() {
                   <SpecItem label="주차" value={parkingLabel(unit.source.parkingCount)} />
                 </dl>
                 <p className="mt-3 text-xs text-muted">
-                  <Building2 className="mr-1 inline h-3.5 w-3.5" aria-hidden />총 {unit.source.sourceRowCount}호실 · 가격
-                  공개 {unit.source.pricedUnitCount}호실
+                  <Building2 className="mr-1 inline h-3.5 w-3.5" aria-hidden />
+                  호실 {unit.source.units.length}개 · 임대조건 {unit.source.prices.length}가지
+                  {unit.source.householdCount !== null && ` · 공고상 ${unit.source.householdCount}세대`}
                 </p>
               </CardBody>
             </Card>
@@ -509,11 +513,22 @@ export default function HousingDetailPage() {
             <Card>
               <CardBody className="space-y-4">
                 <dl className="grid gap-3 text-sm sm:grid-cols-2">
-                  <SpecItem label="출처" value={sourceHead.rental_type ? `${sourceHead.rental_type} 재고 데이터` : null} />
-                  <SpecItem label="좌표 정밀도" value={unit.source.geocodePrecision} />
+                  <SpecItem label="출처" value={unit.source.dataSource} />
+                  <SpecItem label="최종 갱신일" value={unit.source.updatedAt} />
+                  <SpecItem
+                    label="가격 기준일"
+                    value={
+                      unit.source.priceDates.length === 0
+                        ? null
+                        : unit.source.priceDates.length === 1
+                          ? unit.source.priceDates[0]
+                          : `${unit.source.priceDates[0]} ~ ${unit.source.priceDates[unit.source.priceDates.length - 1]}`
+                    }
+                  />
+                  <SpecItem label="신청 포털" value={unit.source.applyPortal} />
                 </dl>
                 <MissingNote>
-                  최종 갱신일과 가격 기준일(가격등록일)은 현재 데이터셋에 없어요. 확정 정보는 아래 원문 공고에서 확인해
+                  모집 일정은 재고 데이터에 포함되어 있지 않아요. 신청 기간과 모집 상태는 아래 원문 공고에서 확인해
                   주세요.
                 </MissingNote>
                 <a

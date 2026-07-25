@@ -19,7 +19,9 @@ export function roomLabel(count: number): string {
 
 /** 준공연도 + 연식. 예: "1990년 준공 · 36년차" */
 export function completionLabel(year: number, baseYear: number): string {
-  return `${year}년 준공 · ${Math.max(baseYear - year, 0)}년차`;
+  // 입주 예정 단지는 준공연도가 미래라 연식이 음수가 된다.
+  if (year > baseYear) return `${year}년 준공 예정`;
+  return `${year}년 준공 · ${baseYear - year}년차`;
 }
 
 /** 주차대수 0 → "주차 불가"로 명시 변환. */
