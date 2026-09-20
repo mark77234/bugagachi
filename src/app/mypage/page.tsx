@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Bell, Bookmark, ClipboardCheck, Clock, Pencil, Trash2, UserCircle2 } from "lucide-react";
+import { Bookmark, ClipboardCheck, Clock, Pencil, Trash2, UserCircle2 } from "lucide-react";
 import { PageContainer } from "@/components/common/PageContainer";
 import { SectionHeader } from "@/components/common/SectionHeader";
 import { LoadingState } from "@/components/common/states";
@@ -61,7 +61,7 @@ function HousingMini({ id, onUnsave }: { id: string; onUnsave?: (id: string) => 
     return (
       <Link href={`/housing/${u.id}`} className="flex items-center justify-between gap-2 rounded-[var(--radius-input)] border border-border p-3 hover:bg-surface-muted">
         <span className="min-w-0">{summary}</span>
-        <Badge tone="neutral">{ELIGIBILITY_TYPE_LABEL[u.type]}</Badge>
+        <Badge tone="neutral" className="shrink-0 whitespace-nowrap">{ELIGIBILITY_TYPE_LABEL[u.type]}</Badge>
       </Link>
     );
   }
@@ -73,7 +73,7 @@ function HousingMini({ id, onUnsave }: { id: string; onUnsave?: (id: string) => 
         className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-l-[var(--radius-input)] p-3 hover:bg-surface-muted"
       >
         <span className="min-w-0">{summary}</span>
-        <Badge tone="neutral">{ELIGIBILITY_TYPE_LABEL[u.type]}</Badge>
+        <Badge tone="neutral" className="shrink-0 whitespace-nowrap">{ELIGIBILITY_TYPE_LABEL[u.type]}</Badge>
       </Link>
       <button
         type="button"
@@ -112,7 +112,6 @@ export default function MyPage() {
     );
   }
 
-  const savedOpen = user.savedHousingIds.filter((id) => housingById(id)?.recruitStatus === "open");
   const axes: string[] = [];
   if (pref.frequent.length) axes.push("자주 가는 장소");
   if (pref.infraCategories.length) axes.push("기반시설");
@@ -130,7 +129,7 @@ export default function MyPage() {
       </div>
 
       {/* 데스크톱·태블릿 2열(6:4), 모바일 1열. 순서는 DOM 순서 그대로다. */}
-      <div className="grid gap-4 md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         {/* 1행 왼쪽 */}
         <Tile
           title="공공임대 내 자격 확인"
@@ -197,35 +196,22 @@ export default function MyPage() {
           )}
         </Tile>
 
-        {/* 2행 오른쪽 — 저장한 주택 중 모집 중인 공고 (별도 저장소 없이 파생) */}
-        <Tile title={`관심 모집공고 (${savedOpen.length})`} icon={<Bell className="h-5 w-5" />}>
-          {savedOpen.length ? (
+        {/* 2행 오른쪽 — 오른쪽 북마크로 개별 해제 */}
+        <Tile title={`저장한 주택 (${user.savedHousingIds.length})`} icon={<Bookmark className="h-5 w-5" />}>
+          {user.savedHousingIds.length ? (
             <div className="space-y-2">
-              {savedOpen.map((id) => (
-                <HousingMini key={id} id={id} />
+              {user.savedHousingIds.map((id) => (
+                <HousingMini key={id} id={id} onUnsave={user.toggleSaved} />
               ))}
             </div>
           ) : (
-            <p className="text-sm text-muted">저장한 주택 중 모집 중인 공고가 없어요.</p>
+            <div className="flex items-center gap-3">
+              <Mascot pose="idle" className="h-16 w-16 shrink-0" sizes="64px" />
+              <p className="text-sm text-muted">아직 저장한 주택이 없어요. 추천 목록에서 저장해 보세요.</p>
+            </div>
           )}
         </Tile>
       </div>
-
-      {/* 저장한 주택 — 오른쪽 북마크로 개별 해제 */}
-      <Tile title={`저장한 주택 (${user.savedHousingIds.length})`} icon={<Bookmark className="h-5 w-5" />} className="mt-4">
-        {user.savedHousingIds.length ? (
-          <div className="grid gap-2 sm:grid-cols-2">
-            {user.savedHousingIds.map((id) => (
-              <HousingMini key={id} id={id} onUnsave={user.toggleSaved} />
-            ))}
-          </div>
-        ) : (
-          <div className="flex items-center gap-3">
-            <Mascot pose="idle" className="h-16 w-16 shrink-0" sizes="64px" />
-            <p className="text-sm text-muted">아직 저장한 주택이 없어요. 추천 목록에서 저장해 보세요.</p>
-          </div>
-        )}
-      </Tile>
 
       {/* 데이터 삭제 — 카드가 아닌 단독 위험 버튼 */}
       <div className="mt-8 border-t border-border pt-6">
