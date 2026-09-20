@@ -14,10 +14,8 @@ export function ScoreBreakdown({ byAxis }: { byAxis: CategoryScore[] }) {
         return (
           <li key={a.axis}>
             <div className="mb-1 flex items-center justify-between text-sm">
-              <span className="font-medium text-fg">
-                {AXIS_LABEL[a.axis]}
-                <span className="ml-2 text-xs text-muted">가중치 {Math.round(a.weight * 100)}%</span>
-              </span>
+              {/* 축별 가중치는 내부 산식이라 화면에 노출하지 않는다. */}
+              <span className="font-medium text-fg">{AXIS_LABEL[a.axis]}</span>
               <span className="font-semibold text-navy">{pct}점</span>
             </div>
             <div className="h-2 w-full overflow-hidden rounded-full bg-surface-muted" role="img" aria-label={`${AXIS_LABEL[a.axis]} ${pct}점`}>

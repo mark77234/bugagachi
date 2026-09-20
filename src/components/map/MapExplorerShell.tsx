@@ -21,6 +21,7 @@ export function MapExplorerShell({
   mapProps,
   controls,
   listTitle,
+  listToolbar,
   listRef,
   children,
   sheet,
@@ -32,6 +33,8 @@ export function MapExplorerShell({
   controls?: ReactNode;
   /** 사이드바 헤더 좌측 내용 */
   listTitle: ReactNode;
+  /** 사이드바 헤더 바로 아래 컨트롤 줄 (정렬·추천만 등) */
+  listToolbar?: ReactNode;
   listRef?: Ref<HTMLDivElement>;
   /** 사이드바 목록 본문 */
   children: ReactNode;
@@ -89,6 +92,9 @@ export function MapExplorerShell({
                 <X className="h-4 w-4" aria-hidden />
               </button>
             </div>
+            {listToolbar && (
+              <div className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-2.5">{listToolbar}</div>
+            )}
             <div ref={listRef} className="min-h-0 flex-1 space-y-2.5 overflow-y-auto p-3">
               {children}
             </div>

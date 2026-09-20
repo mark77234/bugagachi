@@ -302,6 +302,49 @@ export function UnifiedMapExplorer() {
     router.replace(query ? `/map?${query}` : "/map", { scroll: false });
   }, [activeId, gungu, router, type]);
 
+  /**
+   * 추천 정렬 + "추천만" 토글.
+   * 데스크톱은 목록 박스 헤더 아래, 목록 박스가 없는 모바일은 지도 위 플로팅에 같은 것을 그린다.
+   * 두 곳에 그려지므로 id 대신 aria-label 로 이름을 준다 (중복 id 방지).
+   */
+  const recommendToolbar = recommendMode ? (
+    <>
+      <div className={cn(FLOATING_PANEL, "flex h-11 min-w-0 flex-1 items-center pl-3 pr-1")}>
+        <Select
+          aria-label="결과 정렬"
+          value={sort}
+          onChange={(event) => setSort(event.target.value as SortKey)}
+          className="h-9 border-0 bg-transparent pl-1 text-sm font-bold shadow-none focus-visible:outline-none"
+        >
+          <option value="recommend">추천순</option>
+          <option value="distance">장소·거리순</option>
+          <option value="infra">기반시설순</option>
+          <option value="education">돌봄·교육시설순</option>
+          <option value="store">취향가게순</option>
+        </Select>
+      </div>
+      <button
+        type="button"
+        onClick={() => setOnlyRecommended((value) => !value)}
+        aria-pressed={onlyRecommended}
+        className={cn(
+          FLOATING_PANEL,
+          "flex h-11 shrink-0 items-center gap-1.5 px-4 text-sm font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-ring)]",
+          onlyRecommended ? "bg-[#e85c8a] text-white" : "text-fg hover:bg-surface",
+        )}
+      >
+        <Image
+          src={TIER_MARKER_ICON.recommend}
+          alt=""
+          width={64}
+          height={64}
+          className="h-4 w-4 shrink-0 object-contain"
+        />
+        추천만
+      </button>
+    </>
+  ) : null;
+
   return (
     <MapExplorerShell
       listCount={listUnits.length}
@@ -321,47 +364,12 @@ export function UnifiedMapExplorer() {
       assistant={
         <MapAssistantPanel focusedUnitId={activeId} onRecommend={handleAiRecommend} onSelectUnit={handleSelect} />
       }
+      listToolbar={recommendToolbar}
       controls={
         <>
-          {recommendMode && (
-            <>
-              <label className="sr-only" htmlFor="map-sort">
-                결과 정렬
-              </label>
-              <div className={cn(FLOATING_PANEL, "flex h-11 items-center pl-3 pr-1")}>
-                <Select
-                  id="map-sort"
-                  value={sort}
-                  onChange={(event) => setSort(event.target.value as SortKey)}
-                  className="h-9 border-0 bg-transparent pl-1 text-sm font-bold shadow-none focus-visible:outline-none"
-                >
-                  <option value="recommend">추천순</option>
-                  <option value="distance">장소·거리순</option>
-                  <option value="infra">기반시설순</option>
-                  <option value="education">돌봄·교육시설순</option>
-                  <option value="store">취향가게순</option>
-                </Select>
-              </div>
-              <button
-                type="button"
-                onClick={() => setOnlyRecommended((value) => !value)}
-                aria-pressed={onlyRecommended}
-                className={cn(
-                  FLOATING_PANEL,
-                  "flex h-11 items-center gap-1.5 px-4 text-sm font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-ring)]",
-                  onlyRecommended ? "bg-[#e85c8a] text-white" : "text-fg hover:bg-surface",
-                )}
-              >
-                <Image
-                  src={TIER_MARKER_ICON.recommend}
-                  alt=""
-                  width={64}
-                  height={64}
-                  className="h-4 w-4 shrink-0 object-contain"
-                />
-                추천만
-              </button>
-            </>
+          {/* 데스크톱에서는 목록 박스 안으로 옮겼고, 목록 박스가 없는 모바일에서만 여기 띄운다. */}
+          {recommendToolbar && (
+            <div className="flex flex-wrap items-center gap-2 lg:hidden">{recommendToolbar}</div>
           )}
           <button
             type="button"
