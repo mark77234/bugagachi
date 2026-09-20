@@ -14,11 +14,22 @@ import { ELIGIBILITY_TYPE_LABEL } from "@/features/eligibility/eligibility.types
 import { bestCondition, housingById } from "@/mocks/housing";
 import { formatManwon } from "@/lib/formatting";
 import { cn } from "@/lib/utils";
+import { MOCK_HOUSING } from "@/mocks/housing";
+import {
+  resolveLocationRequest,
+  keepKnownIds,
+  stripTravelTimeClaims,
+  type LocationPayload,
+} from "@/features/chat/location-recommend";
+import { useEligibilityStore } from "@/features/eligibility/eligibility.store";
+import { usePreferencesStore } from "@/features/recommendation/preferences.store";
 
 interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   text: string;
+  /** 위치 기반 요청일 때 코드가 고른 후보 id. 모델이 이 밖의 id 를 내면 버린다. */
+  allowedIds?: string[];
 }
 
 const WELCOME_MESSAGE: ChatMessage = {
@@ -147,6 +158,16 @@ export function DemoChat() {
   const messageCounter = useRef(0);
   const endRef = useRef<HTMLDivElement>(null);
   const reduceMotion = useReducedMotion();
+  const prefFrequent = usePreferencesStore((s) => s.frequent);
+  const maxDeposit = usePreferencesStore((s) => s.maxDeposit);
+  const maxMonthlyRent = usePreferencesStore((s) => s.maxMonthlyRent);
+  const savedResults = useEligibilityStore((s) => s.savedResults);
+  // 후보를 자격 통과 유형·예산으로 먼저 좁히기 위한 값 (없으면 거리만으로 고른다).
+  const eligibleTypes = (savedResults ?? [])
+    .filter((result) => result.evaluation.status === "PASS")
+    .map((result) => result.type);
+  const budget =
+    maxDeposit !== null && maxMonthlyRent !== null ? { maxDeposit, maxMonthlyRent } : null;
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "nearest" });
@@ -165,11 +186,37 @@ export function DemoChat() {
     setInput("");
     setStreaming(true);
 
+    // 위치 기반 요청이면 Kakao 로 기준 좌표를 확보하고 거리로 후보를 추린 뒤 모델에 넘긴다.
+    // 위치 요청이 아니면 Kakao 검색을 하지 않는다.
+    let location: LocationPayload | undefined;
+    try {
+      const resolved = await resolveLocationRequest(value, {
+        units: MOCK_HOUSING,
+        frequent: prefFrequent,
+        eligibleTypes,
+        budget,
+      });
+      if (resolved.kind === "ask") {
+        // 기준 장소를 특정하지 못했으면 AI 를 부르지 않고 그대로 되묻는다.
+        setMessages((current) => current.map((m) => (m.id === assistantId ? { ...m, text: resolved.message } : m)));
+        setStreaming(false);
+        return;
+      }
+      if (resolved.kind === "ok") {
+        location = resolved.payload;
+        const allowedIds = location.candidates.map((candidate) => candidate.id);
+        setMessages((current) => current.map((m) => (m.id === assistantId ? { ...m, allowedIds } : m)));
+      }
+    } catch {
+      // 위치 해석이 실패해도 일반 대화는 막지 않는다 (후보 없이 진행).
+      location = undefined;
+    }
+
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: historyForApi, housingId }),
+        body: JSON.stringify({ messages: historyForApi, housingId , location }),
       });
       if (!res.ok || !res.body) {
         const data = await res.json().catch(() => null);
@@ -235,7 +282,11 @@ export function DemoChat() {
             {messages.map((message) => {
               const assistant = message.role === "assistant";
               const pending = assistant && streaming && message.text === "";
-              const { clean, ids } = assistant ? parseRec(message.text) : { clean: message.text, ids: [] };
+              const parsed = assistant ? parseRec(message.text) : { clean: message.text, ids: [] };
+              // 위치 답변에서는 근거 없는 "도보 N분" 류 표현을 지운다 (직선거리만 계산했다).
+              const clean = message.allowedIds ? stripTravelTimeClaims(parsed.clean) : parsed.clean;
+              // 위치 요청이었다면 코드가 고른 후보 밖의 id 는 화면·지도에 내보내지 않는다.
+              const ids = message.allowedIds ? keepKnownIds(parsed.ids, message.allowedIds) : parsed.ids;
               return (
                 <motion.li
                   key={message.id}

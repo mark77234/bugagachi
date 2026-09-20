@@ -1,7 +1,8 @@
 import OpenAI from "openai";
 import { MOCK_HOUSING, bestCondition, housingById } from "@/mocks/housing";
 import { ELIGIBILITY_TYPE_LABEL } from "@/features/eligibility/eligibility.types";
-import { formatManwon } from "@/lib/formatting";
+import { formatManwon, formatDistance } from "@/lib/formatting";
+import { SEARCH_RADII_M, type LocationPayload } from "@/features/chat/location-recommend";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -26,6 +27,54 @@ interface IncomingMessage {
   content: string;
 }
 
+/**
+ * 위치 기반 요청의 후보 블록.
+ * 기준 좌표 확보와 거리 계산은 클라이언트(Kakao SDK + Haversine)에서 이미 끝났다.
+ * 모델은 여기 있는 주택만 고르고, distanceMeters 를 다시 추정하지 않는다.
+ */
+function buildLocationBlock(location: LocationPayload): string {
+  const { anchor, candidates, radiusMeters, outOfRange, relaxedType, relaxedBudget } = location;
+  const lines = candidates.map((c) => {
+    const price =
+      c.deposit !== undefined && c.monthlyRent !== undefined
+        ? `보증금 ${formatManwon(c.deposit)}/월 ${formatManwon(c.monthlyRent)}`
+        : "임대조건 미공개";
+    const budget = c.fitsBudget === undefined ? "" : c.fitsBudget ? " · 예산 충족" : " · 예산 초과";
+    return `- [${c.id}] ${c.name} · ${c.type} · ${c.address} · 직선 ${formatDistance(c.distanceMeters)}(${c.distanceMeters}m) · ${price}${budget}`;
+  });
+
+  const scope = outOfRange
+    ? `아래 후보는 모두 ${formatDistance(SEARCH_RADII_M[SEARCH_RADII_M.length - 1])} 반경 밖입니다. "근처"나 "인근"이라고 표현하지 말고, 가장 가까운 후보라는 점과 실제 거리를 분명히 말하세요.`
+    : `아래 후보는 기준 장소에서 반경 ${formatDistance(radiusMeters ?? 0)} 안에 있습니다.`;
+
+  const relaxed = [
+    relaxedType ? "자격 통과 유형만으로는 후보가 없어 유형 조건을 풀었습니다. 자격은 공고에서 확인해야 한다고 알리세요." : "",
+    relaxedBudget ? "설정한 예산 안에서는 후보가 없어 예산 조건을 풀었습니다. 예산을 넘는다는 점을 알리세요." : "",
+  ].filter(Boolean).join("\n");
+
+  return `
+
+[위치 기반 요청 — 기준 장소와 후보(candidateHousing)]
+기준 장소: ${anchor.name}
+기준 주소: ${anchor.address}
+${scope}
+${relaxed}
+
+후보 목록:
+${lines.join("\n")}
+
+이 요청에 대한 절대 규칙:
+- 위 후보 목록에 있는 주택만 추천한다. 목록 밖의 주택명·주소·거리·시설을 지어내지 않는다.
+- 위에 적힌 거리는 코드가 좌표로 계산한 값이다. 임의로 바꾸거나 다시 추정하지 않는다.
+- 답변에 기준 장소 이름과 주소를 반드시 밝힌다.
+- 각 추천 주택마다 위 목록의 실제 직선거리를 함께 적는다.
+- "가깝다/도보권/인근" 같은 표현은 위 거리 수치가 뒷받침할 때만 쓴다.
+- 직선거리를 도보 거리나 이동 시간처럼 말하지 않는다. "도보 N분", "차로 N분" 같은 소요시간을 절대 쓰지 않는다 (계산하지 않은 값이다). 답변 끝에 직선거리라는 안내를 한 줄 넣는다.
+- 기준 장소 안에 있는 주택인지, 몇 km 떨어진 후보인지 구분해서 말한다.
+- 후보가 없으면 없다고 말하고 가상의 결과를 만들지 않는다.
+- 위 전체 주택 목록이 아니라 이 후보 목록에서만 <<REC:...>> id 를 고른다.`;
+}
+
 /** 주택 데이터셋을 토큰 효율적으로 요약해 모델 컨텍스트로 제공. */
 function buildHousingContext(): string {
   const lines = MOCK_HOUSING.map((unit) => {
@@ -37,7 +86,7 @@ function buildHousingContext(): string {
   return lines.join("\n");
 }
 
-function systemPrompt(housingId?: string): string {
+function systemPrompt(housingId?: string, location?: LocationPayload): string {
   const focus = housingId ? housingById(housingId) : undefined;
   const focusBlock = focus
     ? `\n\n[사용자가 현재 보고 있는 주택]\n${focus.name} (${focus.gungu}, ${ELIGIBILITY_TYPE_LABEL[focus.type]}) · id=${focus.id}\n주소: ${focus.address}`
@@ -71,8 +120,12 @@ function systemPrompt(housingId?: string): string {
 - 여기 대화창에서는 가구 상황·예산·원하는 지역이나 생활 조건을 말해주면 바로 맞는 집을 골라 지도와 함께 보여드려요. 자격이나 서류가 궁금할 때도 물어보면 돼요.
 - 사용법을 설명할 때는 단계를 짧은 목록으로 정리하고, 마지막에 "지금 바로 예산이나 원하는 지역을 말해주시면 골라드릴게요" 같은 다음 행동을 한 줄로 제안하세요.
 
-[부산 공공임대 주택 목록 (${MOCK_HOUSING.length}개 건물)]
-${buildHousingContext()}${focusBlock}`;
+${
+  location
+    // 위치 요청이면 전체 목록을 아예 주지 않는다 — 후보 밖을 고를 여지 자체를 없앤다.
+    ? buildLocationBlock(location)
+    : `\n[부산 공공임대 주택 목록 (${MOCK_HOUSING.length}개 건물)]\n${buildHousingContext()}`
+}${focusBlock}`;
 }
 
 export async function POST(req: Request) {
@@ -81,7 +134,7 @@ export async function POST(req: Request) {
     return Response.json({ error: "AI 설정이 완료되지 않았어요. 관리자에게 문의해 주세요." }, { status: 503 });
   }
 
-  let body: { messages?: IncomingMessage[]; housingId?: string };
+  let body: { messages?: IncomingMessage[]; housingId?: string; location?: LocationPayload };
   try {
     body = await req.json();
   } catch {
@@ -104,7 +157,7 @@ export async function POST(req: Request) {
       stream: true,
       temperature: 0.4,
       max_tokens: 700,
-      messages: [{ role: "system", content: systemPrompt(body.housingId) }, ...history],
+      messages: [{ role: "system", content: systemPrompt(body.housingId, body.location) }, ...history],
     });
 
     const encoder = new TextEncoder();
