@@ -2,9 +2,14 @@ import { forwardRef } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export const Select = forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<HTMLSelectElement>>(
-  ({ className, children, ...props }, ref) => (
-    <span className="relative inline-flex">
+/** wrapperClassName: 래퍼 span 용. inline-flex 라 기본은 내용 너비라서,
+ *  flex 행 안에서 늘리려면(예: flex-1) 래퍼에 직접 줘야 한다. */
+export const Select = forwardRef<
+  HTMLSelectElement,
+  React.SelectHTMLAttributes<HTMLSelectElement> & { wrapperClassName?: string }
+>(
+  ({ className, wrapperClassName, children, ...props }, ref) => (
+    <span className={cn("relative inline-flex", wrapperClassName)}>
       <select
         ref={ref}
         className={cn(

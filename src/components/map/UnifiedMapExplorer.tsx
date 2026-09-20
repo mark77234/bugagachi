@@ -309,20 +309,21 @@ export function UnifiedMapExplorer() {
    */
   const recommendToolbar = recommendMode ? (
     <>
-      <div className={cn(FLOATING_PANEL, "flex h-11 min-w-0 flex-1 items-center pl-3 pr-1")}>
-        <Select
-          aria-label="결과 정렬"
-          value={sort}
-          onChange={(event) => setSort(event.target.value as SortKey)}
-          className="h-9 border-0 bg-transparent pl-1 text-sm font-bold shadow-none focus-visible:outline-none"
-        >
-          <option value="recommend">추천순</option>
-          <option value="distance">장소·거리순</option>
-          <option value="infra">기반시설순</option>
-          <option value="education">돌봄·교육시설순</option>
-          <option value="store">취향가게순</option>
-        </Select>
-      </div>
+      {/* Select 자체를 알약으로 쓴다. 알약 안에 Select 를 넣으면 래퍼가 늘어나지 않아
+          오른쪽이 비고 쉐브론이 가운데 떠 보인다. min-w 는 좁은 화면에서 찌그러짐 방지. */}
+      <Select
+        aria-label="결과 정렬"
+        value={sort}
+        onChange={(event) => setSort(event.target.value as SortKey)}
+        wrapperClassName="min-w-[8.5rem] flex-1"
+        className={cn(FLOATING_PANEL, "h-11 w-full pl-4 pr-9 font-bold text-fg")}
+      >
+        <option value="recommend">추천순</option>
+        <option value="distance">장소·거리순</option>
+        <option value="infra">기반시설순</option>
+        <option value="education">돌봄·교육시설순</option>
+        <option value="store">취향가게순</option>
+      </Select>
       <button
         type="button"
         onClick={() => setOnlyRecommended((value) => !value)}
