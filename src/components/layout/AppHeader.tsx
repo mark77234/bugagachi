@@ -11,7 +11,6 @@ const NAV = [
   { href: "/eligibility", label: "맞춤 추천" },
   { href: "/chat", label: "AI 갈붕이" },
   { href: "/map", label: "지도" },
-  { href: "/community", label: "커뮤니티" },
 ];
 
 function isActivePath(pathname: string, href: string) {

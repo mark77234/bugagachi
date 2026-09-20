@@ -634,7 +634,7 @@ export function KakaoMapView({
         markers={markers}
         selectedId={selectedId}
         onSelect={onSelect}
-        ariaLabel={`${ariaLabel} (모의)`}
+        ariaLabel={`${ariaLabel} (간략 표시)`}
         onViewportChange={onViewportChange}
         fullBleed={fullBleed}
         infra={infra}

@@ -19,7 +19,6 @@ function wallpaperFor(pathname: string) {
   if (pathname.startsWith("/map")) return "/assets/wallpapers/map_wallpaper_3.png";
   if (pathname.startsWith("/housing")) return "/assets/wallpapers/map_wallpaper_1.png";
   if (pathname.startsWith("/chat")) return "/assets/wallpapers/search_wallpaper_2.png";
-  if (pathname.startsWith("/community")) return "/assets/wallpapers/map_wallpaper_4.png";
   return "/assets/wallpapers/map_wallpaper_5.png";
 }
 

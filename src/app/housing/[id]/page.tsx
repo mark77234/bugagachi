@@ -14,7 +14,6 @@ import {
   MapPin,
   MapPinned,
   Share2,
-  Star,
 } from "lucide-react";
 import { PageContainer } from "@/components/common/PageContainer";
 import { Disclaimer, InformationBanner } from "@/components/common/banners";
@@ -38,7 +37,6 @@ import {
 import { NearbyInfraSection } from "@/components/housing/NearbyInfraSection";
 import { DetailTabs, type DetailTabKey } from "@/components/housing/DetailTabs";
 import { bestCondition, housingById } from "@/mocks/housing";
-import { reviewsByHousing } from "@/mocks/reviews";
 import { useUserStore } from "@/features/user/user.store";
 import { useEligibilityStore } from "@/features/eligibility/eligibility.store";
 import { usePreferencesStore, buildSurvey, isBudgetComplete } from "@/features/recommendation/preferences.store";
@@ -154,7 +152,6 @@ export default function HousingDetailPage() {
   const st = STATUS[unit.recruitStatus];
   const representative = bestCondition(unit);
   const match = rec ? matchLevel(rec) : null;
-  const reviews = reviewsByHousing(unit.id);
   const myElig = eligHydrated ? (savedResults ?? []).find((r) => r.type === unit.type) : undefined;
   const address = cleanAddress(unit.address);
   const thisYear = new Date().getFullYear();
@@ -544,36 +541,6 @@ export default function HousingDetailPage() {
             </Card>
           </Section>
 
-          {/* S8 — 주택 리뷰 */}
-          <Section id="s8" title={`주택 리뷰 (${reviews.length})`}>
-            <InformationBanner tone="warning" className="mb-3">
-              아래 후기는 서비스 화면 예시예요.
-            </InformationBanner>
-            <div className="grid gap-3 md:grid-cols-2">
-              {reviews.length === 0 && <p className="text-sm text-muted">등록된 후기가 없어요.</p>}
-              {reviews.map((rv) => (
-                <Card key={rv.id}>
-                  <CardBody className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="flex items-center gap-1 text-sm font-medium">
-                        <Star className="h-4 w-4 fill-warning text-warning" aria-hidden /> {rv.rating.toFixed(1)}
-                        <span className="ml-2 text-muted">{rv.author}</span>
-                      </span>
-                      <span className="text-xs text-muted">{rv.createdAt}</span>
-                    </div>
-                    <p className="text-sm text-fg">{rv.body}</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {rv.tags.map((t) => (
-                        <Badge key={t} tone="neutral">
-                          #{t}
-                        </Badge>
-                      ))}
-                    </div>
-                  </CardBody>
-                </Card>
-              ))}
-            </div>
-          </Section>
             </>
           )}
 

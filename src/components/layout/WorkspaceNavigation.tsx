@@ -3,13 +3,12 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Map, UsersRound, UserRound, WandSparkles } from "lucide-react";
+import { Map, UserRound, WandSparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ITEMS = [
   { href: "/map", label: "지도", icon: Map },
   { href: "/recommendations", label: "상세추천", icon: WandSparkles },
-  { href: "/community", label: "커뮤니티", icon: UsersRound },
   { href: "/mypage", label: "마이", icon: UserRound },
 ];
 

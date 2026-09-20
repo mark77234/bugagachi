@@ -6,7 +6,7 @@ import type { LatLng } from "@/lib/coordinates";
 import { cn } from "@/lib/utils";
 
 /** 지도 provider 인터페이스. 실제 카카오 지도 연동 시 KakaoMapView가 동일 props를 구현한다.
- *  (환경변수에 API Key가 없으면 실제 요청을 만들지 않고 MockMapView를 사용한다.) */
+ *  (API Key가 없거나 SDK 로드에 실패하면 대략 위치만 보여주는 폴백 지도를 쓴다.) */
 
 /** 마커 구분.
  *  normal    — 전체 재고
@@ -115,12 +115,13 @@ function project(coord: LatLng) {
   return { left: `${Math.min(96, Math.max(4, x))}%`, top: `${Math.min(94, Math.max(6, y))}%` };
 }
 
-/** Kakao API Key 부재 시 사용하는 mock 지도. */
+/** 카카오 지도를 쓸 수 없을 때의 폴백 지도.
+ *  실제 타일 대신 대략적인 상대 위치만 보여주므로, 배지로 그 사실을 알린다. */
 export function MockMapView({
   markers,
   selectedId,
   onSelect,
-  ariaLabel = "주택 위치 지도 (모의)",
+  ariaLabel = "주택 위치 간략 지도",
   onViewportChange,
   fullBleed = false,
   infra = [],
@@ -148,7 +149,7 @@ export function MockMapView({
       aria-label={ariaLabel}
     >
       <span className="absolute left-3 top-3 rounded-full bg-surface/90 px-2.5 py-1 text-xs font-medium text-muted">
-        지도 미리보기 (모의) · 카카오 지도 연동 예정
+        지도를 불러오지 못했어요 · 대략 위치만 표시
       </span>
 
       {infra.map((poi) => {
