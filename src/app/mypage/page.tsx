@@ -2,25 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import {
-  Bell,
-  Bookmark,
-  ClipboardCheck,
-  Clock,
-  LogOut,
-  Pencil,
-  Trash2,
-  UserCircle2,
-} from "lucide-react";
+import { Bell, Bookmark, ClipboardCheck, Clock, Pencil, Trash2, UserCircle2 } from "lucide-react";
 import { PageContainer } from "@/components/common/PageContainer";
 import { SectionHeader } from "@/components/common/SectionHeader";
-import { InformationBanner } from "@/components/common/banners";
 import { LoadingState } from "@/components/common/states";
 import { Mascot } from "@/components/common/Mascot";
 import { Card, CardBody } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Toggle } from "@/components/ui/toggle";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { ConfirmationDialog } from "@/components/common/ConfirmationDialog";
 import { useEligibilityStore } from "@/features/eligibility/eligibility.store";
@@ -36,9 +25,9 @@ function Tile({ title, icon, children, className, action }: { title: string; ico
   return (
     <Card className={className}>
       <CardBody className="h-full">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-base font-bold text-navy">
-            <span className="text-primary">{icon}</span> {title}
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h2 className="flex min-w-0 items-center gap-2 text-base font-bold text-navy">
+            <span className="shrink-0 text-primary">{icon}</span> <span className="truncate">{title}</span>
           </h2>
           {action}
         </div>
@@ -48,23 +37,59 @@ function Tile({ title, icon, children, className, action }: { title: string; ico
   );
 }
 
-function HousingMini({ id }: { id: string }) {
+/**
+ * 주택 한 줄. 본문은 상세 페이지 링크다.
+ * onUnsave 를 넘기면 오른쪽에 북마크 버튼이 붙는다 — 링크의 형제 요소라 본문 이동과 섞이지 않는다.
+ */
+function HousingMini({ id, onUnsave }: { id: string; onUnsave?: (id: string) => void }) {
   const u = housingById(id);
   if (!u) return null;
   const best = bestCondition(u);
-  return (
-    <Link href={`/housing/${u.id}`} className="flex items-center justify-between rounded-[var(--radius-input)] border border-border p-3 hover:bg-surface-muted">
-      <span className="min-w-0">
-        <span className="block truncate font-medium text-fg">{u.name}</span>
-        <span className="block text-sm text-muted">
-          {u.gungu} ·{" "}
-          {best
-            ? `보증금 ${formatManwon(best.deposit)} · 월 ${formatManwon(best.monthlyRent)}`
-            : "임대조건 미공개"}
-        </span>
+  const summary = (
+    <>
+      <span className="block truncate font-medium text-fg">{u.name}</span>
+      <span className="block text-sm text-muted">
+        {u.gungu} ·{" "}
+        {best
+          ? `보증금 ${formatManwon(best.deposit)} · 월 ${formatManwon(best.monthlyRent)}`
+          : "임대조건 미공개"}
       </span>
-      <Badge tone="neutral">{ELIGIBILITY_TYPE_LABEL[u.type]}</Badge>
-    </Link>
+    </>
+  );
+
+  if (!onUnsave) {
+    return (
+      <Link href={`/housing/${u.id}`} className="flex items-center justify-between gap-2 rounded-[var(--radius-input)] border border-border p-3 hover:bg-surface-muted">
+        <span className="min-w-0">{summary}</span>
+        <Badge tone="neutral">{ELIGIBILITY_TYPE_LABEL[u.type]}</Badge>
+      </Link>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1 rounded-[var(--radius-input)] border border-border">
+      <Link
+        href={`/housing/${u.id}`}
+        className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-l-[var(--radius-input)] p-3 hover:bg-surface-muted"
+      >
+        <span className="min-w-0">{summary}</span>
+        <Badge tone="neutral">{ELIGIBILITY_TYPE_LABEL[u.type]}</Badge>
+      </Link>
+      <button
+        type="button"
+        onClick={(event) => {
+          // 형제 요소라 링크로 번지지 않지만, 마크업이 바뀌어도 안전하도록 막아 둔다.
+          event.preventDefault();
+          event.stopPropagation();
+          onUnsave(u.id);
+        }}
+        aria-pressed
+        aria-label={`${u.name} 저장 해제`}
+        className="mr-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-primary bg-primary-subtle text-primary transition-colors hover:border-error/40 hover:bg-error-subtle hover:text-error active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-ring)]"
+      >
+        <Bookmark className="h-5 w-5 fill-current" aria-hidden />
+      </button>
+    </div>
   );
 }
 
@@ -97,25 +122,21 @@ export default function MyPage() {
 
   return (
     <PageContainer size="wide" className="py-8">
-      <div className="mb-2 flex items-center gap-4">
+      <div className="mb-6 flex items-center gap-4">
         <Mascot pose="present" float className="h-20 w-20 shrink-0 sm:h-24 sm:w-24" sizes="96px" />
         <div className="flex-1">
           <SectionHeader as="h1" eyebrow="마이페이지" title="내 진단·추천 관리" />
         </div>
       </div>
 
-      <InformationBanner tone="primary" className="mb-6" title="비로그인(게스트) 모드">
-        입력·저장 정보는 이 브라우저에만 보관돼요. 다른 기기와 동기화되지 않으며, 아래에서 언제든 삭제할 수 있어요.
-      </InformationBanner>
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {/* 자격 결과 */}
+      {/* 데스크톱·태블릿 2열(6:4), 모바일 1열. 순서는 DOM 순서 그대로다. */}
+      <div className="grid gap-4 md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        {/* 1행 왼쪽 */}
         <Tile
-          title="내 자격 결과"
+          title="공공임대 내 자격 확인"
           icon={<ClipboardCheck className="h-5 w-5" />}
-          className="md:col-span-2"
           action={
-            <Link href="/eligibility" className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
+            <Link href="/eligibility" className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "shrink-0")}>
               {savedResults && savedResults.length > 0 ? <Pencil className="h-4 w-4" /> : <ClipboardCheck className="h-4 w-4" />}
               {savedResults && savedResults.length > 0 ? "수정" : "자격 확인 시작"}
             </Link>
@@ -124,9 +145,9 @@ export default function MyPage() {
           {savedResults && savedResults.length > 0 ? (
             <ul className="grid gap-2 sm:grid-cols-2">
               {savedResults.map((r) => (
-                <li key={r.type} className="flex items-center justify-between rounded-[var(--radius-input)] border border-border p-3">
-                  <span className="flex items-center gap-1.5 text-sm font-medium">
-                    {ELIGIBILITY_TYPE_LABEL[r.type]}
+                <li key={r.type} className="flex items-center justify-between gap-2 rounded-[var(--radius-input)] border border-border p-3">
+                  <span className="flex min-w-0 items-center gap-1.5 text-sm font-medium">
+                    <span className="truncate">{ELIGIBILITY_TYPE_LABEL[r.type]}</span>
                     {r.baseYear === 2025 && <Badge tone="warning">2025</Badge>}
                   </span>
                   <StatusBadge status={r.evaluation.status} />
@@ -141,12 +162,25 @@ export default function MyPage() {
           )}
         </Tile>
 
-        {/* 추천 설정 */}
+        {/* 1행 오른쪽 */}
+        <Tile title="최근 본 주택" icon={<Clock className="h-5 w-5" />}>
+          {user.recentHousingIds.length ? (
+            <div className="space-y-2">
+              {user.recentHousingIds.slice(0, 4).map((id) => (
+                <HousingMini key={id} id={id} />
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted">최근 본 주택이 없어요.</p>
+          )}
+        </Tile>
+
+        {/* 2행 왼쪽 */}
         <Tile
-          title="추천 설정"
+          title="생활 취향 설정"
           icon={<UserCircle2 className="h-5 w-5" />}
           action={
-            <Link href={savedResults?.length ? "/preferences" : "/eligibility"} className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
+            <Link href={savedResults?.length ? "/preferences" : "/eligibility"} className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "shrink-0")}>
               {isBudgetComplete(pref) ? <Pencil className="h-4 w-4" /> : <ClipboardCheck className="h-4 w-4" />}
               {isBudgetComplete(pref) ? "수정" : "취향 설정 시작"}
             </Link>
@@ -163,37 +197,8 @@ export default function MyPage() {
           )}
         </Tile>
 
-        {/* 저장 주택 */}
-        <Tile title={`저장한 주택 (${user.savedHousingIds.length})`} icon={<Bookmark className="h-5 w-5" />} className="md:col-span-2">
-          {user.savedHousingIds.length ? (
-            <div className="grid gap-2 sm:grid-cols-2">
-              {user.savedHousingIds.map((id) => (
-                <HousingMini key={id} id={id} />
-              ))}
-            </div>
-          ) : (
-            <div className="flex items-center gap-3">
-              <Mascot pose="idle" className="h-16 w-16 shrink-0" sizes="64px" />
-              <p className="text-sm text-muted">아직 저장한 주택이 없어요. 추천 목록에서 저장해 보세요.</p>
-            </div>
-          )}
-        </Tile>
-
-        {/* 최근 본 주택 */}
-        <Tile title="최근 본 주택" icon={<Clock className="h-5 w-5" />}>
-          {user.recentHousingIds.length ? (
-            <div className="space-y-2">
-              {user.recentHousingIds.slice(0, 4).map((id) => (
-                <HousingMini key={id} id={id} />
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-muted">최근 본 주택이 없어요.</p>
-          )}
-        </Tile>
-
-        {/* 관심 모집공고 */}
-        <Tile title="관심 모집공고 (모집 중)" icon={<Bell className="h-5 w-5" />}>
+        {/* 2행 오른쪽 — 저장한 주택 중 모집 중인 공고 (별도 저장소 없이 파생) */}
+        <Tile title={`관심 모집공고 (${savedOpen.length})`} icon={<Bell className="h-5 w-5" />}>
           {savedOpen.length ? (
             <div className="space-y-2">
               {savedOpen.map((id) => (
@@ -204,38 +209,30 @@ export default function MyPage() {
             <p className="text-sm text-muted">저장한 주택 중 모집 중인 공고가 없어요.</p>
           )}
         </Tile>
+      </div>
 
-        {/* 알림 설정 */}
-        <Tile title="알림 설정" icon={<Bell className="h-5 w-5" />}>
-          <ul className="space-y-3">
-            <li className="flex items-center justify-between">
-              <span className="text-sm text-fg">관심 공고 모집 시작 알림</span>
-              <Toggle checked={user.notifications.recruitOpen} onChange={(v) => user.setNotification("recruitOpen", v)} label="관심 공고 모집 시작 알림" />
-            </li>
-            <li className="flex items-center justify-between">
-              <span className="text-sm text-fg">저장 주택 정보 변경 알림</span>
-              <Toggle checked={user.notifications.savedUpdate} onChange={(v) => user.setNotification("savedUpdate", v)} label="저장 주택 정보 변경 알림" />
-            </li>
-          </ul>
-        </Tile>
+      {/* 저장한 주택 — 오른쪽 북마크로 개별 해제 */}
+      <Tile title={`저장한 주택 (${user.savedHousingIds.length})`} icon={<Bookmark className="h-5 w-5" />} className="mt-4">
+        {user.savedHousingIds.length ? (
+          <div className="grid gap-2 sm:grid-cols-2">
+            {user.savedHousingIds.map((id) => (
+              <HousingMini key={id} id={id} onUnsave={user.toggleSaved} />
+            ))}
+          </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <Mascot pose="idle" className="h-16 w-16 shrink-0" sizes="64px" />
+            <p className="text-sm text-muted">아직 저장한 주택이 없어요. 추천 목록에서 저장해 보세요.</p>
+          </div>
+        )}
+      </Tile>
 
-        {/* 계정/데이터 */}
-        <Tile title="내 데이터 관리" icon={<LogOut className="h-5 w-5" />} className="md:col-span-2 lg:col-span-3">
-          <div className="flex flex-wrap gap-2">
-            <Link href="/eligibility" className={cn(buttonVariants({ variant: "outline", size: "md" }))}>
-              <Pencil className="h-4 w-4" /> 1단계 다시 하기
-            </Link>
-            <Link href="/preferences" className={cn(buttonVariants({ variant: "outline", size: "md" }))}>
-              <Pencil className="h-4 w-4" /> 2단계 다시 하기
-            </Link>
-          </div>
-          <div className="mt-5 border-t border-border pt-5">
-            <p className="mb-3 text-sm text-muted">아래 작업은 이 브라우저에 저장된 진단·추천·관심 주택 정보를 모두 지웁니다.</p>
-            <Button variant="danger" size="md" onClick={() => setDeleteOpen(true)}>
-              <Trash2 className="h-4 w-4" /> 내 데이터 삭제
-            </Button>
-          </div>
-        </Tile>
+      {/* 데이터 삭제 — 카드가 아닌 단독 위험 버튼 */}
+      <div className="mt-8 border-t border-border pt-6">
+        <p className="mb-3 text-sm text-muted">아래 작업은 이 브라우저에 저장된 진단·추천·관심 주택 정보를 모두 지웁니다.</p>
+        <Button variant="danger" size="md" onClick={() => setDeleteOpen(true)}>
+          <Trash2 className="h-4 w-4" /> 내 데이터 삭제
+        </Button>
       </div>
 
       <ConfirmationDialog
