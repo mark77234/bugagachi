@@ -42,6 +42,8 @@ export interface EligibilityCommonInput {
   /** 스텝C: 세대구성원 전원 합계 (선택 구간 대표값 = 상한, 만원). */
   incomeManwon: number;
   assetManwon: number; // 세대 총자산 대표값(만원)
+  /** 총자산을 금액으로 직접 입력했는지. false면 위 값은 선택 구간의 상한(=실제 값의 상한 추정치)이다. */
+  assetIsExact: boolean;
   /** 스텝C: 본인 단독 값(만원). 청년 유형 판정용. 세대 1인이면 세대 값과 같다. */
   selfIncomeManwon: number;
   selfAssetManwon: number;

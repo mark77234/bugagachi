@@ -48,6 +48,12 @@ export const ASSET_BRACKETS: Bracket[] = [
   { index: 7, label: "4억 500만원 초과", repManwon: Number.POSITIVE_INFINITY },
 ];
 
+/** 입력 금액이 속하는 구간 인덱스. 구간 = (이전 상한, 이 상한] 이므로 상한 이하 첫 구간. */
+export function bracketIndexForValue(value: number, brackets: Bracket[]): number {
+  const index = brackets.findIndex((bracket) => value <= bracket.repManwon);
+  return index === -1 ? brackets.length - 1 : index;
+}
+
 export const CAR_OPTIONS: { value: CarBand; label: string }[] = [
   { value: "NONE", label: "미보유" },
   { value: "UNDER_4542", label: "4,542만원 이하" },

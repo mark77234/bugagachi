@@ -93,12 +93,14 @@ export function stage1Common(input: EligibilityCommonInput): Stage1Outcome {
     const bases: AmountBasis[] = [basisOf(input, "household")];
     if (HAS_SELF_TIER[t]) bases.push(basisOf(input, "self"));
 
-    // 구간 최상단('4억 500만원 초과'·'4,542만원 초과')은 상한을 알 수 없다. 출산완화가 있는
-    // 유형은 완화 컷이 구간 경계보다 높을 수 있으므로 1-1에서 자르지 않고 1-2 재확인으로 미룬다.
-    const defer = t in BIRTH_RELIEF;
-    const openTop = (won: number) => defer && !Number.isFinite(won);
+    // 구간 선택값(대표값 = 구간 상한)과 '4,542만원 초과'는 실제 값이 컷 아래일 수 있다.
+    // 출산완화가 있는 유형은 완화 컷이 구간 경계와 어긋나므로, 1-1에서 자르지 않고
+    // 1-2 재확인 문항으로 확정한다. 금액을 직접 입력했으면 그 값으로 바로 판정한다.
+    const defersToStage2 = t in BIRTH_RELIEF;
+    const assetUncertain = defersToStage2 && !input.assetIsExact;
+    const carUncertain = defersToStage2 && input.carBand === "OVER";
 
-    const assetOk = bases.some((b) => b.assetWon <= r.assetMax || openTop(b.assetWon));
+    const assetOk = assetUncertain || bases.some((b) => b.assetWon <= r.assetMax);
     const incomeOk =
       r.multiplierS1 === null ||
       bases.some((b) => {
@@ -107,7 +109,7 @@ export function stage1Common(input: EligibilityCommonInput): Stage1Outcome {
       });
 
     if (!assetOk) reasons.push("총자산 기준을 초과했어요.");
-    if (carVal > r.carMax && !openTop(carVal)) reasons.push("자동차 가액 기준을 초과했어요.");
+    if (!carUncertain && carVal > r.carMax) reasons.push("자동차 가액 기준을 초과했어요.");
     if (!incomeOk) reasons.push("월평균 소득 기준을 초과했어요.");
     if (!allHouseholdOwnerless && !r.householderTier) reasons.push("세대원 중 주택 소유자가 있어요.");
     if (r.requireBusan && !input.livesInBusan) reasons.push("부산 외 거주로 대상이 아니에요.");
@@ -299,8 +301,12 @@ function judgeDetail(
 /** 출산완화 컷이 따로 있는 유형(1-2에서 총자산·자동차를 완화 컷으로 재확인한다). */
 export type BirthReliefType = keyof typeof BIRTH_RELIEF;
 
-/** 재확인이 필요한 항목과 그 완화 컷(원). 비어 있으면 1-1 대표값으로 그대로 판정한다.
- *  출산 자녀가 있고, 1-1 대표값이 출산0 컷을 넘은 항목만 묻는다. */
+/** 재확인이 필요한 항목과 그 완화 컷(원). 비어 있으면 1-1 값으로 그대로 판정한다.
+ *
+ *  1-1 값이 완화 컷을 넘어야 하고(이하면 통과가 확정), 그 값이 '상한 추정치'여야 묻는다.
+ *  구간 선택 대표값 = 구간 상한이라 실제 값이 컷 아래일 수 있지만, 금액을 직접 입력했으면
+ *  그 값이 곧 실제 값이므로 다시 물으면 안 된다(입력과 모순되는 답으로 통과할 수 있다).
+ *  자동차는 3단 선택뿐이라 '4,542만원 초과'는 언제나 상한 미상이다. */
 export function birthReliefAsks(
   type: BirthReliefType,
   common: EligibilityCommonInput,
@@ -308,10 +314,12 @@ export function birthReliefAsks(
 ): { asset?: number; car?: number } {
   const n = Math.min(children ?? 0, 2);
   if (n < 1) return {};
-  const table = BIRTH_RELIEF[type];
+  const cut = BIRTH_RELIEF[type][n];
   const asks: { asset?: number; car?: number } = {};
-  if (basisOf(common, "household").assetWon > table[0].asset) asks.asset = table[n].asset;
-  if (CAR_VALUE[common.carBand] > table[0].car) asks.car = table[n].car;
+  if (!common.assetIsExact && basisOf(common, "household").assetWon > cut.asset) {
+    asks.asset = cut.asset;
+  }
+  if (CAR_VALUE[common.carBand] > cut.car) asks.car = cut.car;
   return asks;
 }
 
@@ -327,7 +335,7 @@ export function birthReliefMissing(
 }
 
 /** 재개발·매입일반 공통 — 출산완화 컷으로 총자산·자동차 심사.
- *  재확인 문항이 뜬 항목은 답변('예' = 완화 컷 이하)으로, 나머지는 1-1 대표값으로 판정한다. */
+ *  재확인 문항이 뜬 항목은 답변('예' = 완화 컷 이하)으로, 나머지는 1-1 값으로 판정한다. */
 function birthReliefVerdict(
   type: BirthReliefType,
   common: EligibilityCommonInput,

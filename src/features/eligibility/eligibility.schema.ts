@@ -53,6 +53,7 @@ export const commonInputSchema = z.object({
   householdSize: z.number().int().min(1).max(8),
   incomeManwon: z.number(),
   assetManwon: z.number(),
+  assetIsExact: z.boolean(),
   selfIncomeManwon: z.number(),
   selfAssetManwon: z.number(),
   carBand: carBandSchema,

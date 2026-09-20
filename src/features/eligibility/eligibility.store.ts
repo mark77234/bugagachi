@@ -150,13 +150,15 @@ export const useEligibilityStore = create<EligibilityState>()(
     }),
     {
       name: STORAGE_KEYS.eligibility,
-      version: 3,
+      version: 4,
       storage: createJSONStorage(() => localStorage),
       migrate: (persisted, version) => {
         const value = { ...((persisted ?? {}) as Record<string, unknown>) };
         // v3: 재개발임대 2026 공고(자산 3.45억·자동차 4,542만 + 출산완화 재확인) 반영.
-        // 2025 컷으로 계산된 결과 스냅샷은 버리고 다시 판정한다.
-        if (version < 3) value.savedResults = null;
+        // v4: 구간 선택값을 1-1에서 확정 탈락시키던 문제 수정(매입일반 오탈락).
+        // 두 변경 모두 판정 결과가 달라지므로 계산된 스냅샷은 버리고 다시 판정한다.
+        // 입력값(구간 인덱스·정확 금액)은 의미가 그대로라 손대지 않는다.
+        if (version < 4) value.savedResults = null;
         // v2: 통합·행복 계층을 유형별 라디오 → 공통 다중선택으로 통합. 기존 답변을 attrs로 옮긴다.
         if (version < 2) {
           value.detail = migrateLegacyTierDetail(value.detail);
@@ -279,6 +281,10 @@ export function buildCommonInput(s: EligibilityState): EligibilityCommonInput | 
   const asset =
     householdSize === 1 ? selfAsset : amountOf(s.assetManwonExact, s.assetBracketIndex, ASSET_BRACKETS);
 
+  // 구간을 골랐으면 위 asset 은 구간 상한이라 실제 값을 단정할 수 없다(1-2 재확인 대상).
+  const assetIsExact =
+    (householdSize === 1 ? s.selfAssetManwonExact : s.assetManwonExact) !== null;
+
   return {
     ownSelfHouse: s.ownSelfHouse!,
     ownMemberHouse: s.ownMemberHouse!,
@@ -289,6 +295,7 @@ export function buildCommonInput(s: EligibilityState): EligibilityCommonInput | 
     householdSize,
     incomeManwon: income,
     assetManwon: asset,
+    assetIsExact,
     // 본인 질문을 받지 않은 경우(2인 이상 + 청년 아님)에는 세대 값으로 대체한다.
     selfIncomeManwon: needsSelfAmounts(s) ? selfIncome : income,
     selfAssetManwon: needsSelfAmounts(s) ? selfAsset : asset,

@@ -9,7 +9,12 @@ import {
   needsSelfAmounts,
   useEligibilityStore,
 } from "@/features/eligibility/eligibility.store";
-import { ASSET_BRACKETS, CAR_OPTIONS, incomeBrackets } from "@/features/eligibility/eligibility.brackets";
+import {
+  ASSET_BRACKETS,
+  CAR_OPTIONS,
+  bracketIndexForValue,
+  incomeBrackets,
+} from "@/features/eligibility/eligibility.brackets";
 import type { CarBand } from "@/features/eligibility/eligibility.types";
 import { RadioCards } from "@/components/ui/selectable";
 import { InfoAccordion } from "@/components/ui/accordion";
@@ -223,11 +228,6 @@ export function StepB() {
       </InformationBanner>
     </div>
   );
-}
-
-function bracketIndexForValue(value: number, brackets: Bracket[]): number {
-  const index = brackets.findIndex((bracket) => value <= bracket.repManwon);
-  return index === -1 ? brackets.length - 1 : index;
 }
 
 /** 금액 직접 입력(주 입력) + '금액을 모르면 범위로 선택' 접이식 구간 카드. */
