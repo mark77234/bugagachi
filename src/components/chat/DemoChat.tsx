@@ -7,6 +7,7 @@ import { ArrowRight, MapPin, Send, UserRound, X } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { Badge } from "@/components/ui/badge";
 import { Mascot, type MascotPose } from "@/components/common/Mascot";
+import { ChatMarkdown } from "@/components/chat/ChatMarkdown";
 import { MapPanel } from "@/components/map/MapPanel";
 import type { MapMarker } from "@/components/map/MapView";
 import { ELIGIBILITY_TYPE_LABEL } from "@/features/eligibility/eligibility.types";
@@ -253,8 +254,11 @@ export function DemoChat() {
                   <div className={cn("min-w-0", assistant ? "max-w-[85%] sm:max-w-[74%]" : "max-w-[85%] sm:max-w-[72%]")}>
                     <div
                       className={cn(
-                        "whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-[var(--shadow-sm)]",
-                        assistant ? "rounded-tl-md bg-surface-muted text-fg" : "rounded-tr-md bg-primary text-white",
+                        // AI 답변은 Markdown 이 블록 요소를 만들므로 pre-wrap 을 걸지 않는다.
+                        "min-w-0 rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-[var(--shadow-sm)]",
+                        assistant
+                          ? "rounded-tl-md bg-surface-muted text-fg"
+                          : "whitespace-pre-wrap rounded-tr-md bg-primary text-white",
                       )}
                     >
                       {pending ? (
@@ -263,6 +267,8 @@ export function DemoChat() {
                           <span className="h-2 w-2 animate-bounce rounded-full bg-muted [animation-delay:-0.1s]" />
                           <span className="h-2 w-2 animate-bounce rounded-full bg-muted" />
                         </span>
+                      ) : assistant ? (
+                        <ChatMarkdown content={clean} />
                       ) : (
                         <p>{clean}</p>
                       )}

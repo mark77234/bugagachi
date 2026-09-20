@@ -4,6 +4,7 @@ import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
 import { Send, Sparkles, X } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Mascot } from "@/components/common/Mascot";
+import { ChatMarkdown } from "@/components/chat/ChatMarkdown";
 import { housingById } from "@/mocks/housing";
 import { ELIGIBILITY_TYPE_LABEL } from "@/features/eligibility/eligibility.types";
 import { cn } from "@/lib/utils";
@@ -200,8 +201,11 @@ export function MapAssistantPanel({
                 <li key={message.id} className={cn("flex", assistant ? "justify-start" : "justify-end")}>
                   <div
                     className={cn(
-                      "max-w-[88%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm leading-relaxed",
-                      assistant ? "rounded-tl-md bg-surface-muted text-fg" : "rounded-tr-md bg-primary text-white",
+                      // AI 답변은 Markdown 이 블록 요소를 만들므로 pre-wrap 을 걸지 않는다.
+                      "min-w-0 max-w-[88%] rounded-2xl px-3 py-2 text-sm leading-relaxed",
+                      assistant
+                        ? "rounded-tl-md bg-surface-muted text-fg"
+                        : "whitespace-pre-wrap rounded-tr-md bg-primary text-white",
                     )}
                   >
                     {pending ? (
@@ -212,7 +216,7 @@ export function MapAssistantPanel({
                       </span>
                     ) : (
                       <>
-                        <p>{clean}</p>
+                        {assistant ? <ChatMarkdown content={clean} /> : <p>{clean}</p>}
                         {ids.length > 0 && (
                           <ul className="mt-2 space-y-1 border-t border-border/70 pt-2">
                             {ids.map((id) => {
