@@ -15,10 +15,9 @@ import {
   type MapViewportBounds,
   type MarkerTier,
 } from "./MapView";
+import { BUSAN_CENTER, loadKakaoSdk } from "@/lib/kakao-sdk";
 
 const KAKAO_KEY = process.env.NEXT_PUBLIC_KAKAO_MAP_KEY;
-const SDK_ID = "kakao-maps-sdk";
-const BUSAN_CENTER = { lat: 35.16, lng: 129.07 };
 
 /** 클러스터 격자 한 칸의 화면 크기(px). 이 안에 들어오는 마커는 하나로 묶는다.
  *  금액 라벨이 붙은 핀의 실제 너비(약 100px)보다 크게 잡아야 핀끼리 덜 겹친다. */
@@ -32,35 +31,6 @@ const CLUSTER_MIN_LEVEL = 2;
 /** 목록에서 주택을 고를 때 확대할 최대 레벨.
  *  클러스터 격자가 120px 이므로 이 레벨이면 250m 이상 떨어진 주택끼리는 묶이지 않는다. */
 const FOCUS_LEVEL = 4;
-
-declare global {
-  interface Window {
-    kakao?: any;
-  }
-}
-
-function loadKakao(): Promise<any> {
-  return new Promise((resolve, reject) => {
-    if (typeof window === "undefined") return reject(new Error("no window"));
-    if (window.kakao?.maps) return resolve(window.kakao);
-
-    const existing = document.getElementById(SDK_ID) as HTMLScriptElement | null;
-    const onReady = () => window.kakao.maps.load(() => resolve(window.kakao));
-    if (existing) {
-      if (window.kakao) onReady();
-      else existing.addEventListener("load", onReady, { once: true });
-      existing.addEventListener("error", () => reject(new Error("sdk error")), { once: true });
-      return;
-    }
-    const s = document.createElement("script");
-    s.id = SDK_ID;
-    s.async = true;
-    s.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_KEY}&autoload=false`;
-    s.addEventListener("load", onReady, { once: true });
-    s.addEventListener("error", () => reject(new Error("sdk error")), { once: true });
-    document.head.appendChild(s);
-  });
-}
 
 /** 화면에 그릴 단위 — 개별 마커 또는 여러 마커를 묶은 클러스터. */
 type Cluster = {
@@ -516,7 +486,7 @@ export function KakaoMapView({
     let kakaoInstance: any;
     let idleHandler: (() => void) | undefined;
     let moveHandler: (() => void) | undefined;
-    loadKakao()
+    loadKakaoSdk()
       .then((kakao) => {
         if (cancelled || !containerRef.current) return;
         kakaoInstance = kakao;

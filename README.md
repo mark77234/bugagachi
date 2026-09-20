@@ -30,6 +30,34 @@
 
 ---
 
+## 로컬 실행
+
+```bash
+cp .env.example .env.local   # 값을 채운 뒤 실행
+npm install && npm run dev
+```
+
+### 환경변수
+
+| 변수 | 용도 |
+| --- | --- |
+| `NEXT_PUBLIC_KAKAO_MAP_KEY` | Kakao Maps JavaScript 키. 지도와 장소 검색(`services.Places`)이 함께 사용합니다. |
+| `AI_BASE_URL` · `AI_MODEL` · `AI_API_KEY` | AI 갈붕이 챗봇 (서버 전용) |
+
+`NEXT_PUBLIC_KAKAO_MAP_KEY`는 브라우저에 노출되는 공개 식별 키입니다.
+키 자체를 숨길 수는 없으므로, **Kakao Developers > 내 애플리케이션 > 앱 설정 > 플랫폼 > Web**에
+사용 도메인을 등록해 다른 도메인에서의 사용을 막아야 합니다.
+
+```text
+http://localhost:3000        # 로컬 개발
+https://bugagachi.vercel.app # 운영
+```
+
+Vercel Preview 배포에서도 지도를 쓰려면 해당 프리뷰 도메인도 함께 등록해야 합니다.
+등록되지 않은 도메인에서는 SDK 로드가 실패해 지도와 장소 검색이 모두 동작하지 않습니다.
+
+---
+
 ## 주요 기능
 
 - 공공임대 유형별 **신청 가능 여부 판정**

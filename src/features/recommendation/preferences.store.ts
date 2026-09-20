@@ -6,6 +6,7 @@ import { STORAGE_KEYS } from "@/lib/storage";
 import type {
   EduCategory,
   FrequentDestination,
+  GeocodedDestination,
   InfraCategory,
   PreferenceSurveyInput,
   ScoreAxis,
@@ -118,7 +119,8 @@ export function buildSurvey(s: PreferencesState): PreferenceSurveyInput {
   return {
     budget: { maxDeposit: s.maxDeposit ?? 0, maxMonthlyRent: s.maxMonthlyRent ?? 0 },
     region: { gungus: s.gungus, anyRegion: s.anyRegion },
-    frequent: s.frequent.slice(0, 1),
+    // 좌표가 없는 앵커는 거리 계산이 불가능하므로 설문에서 제외한다 (frequent 축이 자동으로 빠진다).
+    frequent: s.frequent.filter((f): f is GeocodedDestination => f.coord !== undefined).slice(0, 1),
     infra: { categories: s.infraCategories },
     education: { enabled: s.eduEnabled === true, categories: s.eduCategories },
     store: { chips: s.storeChips, custom: [] },

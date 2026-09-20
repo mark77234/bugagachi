@@ -27,8 +27,11 @@ export interface FrequentDestination {
   id: string;
   label: string;
   address: string;
-  coord: LatLng;
+  /** 주소정보 검색 API는 좌표를 주지 않는다. 주소→좌표 변환을 붙이기 전까지는 비어 있을 수 있다. */
+  coord?: LatLng;
 }
+/** 거리 점수를 계산할 수 있는(좌표가 있는) 앵커. */
+export type GeocodedDestination = FrequentDestination & { coord: LatLng };
 export interface InfrastructurePreference {
   categories: InfraCategory[];
 }
@@ -48,7 +51,7 @@ export interface NeighborhoodPreference {
 export interface PreferenceSurveyInput {
   budget: BudgetCondition;
   region: RegionCondition;
-  frequent: FrequentDestination[];
+  frequent: GeocodedDestination[];
   infra: InfrastructurePreference;
   education: EducationPreference;
   store: StorePreference;
