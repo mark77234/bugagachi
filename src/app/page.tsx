@@ -22,7 +22,7 @@ import {
 } from "@/components/landing/ServiceIllustrations";
 import { cn } from "@/lib/utils";
 import { ELIGIBILITY_TYPE_LABEL } from "@/features/eligibility/eligibility.types";
-import { BASE_YEAR_BY_TYPE } from "@/config/eligibility-config.2025";
+import { BASE_YEAR_BY_TYPE } from "@/config/eligibility-base-year";
 import { RENTAL_DATASET_STATS } from "@/mocks/housing";
 
 const PROCESS: { icon: typeof ClipboardCheck; pose: MascotPose; title: string; desc: string }[] = [

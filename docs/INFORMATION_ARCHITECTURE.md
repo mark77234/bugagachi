@@ -46,7 +46,7 @@ src/
     scoring.ts       # CategoryScore, RecommendationScore 등
   config/
     eligibility-config.2026.ts   # 1-1/1-2 기준 마스터(문서 원문)
-    eligibility-config.2025.ts   # 재개발 전용 2025 기준
+    eligibility-base-year.ts     # 유형별 기준연도·안내 문구
     scoring-config.ts            # 가중치·계단 breakpoints·우회계수·Q6 임시경계
   services/
     eligibility/     # stage1_1(), stage1_2() 순수함수(규칙 엔진)

@@ -26,7 +26,7 @@ import {
 import { calcKoreanAge } from "@/lib/formatting";
 import { useHydrated } from "@/lib/use-hydrated";
 import { evaluateAll, stage1Common } from "@/features/eligibility/eligibility.rules";
-import { BASE_YEAR_BY_TYPE } from "@/config/eligibility-config.2025";
+import { BASE_YEAR_BY_TYPE } from "@/config/eligibility-base-year";
 import type { EligibilityTypeResult } from "@/features/eligibility/eligibility.types";
 import { usePreferencesStore } from "@/features/recommendation/preferences.store";
 
@@ -205,10 +205,10 @@ export default function EligibilityPage() {
                 <Stage1Result results={s1Results} onEdit={goEditCommon} onContinue={() => setPhase("detail")} />
               ))}
 
-            {phase === "detail" && (
+            {phase === "detail" && common && (
               <DetailForm
                 candidates={candidates}
-                ageYears={common?.ageYears ?? 0}
+                common={common}
                 onBack={() => setPhase("result1")}
                 onComplete={() => {
                   store.saveResults(finalResults);

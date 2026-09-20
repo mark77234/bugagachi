@@ -62,6 +62,19 @@ export type StudentStatus = "재학" | "졸업2년내" | "소득활동5년내";
 export type BirthCount = 0 | 1 | 2; // 2 = 2 이상
 
 /**
+ * 출산 가구 완화 컷 재확인 답변(재개발·매입일반).
+ *
+ * 1-1 소득·자산은 구간, 자동차는 4,542만원 3단으로만 받기 때문에 출산 완화 컷
+ * (총자산 +10/20%, 자동차 4,996·5,450만원)을 구간 대표값으로 표현할 수 없다.
+ * 그래서 대표값이 출산0 컷을 넘은 항목만 1-2에서 완화 컷으로 다시 묻는다.
+ * true = 완화 컷 이하.
+ */
+export interface BirthReliefAnswer {
+  asset?: boolean;
+  car?: boolean;
+}
+
+/**
  * 통합·행복이 공유하는 '계층' 다중선택 값.
  *
  * 계층은 택일 대상이 아니라 사실(속성)이다 — 만 65세 이상이면서 혼인 7년 이내면 고령자이자 신혼이다.
@@ -104,8 +117,8 @@ export interface SharedTierInput {
 export interface EligibilityDetailInput {
   /** 통합공공임대·행복주택 공통 계층. 두 유형은 이 값을 조회만 한다. */
   tiers?: SharedTierInput;
-  JAEGAEBAL?: { children: BirthCount };
-  MAEIP_ILBAN?: { isRank1: boolean; children: BirthCount };
+  JAEGAEBAL?: { children: BirthCount; relief?: BirthReliefAnswer };
+  MAEIP_ILBAN?: { isRank1: boolean; children: BirthCount; relief?: BirthReliefAnswer };
   MAEIP_CHUNG?: {
     isRank1: boolean;
     rank?: 2 | 3;

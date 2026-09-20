@@ -96,8 +96,8 @@ export const STAGE1_RULES: Record<EligibilityTypeCode, Stage1Rule> = {
     incomeStandard: "URBAN",
     multiplierS1: 0.7,
     dualAddS1: 0,
-    assetMax: 405_000_000,
-    carMax: 45_630_000,
+    assetMax: 414_000_000,
+    carMax: 54_500_000,
     householderTier: false,
     requireBusan: true,
     ageRange: null,
@@ -160,9 +160,9 @@ export const STAGE2_RULES: Record<string, Stage2Rule> = {
 /** 출산완화 자산/자동차 (원). index = min(children,2). §5-C */
 export const BIRTH_RELIEF = {
   JAEGAEBAL: [
-    { asset: 337_000_000, car: 38_030_000 },
-    { asset: 371_000_000, car: 41_830_000 },
-    { asset: 405_000_000, car: 45_630_000 },
+    { asset: 345_000_000, car: 45_420_000 },
+    { asset: 379_500_000, car: 49_960_000 },
+    { asset: 414_000_000, car: 54_500_000 },
   ],
   MAEIP_ILBAN: [
     { asset: 245_000_000, car: 45_420_000 },

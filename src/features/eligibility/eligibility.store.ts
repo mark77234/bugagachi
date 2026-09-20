@@ -150,10 +150,13 @@ export const useEligibilityStore = create<EligibilityState>()(
     }),
     {
       name: STORAGE_KEYS.eligibility,
-      version: 2,
+      version: 3,
       storage: createJSONStorage(() => localStorage),
       migrate: (persisted, version) => {
         const value = { ...((persisted ?? {}) as Record<string, unknown>) };
+        // v3: 재개발임대 2026 공고(자산 3.45억·자동차 4,542만 + 출산완화 재확인) 반영.
+        // 2025 컷으로 계산된 결과 스냅샷은 버리고 다시 판정한다.
+        if (version < 3) value.savedResults = null;
         // v2: 통합·행복 계층을 유형별 라디오 → 공통 다중선택으로 통합. 기존 답변을 attrs로 옮긴다.
         if (version < 2) {
           value.detail = migrateLegacyTierDetail(value.detail);

@@ -9,7 +9,7 @@ type EligibilityStatus   = 'PASS' | 'FAIL' | 'NEEDS_MORE';
 type IncomeStandard      = 'MEDIAN' | 'URBAN';
 type CarValueBand        = 'NONE' | 'UNDER_4542' | 'OVER';       // 0 / 45,420,000 / ∞
 type MemberRelation      = 'SELF' | 'SPOUSE' | 'PARENT' | 'CHILD' | 'FETUS';
-type BaseYear            = 2026 | 2025;                           // 재개발=2025
+type BaseYear            = 2026 | 2025;                           // 현재 전 유형 2026
 type ScoreAxis           = 'frequent' | 'infra' | 'education' | 'store' | 'neighborhood';
 ```
 
@@ -54,7 +54,7 @@ interface EligibilityEvaluation {          // 유형 1개 판정
 interface EligibilityTypeResult {
   type: EligibilityTypeCode;
   evaluation: EligibilityEvaluation;
-  baseYear: BaseYear;                        // 재개발=2025 배지용
+  baseYear: BaseYear;                        // 기준연도 배지용(2025면 노출)
   appliedTier?: string;                      // 판정에 쓰인 계층/순위
 }
 ```

@@ -19,6 +19,14 @@ registerHooks({
       const target = existsSync(base) ? base : `${base}.ts`;
       return { url: pathToFileURL(target).href, shortCircuit: true };
     }
+    // 확장자 없는 상대 import(./foo)도 번들러 전용 표기이므로 .ts 를 붙여 풀어준다.
+    // 파일명에 점이 있어도(eligibility.tiers) 동작해야 하므로 확장자 유무 대신 실제 파일로 판단한다.
+    if (specifier.startsWith(".")) {
+      const base = path.resolve(path.dirname(fileURLToPath(context.parentURL)), specifier);
+      if (!existsSync(base) && existsSync(`${base}.ts`)) {
+        return { url: pathToFileURL(`${base}.ts`).href, shortCircuit: true };
+      }
+    }
     return nextResolve(specifier, context);
   },
 });

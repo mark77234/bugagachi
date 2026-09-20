@@ -44,6 +44,7 @@ import { useHydrated } from "@/lib/use-hydrated";
 import { recommend, matchLevel } from "@/features/recommendation/recommendation.service";
 import { ApplicationChecklist } from "@/components/housing/ApplicationChecklist";
 import { ELIGIBILITY_TYPE_LABEL } from "@/features/eligibility/eligibility.types";
+import { BASE_YEAR_BY_TYPE } from "@/config/eligibility-base-year";
 import { formatManwon } from "@/lib/formatting";
 import { cn } from "@/lib/utils";
 
@@ -211,7 +212,7 @@ export default function HousingDetailPage() {
               <div className="mb-2 flex flex-wrap items-center gap-1.5">
                 <Badge tone={RENTAL_TYPE_TONE[unit.type]}>{ELIGIBILITY_TYPE_LABEL[unit.type]}</Badge>
                 <Badge tone={st.tone}>{st.label}</Badge>
-                {unit.type === "JAEGAEBAL" && <Badge tone="warning">2025년 기준</Badge>}
+                {BASE_YEAR_BY_TYPE[unit.type] === 2025 && <Badge tone="warning">2025년 기준</Badge>}
                 {match && <Badge tone={match.tone}>추천점수 · {match.label}</Badge>}
               </div>
               <h1 className="text-2xl font-bold sm:text-3xl">{displayTitle}</h1>

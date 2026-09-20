@@ -7,6 +7,13 @@ import { CheckCards, RadioCards } from "@/components/ui/selectable";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { InformationBanner } from "@/components/common/banners";
+import { formatWon } from "@/lib/formatting";
+import { baseYearNote } from "@/features/eligibility/eligibility.service";
+import {
+  birthReliefAsks,
+  birthReliefMissing,
+  type BirthReliefType,
+} from "@/features/eligibility/eligibility.rules";
 import { useEligibilityStore } from "@/features/eligibility/eligibility.store";
 import {
   MARRIAGE_MONTHS_MAX,
@@ -19,6 +26,8 @@ import {
 } from "@/features/eligibility/eligibility.tiers";
 import { ELIGIBILITY_TYPE_LABEL, TIER_ATTR_LABEL } from "@/features/eligibility/eligibility.types";
 import type {
+  BirthReliefAnswer,
+  EligibilityCommonInput,
   EligibilityDetailInput,
   EligibilityTypeCode,
   StudentStatus,
@@ -94,13 +103,13 @@ function FollowUp({ children }: { children: React.ReactNode }) {
 
 export function DetailForm({
   candidates,
-  ageYears,
+  common,
   onComplete,
   onBack,
 }: {
   candidates: EligibilityTypeCode[];
-  /** 스텝 B에서 확정된 만 나이. '고령자' 자동 판정에 쓴다. */
-  ageYears: number;
+  /** 1-1 확정 입력. 만 나이('고령자' 자동 판정)와 출산완화 재확인 문항 산출에 쓴다. */
+  common: EligibilityCommonInput;
   onComplete: () => void;
   onBack: () => void;
 }) {
@@ -111,7 +120,7 @@ export function DetailForm({
   const step = steps[Math.min(idx, steps.length - 1)];
 
   // '고령자'는 만 나이로만 결정된다(체크·잠금). 스텝 B가 확정된 이 시점에만 유효하다.
-  const isSenior = ageYears >= SENIOR_AGE;
+  const isSenior = common.ageYears >= SENIOR_AGE;
   useEffect(() => {
     if (steps.some((s) => s.kind === "tiers")) syncSeniorAttr(isSenior);
   }, [isSenior, steps, syncSeniorAttr]);
@@ -124,7 +133,7 @@ export function DetailForm({
   const complete =
     step.kind === "tiers"
       ? tierStepComplete(detail.tiers, candidates)
-      : isTypeComplete(step.type, detail);
+      : isTypeComplete(step.type, detail, common);
 
   const sharedLabels = candidates.filter(isSharedTierType).map((t) => ELIGIBILITY_TYPE_LABEL[t]);
 
@@ -157,9 +166,9 @@ export function DetailForm({
         </span>
       </div>
 
-      {step.kind === "type" && step.type === "JAEGAEBAL" && (
+      {step.kind === "type" && baseYearNote(step.type) && (
         <InformationBanner tone="warning" className="mb-5">
-          재개발임대는 2026년 공고 미발표로 2025년 공고 기준으로 판정해요.
+          {baseYearNote(step.type)}
         </InformationBanner>
       )}
 
@@ -172,7 +181,7 @@ export function DetailForm({
           onFollowUp={setTierFollowUp}
         />
       ) : (
-        renderQuestions(step.type, detail, (v) => patch(step.type, v))
+        renderQuestions(step.type, detail, common, (v) => patch(step.type, v))
       )}
     </QuestionCard>
   );
@@ -283,28 +292,99 @@ function TierStep({
   );
 }
 
+/** 출산 가구 완화 컷 재확인. 1-1의 구간 선택은 완화 컷(총자산 +10/20%, 자동차 4,996·5,450만원)을
+ *  표현하지 못하므로, 출산0 컷을 넘긴 항목만 완화 컷으로 다시 묻는다. */
+function BirthReliefAsk({
+  type,
+  common,
+  childCount,
+  relief,
+  onChange,
+}: {
+  type: BirthReliefType;
+  common: EligibilityCommonInput;
+  childCount: number | undefined;
+  relief: BirthReliefAnswer | undefined;
+  onChange: (v: BirthReliefAnswer) => void;
+}) {
+  const asks = birthReliefAsks(type, common, childCount);
+  if (asks.asset === undefined && asks.car === undefined) return null;
+  const yesno = (v: boolean | undefined) => (v === undefined ? null : v ? "yes" : "no");
+
+  return (
+    <FollowUp>
+      <p className="mb-3 text-sm font-bold text-primary">출산 가구 완화 기준 확인</p>
+      <p className="mb-4 text-sm text-muted">
+        출산 자녀가 있으면 총자산·자동차 기준이 완화돼요. 앞서 고른 구간만으로는 완화 기준을 알 수 없어
+        한 번만 더 여쭤봐요.
+      </p>
+      {asks.asset !== undefined && (
+        <fieldset className="mb-4">
+          <legend className="mb-3 font-semibold">
+            세대 총자산이 {formatWon(asks.asset)} 이하인가요?
+          </legend>
+          <RadioCards
+            name={`${type}-relief-asset`}
+            columns={2}
+            value={yesno(relief?.asset)}
+            onChange={(v) => onChange({ ...relief, asset: v === "yes" })}
+            options={YESNO}
+          />
+        </fieldset>
+      )}
+      {asks.car !== undefined && (
+        <fieldset>
+          <legend className="mb-3 font-semibold">
+            가장 비싼 자동차 1대의 가액이 {formatWon(asks.car)} 이하인가요?
+          </legend>
+          <RadioCards
+            name={`${type}-relief-car`}
+            columns={2}
+            value={yesno(relief?.car)}
+            onChange={(v) => onChange({ ...relief, car: v === "yes" })}
+            options={YESNO}
+          />
+        </fieldset>
+      )}
+    </FollowUp>
+  );
+}
+
 function renderQuestions(
   type: SingleType,
   detail: EligibilityDetailInput,
+  common: EligibilityCommonInput,
   patch: (v: Record<string, unknown>) => void,
 ) {
   if (type === "JAEGAEBAL") {
     const d = detail.JAEGAEBAL;
     return (
-      <fieldset>
-        <legend className="mb-3 font-semibold">2023.3.28 이후 출산(입양·태아 포함) 자녀 수는?</legend>
-        <RadioCards
-          name="jaegaebal-children"
-          columns={3}
-          value={d ? String(d.children) : null}
-          onChange={(v) => patch({ children: Number(v) })}
-          options={[
-            { value: "0", label: "0명" },
-            { value: "1", label: "1명" },
-            { value: "2", label: "2명 이상" },
-          ]}
-        />
-      </fieldset>
+      <div className="space-y-6">
+        <fieldset>
+          <legend className="mb-3 font-semibold">2023.3.28 이후 출산(입양·태아 포함) 자녀 수는?</legend>
+          <RadioCards
+            name="jaegaebal-children"
+            columns={3}
+            // 자녀 수가 바뀌면 완화 컷도 바뀌므로 이전 재확인 답변은 버린다.
+            value={d ? String(d.children) : null}
+            onChange={(v) => patch({ children: Number(v), relief: undefined })}
+            options={[
+              { value: "0", label: "0명" },
+              { value: "1", label: "1명" },
+              { value: "2", label: "2명 이상" },
+            ]}
+          />
+        </fieldset>
+        <AnimatePresence initial={false}>
+          <BirthReliefAsk
+            type="JAEGAEBAL"
+            common={common}
+            childCount={d?.children}
+            relief={d?.relief}
+            onChange={(relief) => patch({ relief })}
+          />
+        </AnimatePresence>
+      </div>
     );
   }
 
@@ -331,7 +411,7 @@ function renderQuestions(
             name="ilban-children"
             columns={3}
             value={d?.children !== undefined ? String(d.children) : null}
-            onChange={(v) => patch({ children: Number(v) })}
+            onChange={(v) => patch({ children: Number(v), relief: undefined })}
             options={[
               { value: "0", label: "0명" },
               { value: "1", label: "1명" },
@@ -339,6 +419,15 @@ function renderQuestions(
             ]}
           />
         </fieldset>
+        <AnimatePresence initial={false}>
+          <BirthReliefAsk
+            type="MAEIP_ILBAN"
+            common={common}
+            childCount={d?.children}
+            relief={d?.relief}
+            onChange={(relief) => patch({ relief })}
+          />
+        </AnimatePresence>
         <p className="text-sm text-muted">1순위는 소득 무관, 2순위는 도시근로자 소득 50% 기준이 적용돼요.</p>
       </div>
     );
@@ -391,13 +480,24 @@ function renderQuestions(
   );
 }
 
-function isTypeComplete(type: SingleType, detail: EligibilityDetailInput): boolean {
+function isTypeComplete(
+  type: SingleType,
+  detail: EligibilityDetailInput,
+  common: EligibilityCommonInput,
+): boolean {
+  /** 뜬 재확인 문항에 모두 답했는지. */
+  const reliefDone = (t: BirthReliefType, d: { children: number; relief?: BirthReliefAnswer }) =>
+    !birthReliefMissing(birthReliefAsks(t, common, d.children), d.relief);
+
   switch (type) {
-    case "JAEGAEBAL":
-      return detail.JAEGAEBAL?.children !== undefined;
+    case "JAEGAEBAL": {
+      const d = detail.JAEGAEBAL;
+      return d?.children !== undefined && reliefDone("JAEGAEBAL", d);
+    }
     case "MAEIP_ILBAN": {
       const d = detail.MAEIP_ILBAN;
-      return d?.isRank1 !== undefined && d?.children !== undefined;
+      if (d?.isRank1 === undefined || d?.children === undefined) return false;
+      return reliefDone("MAEIP_ILBAN", d);
     }
     case "MAEIP_CHUNG": {
       const d = detail.MAEIP_CHUNG;

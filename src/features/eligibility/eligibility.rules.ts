@@ -7,7 +7,7 @@ import {
   STAGE2_RULES,
   incomeCeiling,
 } from "@/config/eligibility-config.2026";
-import { BASE_YEAR_BY_TYPE } from "@/config/eligibility-config.2025";
+import { BASE_YEAR_BY_TYPE } from "@/config/eligibility-base-year";
 import {
   MARRIAGE_MONTHS_MAX,
   isSharedTierType,
@@ -19,6 +19,8 @@ import {
 import {
   ELIGIBILITY_TYPE_LABEL,
   TIER_ATTR_LABEL,
+  type BirthCount,
+  type BirthReliefAnswer,
   type EligibilityCommonInput,
   type EligibilityDetailInput,
   type EligibilityEvaluation,
@@ -91,7 +93,12 @@ export function stage1Common(input: EligibilityCommonInput): Stage1Outcome {
     const bases: AmountBasis[] = [basisOf(input, "household")];
     if (HAS_SELF_TIER[t]) bases.push(basisOf(input, "self"));
 
-    const assetOk = bases.some((b) => b.assetWon <= r.assetMax);
+    // 구간 최상단('4억 500만원 초과'·'4,542만원 초과')은 상한을 알 수 없다. 출산완화가 있는
+    // 유형은 완화 컷이 구간 경계보다 높을 수 있으므로 1-1에서 자르지 않고 1-2 재확인으로 미룬다.
+    const defer = t in BIRTH_RELIEF;
+    const openTop = (won: number) => defer && !Number.isFinite(won);
+
+    const assetOk = bases.some((b) => b.assetWon <= r.assetMax || openTop(b.assetWon));
     const incomeOk =
       r.multiplierS1 === null ||
       bases.some((b) => {
@@ -100,7 +107,7 @@ export function stage1Common(input: EligibilityCommonInput): Stage1Outcome {
       });
 
     if (!assetOk) reasons.push("총자산 기준을 초과했어요.");
-    if (carVal > r.carMax) reasons.push("자동차 가액 기준을 초과했어요.");
+    if (carVal > r.carMax && !openTop(carVal)) reasons.push("자동차 가액 기준을 초과했어요.");
     if (!incomeOk) reasons.push("월평균 소득 기준을 초과했어요.");
     if (!allHouseholdOwnerless && !r.householderTier) reasons.push("세대원 중 주택 소유자가 있어요.");
     if (r.requireBusan && !input.livesInBusan) reasons.push("부산 외 거주로 대상이 아니에요.");
@@ -124,6 +131,7 @@ export function stage1Common(input: EligibilityCommonInput): Stage1Outcome {
 }
 
 const GENERIC_CHECK = "실제 소득·자산·세대 구성은 모집공고 제출 서류로 최종 확정돼요.";
+const BIRTH_RELIEF_ASK_PROMPT = "출산 가구 완화 기준 확인 문항에 답해 주세요.";
 
 /** 내부 계층명 → 표시 라벨. */
 function tierLabel(tier: string): string {
@@ -288,6 +296,58 @@ function judgeDetail(
   return { evaluation: judgeSingleType(type, common, detail), appliedTier: singleTypeTier(type, common, detail) };
 }
 
+/** 출산완화 컷이 따로 있는 유형(1-2에서 총자산·자동차를 완화 컷으로 재확인한다). */
+export type BirthReliefType = keyof typeof BIRTH_RELIEF;
+
+/** 재확인이 필요한 항목과 그 완화 컷(원). 비어 있으면 1-1 대표값으로 그대로 판정한다.
+ *  출산 자녀가 있고, 1-1 대표값이 출산0 컷을 넘은 항목만 묻는다. */
+export function birthReliefAsks(
+  type: BirthReliefType,
+  common: EligibilityCommonInput,
+  children: number | undefined,
+): { asset?: number; car?: number } {
+  const n = Math.min(children ?? 0, 2);
+  if (n < 1) return {};
+  const table = BIRTH_RELIEF[type];
+  const asks: { asset?: number; car?: number } = {};
+  if (basisOf(common, "household").assetWon > table[0].asset) asks.asset = table[n].asset;
+  if (CAR_VALUE[common.carBand] > table[0].car) asks.car = table[n].car;
+  return asks;
+}
+
+/** 재확인 문항이 떴는데 아직 답하지 않은 항목이 있는지. */
+export function birthReliefMissing(
+  asks: { asset?: number; car?: number },
+  relief: BirthReliefAnswer | undefined,
+): boolean {
+  return (
+    (asks.asset !== undefined && relief?.asset === undefined) ||
+    (asks.car !== undefined && relief?.car === undefined)
+  );
+}
+
+/** 재개발·매입일반 공통 — 출산완화 컷으로 총자산·자동차 심사.
+ *  재확인 문항이 뜬 항목은 답변('예' = 완화 컷 이하)으로, 나머지는 1-1 대표값으로 판정한다. */
+function birthReliefVerdict(
+  type: BirthReliefType,
+  common: EligibilityCommonInput,
+  d: { children: BirthCount; relief?: BirthReliefAnswer },
+): { reasons: string[]; missing: boolean } {
+  const cut = BIRTH_RELIEF[type][Math.min(d.children, 2)];
+  const asks = birthReliefAsks(type, common, d.children);
+  const reasons: string[] = [];
+  const over = (ask: number | undefined, answer: boolean | undefined, val: number, max: number) =>
+    ask !== undefined ? answer === false : val > max;
+
+  if (over(asks.asset, d.relief?.asset, basisOf(common, "household").assetWon, cut.asset)) {
+    reasons.push("총자산 기준을 초과했어요.");
+  }
+  if (over(asks.car, d.relief?.car, CAR_VALUE[common.carBand], cut.car)) {
+    reasons.push("자동차 가액 기준을 초과했어요.");
+  }
+  return { reasons, missing: birthReliefMissing(asks, d.relief) };
+}
+
 /** 계층을 공유하지 않는 유형(재개발·매입일반·매입청년)의 세부 판정. */
 function judgeSingleType(
   type: Exclude<EligibilityTypeCode, SharedTierType>,
@@ -295,10 +355,7 @@ function judgeSingleType(
   detail: EligibilityDetailInput,
 ): EligibilityEvaluation {
   const size = Math.min(Math.max(common.householdSize, 1), 8);
-  const household = basisOf(common, "household");
-  const assetWon = household.assetWon;
-  const incomeWon = household.incomeWon;
-  const carVal = CAR_VALUE[common.carBand];
+  const incomeWon = basisOf(common, "household").incomeWon;
   const reasons: string[] = [];
   const checkLater: string[] = [GENERIC_CHECK];
 
@@ -309,10 +366,10 @@ function judgeSingleType(
   if (type === "JAEGAEBAL") {
     const d = detail.JAEGAEBAL;
     if (!d || d.children === undefined) return needMore("출산 자녀 수를 선택해 주세요.");
+    const relief = birthReliefVerdict("JAEGAEBAL", common, d);
+    if (relief.missing) return needMore(BIRTH_RELIEF_ASK_PROMPT);
     checkHouseholder("household");
-    const relief = BIRTH_RELIEF.JAEGAEBAL[Math.min(d.children, 2)];
-    if (assetWon > relief.asset) reasons.push("총자산 기준을 초과했어요.");
-    if (carVal > relief.car) reasons.push("자동차 가액 기준을 초과했어요.");
+    reasons.push(...relief.reasons);
     checkLater.push("2023.3.28 이후 출산·입양·태아 여부는 서류로 확인해요.");
     return finalize(reasons, checkLater, `출산 ${d.children === 2 ? "2명 이상" : `${d.children}명`}`);
   }
@@ -321,10 +378,10 @@ function judgeSingleType(
     const d = detail.MAEIP_ILBAN;
     if (!d || d.isRank1 === undefined || d.children === undefined)
       return needMore("1순위 여부와 출산 자녀 수를 선택해 주세요.");
+    const relief = birthReliefVerdict("MAEIP_ILBAN", common, d);
+    if (relief.missing) return needMore(BIRTH_RELIEF_ASK_PROMPT);
     checkHouseholder("household");
-    const relief = BIRTH_RELIEF.MAEIP_ILBAN[Math.min(d.children, 2)];
-    if (assetWon > relief.asset) reasons.push("총자산 기준을 초과했어요.");
-    if (carVal > relief.car) reasons.push("자동차 가액 기준을 초과했어요.");
+    reasons.push(...relief.reasons);
     if (!d.isRank1) {
       if (incomeWon > incomeCeiling("URBAN", size, 0.5)) reasons.push("2순위 소득(도시근로자 50%) 기준을 초과했어요.");
     } else {

@@ -1,6 +1,6 @@
 /** 자격 판정 서비스 레이어 (UI ↔ 규칙 엔진 경계).
  *  추후 이 파일의 함수를 서버 API 호출로 교체하면 화면은 그대로 유지된다. */
-import { BASE_YEAR_NOTE } from "@/config/eligibility-config.2025";
+import { BASE_YEAR_NOTE } from "@/config/eligibility-base-year";
 import { ELIGIBILITY_TYPE_LABEL } from "./eligibility.types";
 import type {
   EligibilityCommonInput,
